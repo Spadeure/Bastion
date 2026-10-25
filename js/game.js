@@ -20,6 +20,8 @@ const BG = 'assets/img/bg.jpg';
 const RES = ['metal','wood','stone','fuel','rations','gold'];
 // Painted icons (Gemini art)
 const ICS = {"metal": "assets/img/metal.webp", "wood": "assets/img/wood.webp", "stone": "assets/img/stone.webp", "fuel": "assets/img/fuel.webp", "rations": "assets/img/rations.webp", "gold": "assets/img/gold.webp", "pop": "assets/img/pop.webp", "power": "assets/img/power.webp", "fields": "assets/img/fields.webp", "map": "assets/img/map.webp", "base": "assets/img/base.webp", "shop": "assets/img/shop.webp", "quests": "assets/img/quests.webp", "reports": "assets/img/reports.webp", "defense": "assets/img/defense.webp", "troops": "assets/img/troops.webp", "research": "assets/img/research.webp", "messages": "assets/img/messages.webp", "inventory": "assets/img/inventory.webp", "settings": "assets/img/settings.webp"};
+for(const k of ['atk','def','hp','spd','rng','load','time','lock','build','win','lose','drop','repair','back','warn','ok','star','crown','close','menu']) ICS[k]=`assets/img/ui_${k}.webp`;
+ICS.titan_ic='assets/img/titan_1.webp';
 const IC = {}; for(const k in ICS) IC[k]=`<img class="ic" src="${ICS[k]}" alt="">`;
 const ICON = {metal:IC.metal,wood:IC.wood,stone:IC.stone,fuel:IC.fuel,rations:IC.rations,gold:IC.gold};
 const BASE_RATE = {metal:300,wood:300,stone:300,fuel:150,rations:200,gold:0}; // per hour, produced by the base itself
@@ -42,13 +44,13 @@ const B = {
              desc:'Heart of your base. Its level sets the maximum level of every other building.'},
   wall:     {name:'Defense Wall', icon:'🧱', color:'#555a5f', fixed:true, cost:{metal:300,wood:100,stone:500,fuel:0}, time:15,
              desc:'Protects your base and gives a defense bonus to your troops.'},
-  barracks: {name:'Barracks', icon:'🪖', color:'#6b7442', unique:true, cost:{metal:250,wood:250,stone:150,fuel:50}, time:12,
+  barracks: {name:'Barracks', icon:IC.troops, color:'#6b7442', unique:true, cost:{metal:250,wood:250,stone:150,fuel:50}, time:12,
              desc:'Trains infantry units.'},
-  garrison: {name:'Garrison', icon:'🛡️', color:'#4f6a5a', cost:{metal:200,wood:200,stone:200,fuel:0}, time:10,
+  garrison: {name:'Garrison', icon:IC.def, color:'#4f6a5a', cost:{metal:200,wood:200,stone:200,fuel:0}, time:10,
              desc:'Houses and trains defensive troops. You can build several.'},
-  housing:  {name:'Housing Block', icon:'🏠', color:'#7d6a52', cost:{metal:100,wood:250,stone:150,fuel:0}, time:8,
+  housing:  {name:'Housing Block', icon:IC.base, color:'#7d6a52', cost:{metal:100,wood:250,stone:150,fuel:0}, time:8,
              desc:'Raises population, which supplies workers and recruits. You can build several.'},
-  warehouse:{name:'Warehouse', icon:'📦', color:'#7a5a3c', unique:true, cost:{metal:150,wood:300,stone:200,fuel:0}, time:10,
+  warehouse:{name:'Warehouse', icon:IC.load, color:'#7a5a3c', unique:true, cost:{metal:150,wood:300,stone:200,fuel:0}, time:10,
              desc:'Increases how many resources you can store.'},
   lab:      {name:'Research Lab', icon:'🔬', color:'#4c6488', unique:true, req:2, cost:{metal:400,wood:200,stone:300,fuel:150}, time:18,
              desc:'Unlocks technologies that improve your whole base.'},
@@ -58,7 +60,7 @@ const B = {
              desc:'Organizes marches. Sets how many troops can leave the base at once.'},
   radar:    {name:'Radar Station', icon:'📡', color:'#4d7a80', unique:true, req:2, cost:{metal:350,wood:100,stone:200,fuel:150}, time:15,
              desc:'Detects incoming attacks.'},
-  hangar:   {name:'Titan Hangar', icon:'🤖', color:'#5a6470', fixed:true, req:2, cost:{metal:800,wood:300,stone:600,fuel:300}, time:30,
+  hangar:   {name:'Titan Hangar', icon:IC.titan_ic, color:'#5a6470', fixed:true, req:2, cost:{metal:800,wood:300,stone:600,fuel:300}, time:30,
              desc:'Houses and repairs your Titan, the giant combat mech that leads your attacks and defends the base. Its level sets the Titan maximum level.'},
   // ---- Fields (resource production) ----
   mine:     {name:'Metal Mine', icon:'⛏️', color:'#6d6a66', field:true, res:'metal', cost:{metal:50,wood:150,stone:100,fuel:0}, time:6,
@@ -138,7 +140,7 @@ function whyNotTrain(u,n){ const d=UNITS[u], lv=bldLevel(d.bld);
 function train(u,n){
   if(whyNotTrain(u,n)) return; const d=UNITS[u], c=unitCost(u,n); for(const r of RES) state.res[r]-=c[r];
   const q=state.training[d.bld]=state.training[d.bld]||[], now=Date.now(), st=q.length?Math.max(now,q[q.length-1].e):now;
-  q.push({u,n,s:st,e:st+unitTime(u,n)*1000}); trainQty[u]=0; save(); renderAll(); toast('🪖 '+_t('Training {n} {u}',{n:n.toLocaleString('en-US'),u:_t(d.name)})); }
+  q.push({u,n,s:st,e:st+unitTime(u,n)*1000}); trainQty[u]=0; save(); renderAll(); toast(IC.troops+' '+_t('Training {n} {u}',{n:n.toLocaleString('en-US'),u:_t(d.name)})); }
 function finishTraining(bl){ // test button: finishes the current order, the next ones move forward
   const q=state.training[bl]; if(!q||!q.length) return; const now=Date.now(); let t=now;
   q.forEach((j,i)=>{ const dur=j.e-j.s; if(i===0) j.e=now; else { j.s=t; j.e=t+dur; } t=j.e; }); checkTraining(); }
@@ -146,36 +148,36 @@ function checkTraining(){
   const now=Date.now(); let p0=null; const done=[];
   for(const bl in state.training){ const q=state.training[bl];
     while(q.length && now>=q[0].e){ if(p0===null) p0=totalPower(); const j=q.shift(); state.troops[j.u]=(state.troops[j.u]||0)+j.n; done.push(j); } }
-  if(done.length){ save(); renderAll(); const j=done[done.length-1]; toast('✅ '+_t('{n} {u} ready',{n:j.n.toLocaleString('en-US'),u:_t(UNITS[j.u].name)})); powerGain(totalPower()-p0); } }
+  if(done.length){ save(); renderAll(); const j=done[done.length-1]; toast(IC.ok+' '+_t('{n} {u} ready',{n:j.n.toLocaleString('en-US'),u:_t(UNITS[j.u].name)})); powerGain(totalPower()-p0); } }
 function desert(dt){ // no rations left: 10% of the troops desert every hour
   const f=0.10*dt/3600; state.desertAcc=state.desertAcc||{}; let lost=0;
   for(const u in state.troops){ const n=state.troops[u]; if(!n) continue;
     state.desertAcc[u]=(state.desertAcc[u]||0)+n*f; const k=Math.floor(state.desertAcc[u]);
     if(k>0){ state.troops[u]=Math.max(0,n-k); state.desertAcc[u]-=k; lost+=k; } }
-  if(lost && Date.now()-(state.lastDesert||0)>60000){ state.lastDesert=Date.now(); toast('⚠️ '+_t('No rations left: your troops are deserting!')); } }
+  if(lost && Date.now()-(state.lastDesert||0)>60000){ state.lastDesert=Date.now(); toast(IC.warn+' '+_t('No rations left: your troops are deserting!')); } }
 
 // ===== TROOPS UI =====
 const pct = (a,b) => Math.max(0,Math.min(100,(Date.now()-a)/(b-a)*100));
-function unitStats(d){ return `<div class="ust"><span>⚔️ ${d.at}</span><span>🛡️ ${d.df}</span><span>❤️ ${d.hp}</span><span>💨 ${d.sp}</span>${d.rg?`<span>🎯 ${d.rg}</span>`:''}<span>📦 ${d.ld}</span><span>${IC.rations} ${d.up}/h</span><span>${IC.pop} ${d.pop}</span><span class="pwc">${IC.power} ${d.pw}</span></div>`; }
+function unitStats(d){ return `<div class="ust"><span>${IC.atk} ${d.at}</span><span>${IC.def} ${d.df}</span><span>${IC.hp} ${d.hp}</span><span>${IC.spd} ${d.sp}</span>${d.rg?`<span>${IC.rng} ${d.rg}</span>`:''}<span>${IC.load} ${d.ld}</span><span>${IC.rations} ${d.up}/h</span><span>${IC.pop} ${d.pop}</span><span class="pwc">${IC.power} ${d.pw}</span></div>`; }
 const bigIcon = d => d.img ? `<img class="bimg" src="${d.img}" alt="">` : d.icon;
 function costInline(c){ return RES.filter(r=>c[r]).map(r=>`${ICON[r]}${fmtN(c[r])}`).join(' '); }
 function trainCost(u,n){ if(!(n>0)) return ''; const c=unitCost(u,n), d=UNITS[u];
-  return `<div class="chips">${RES.filter(r=>c[r]>0).map(r=>`<span class="chip${state.res[r]<c[r]?' no':''}">${ICON[r]} ${fmtN(c[r])}</span>`).join('')}<span class="chip">⏱ ${fmtT(unitTime(u,n))}</span><span class="chip">${IC.pop} ${fmtN(n*d.pop)}</span><span class="chip pw">${IC.power} +${fmtN(n*d.pw)} ${_t('Power')}</span></div>`; }
+  return `<div class="chips">${RES.filter(r=>c[r]>0).map(r=>`<span class="chip${state.res[r]<c[r]?' no':''}">${ICON[r]} ${fmtN(c[r])}</span>`).join('')}<span class="chip">${IC.time} ${fmtT(unitTime(u,n))}</span><span class="chip">${IC.pop} ${fmtN(n*d.pop)}</span><span class="chip pw">${IC.power} +${fmtN(n*d.pw)} ${_t('Power')}</span></div>`; }
 function trainBtn(u,n){ const why=whyNotTrain(u,n);
   return `<button data-act="train" data-unit="${u}"${why?' disabled':''}>${_t('Train')}${n>0?' '+n.toLocaleString('en-US'):''}</button>${why&&n>0?`<div class="why">${why}</div>`:''}`; }
 function updateTrainRow(u){ const n=trainQty[u]||0, c=document.getElementById('tc-'+u), a=document.getElementById('ta-'+u); if(c) c.innerHTML=trainCost(u,n); if(a) a.innerHTML=trainBtn(u,n); }
 function unitCard(u){ const d=UNITS[u], lv=bldLevel(d.bld), locked=lv<d.req, n=trainQty[u]||0, own=state.troops[u]||0;
   return `<div class="row ucard${locked?' locked':''}"><div class="top"><img class="uimg" src="${d.img}" alt=""><div style="flex:1;min-width:0"><b>${_t(d.name)}</b> <span class="sub">· ${_t('owned {n}',{n:own.toLocaleString('en-US')})}</span><div class="sub">${_t(d.desc)}</div>${unitStats(d)}</div></div>
-  ${locked?`<div class="why">🔒 ${_t('Requires {b} level {l}',{b:_t(B[d.bld].name),l:d.req})}</div>`:
-  `<div class="trow2"><input type="number" min="0" inputmode="numeric" data-qty="${u}" value="${n||''}" placeholder="0"><button class="sec sm" data-act="max" data-unit="${u}">${_t('Max')} ${maxTrain(u).toLocaleString('en-US')}</button><span class="sub">${_t('each:')} ${costInline(d.cost)} · ⏱ ${fmtT(unitTime(u,1))}</span></div>
+  ${locked?`<div class="why">${IC.lock} ${_t('Requires {b} level {l}',{b:_t(B[d.bld].name),l:d.req})}</div>`:
+  `<div class="trow2"><input type="number" min="0" inputmode="numeric" data-qty="${u}" value="${n||''}" placeholder="0"><button class="sec sm" data-act="max" data-unit="${u}">${_t('Max')} ${maxTrain(u).toLocaleString('en-US')}</button><span class="sub">${_t('each:')} ${costInline(d.cost)} · ${IC.time} ${fmtT(unitTime(u,1))}</span></div>
    <div id="tc-${u}">${trainCost(u,n)}</div><div id="ta-${u}">${trainBtn(u,n)}</div>`}</div>`; }
 function trainSection(bl){
   const q=state.training[bl]||[];
-  let h=`<h3>🪖 ${_t('Train troops')}</h3><div class="sub">${_t('Population {a} / {b} · Training speed +{p}%',{a:fmtN(popUsed()),b:fmtN(popMax()),p:Math.round((trainSpeed(bl)-1)*100)})}</div>`;
+  let h=`<h3>${IC.troops} ${_t('Train troops')}</h3><div class="sub">${_t('Population {a} / {b} · Training speed +{p}%',{a:fmtN(popUsed()),b:fmtN(popMax()),p:Math.round((trainSpeed(bl)-1)*100)})}</div>`;
   if(q.length){ h+=`<div class="row">`;
     q.forEach((j,i)=>{ const d=UNITS[j.u];
       h+=`<div class="tq"><img src="${d.img}" alt=""><div class="tqi"><b>${j.n.toLocaleString('en-US')} × ${_t(d.name)}</b>${i===0
-        ?`<div class="prog"><i class="lv-bar" data-s="${j.s}" data-e="${j.e}" style="width:${pct(j.s,j.e)}%"></i></div><span class="sub">⏱ <span class="lv-time" data-s="${j.s}" data-e="${j.e}">${fmtT((j.e-Date.now())/1000)}</span></span>`
+        ?`<div class="prog"><i class="lv-bar" data-s="${j.s}" data-e="${j.e}" style="width:${pct(j.s,j.e)}%"></i></div><span class="sub">${IC.time} <span class="lv-time" data-s="${j.s}" data-e="${j.e}">${fmtT((j.e-Date.now())/1000)}</span></span>`
         :`<div class="sub">${_t('Waiting')} · ${fmtT((j.e-j.s)/1000)}</div>`}</div>${i===0?`<button class="sm" data-act="tfinish" data-bld="${bl}">${_t('Finish (test)')}</button>`:''}</div>`; });
     h+=`</div>`; }
   for(const u of UNIT_ORDER.filter(u=>UNITS[u].bld===bl)) h+=unitCard(u);
@@ -184,7 +186,7 @@ function troopsPanel(){
   const total=Object.values(state.troops).reduce((a,b)=>a+b,0), q=queuedUnits(), rt=rates();
   let h=`<div class="hd"><div class="big" style="background:#4b5a3a">${IC.troops}</div><div><h2>${_t('Your Army')}</h2><div class="sub">${_t('{n} troops',{n:fmtN(total)})} · ${IC.power} ${fmtN(troopPower())} ${_t('power')}</div></div></div>
   <div class="chips"><span class="chip">${IC.pop} ${_t('Population')} ${fmtN(popUsed())} / ${fmtN(popMax())}</span><span class="chip">${IC.rations} ${_t('Upkeep')} ${fmtN(upkeep())}/h</span><span class="chip${rt.rations<0?' no':''}">${IC.rations} ${_t('Net')} ${rt.rations>=0?'+':''}${fmtN(rt.rations)}/h</span></div>`;
-  if(rt.rations<0) h+=`<div class="why">⚠️ ${_t('Your troops eat more rations than you produce. Build or upgrade Mess Halls in the Fields, or your troops will desert when rations run out.')}</div>`;
+  if(rt.rations<0) h+=`<div class="why">${IC.warn} ${_t('Your troops eat more rations than you produce. Build or upgrade Mess Halls in the Fields, or your troops will desert when rations run out.')}</div>`;
   for(const [bl,label] of [['barracks','Infantry · Barracks'],['factory','Vehicles · Vehicle Factory'],['helipad','Air · Helipad']]){
     h+=`<h3>${_t(label)}</h3><div class="armyg">`;
     for(const u of UNIT_ORDER.filter(u=>UNITS[u].bld===bl)){ const d=UNITS[u], n=state.troops[u]||0;
@@ -195,7 +197,7 @@ const MENU = [['troops','Troops',()=>openTroops()],['shop','Shop','soon'],['ques
   ['messages','Messages','soon'],['reports','Reports',()=>openReports()],['inventory','Inventory','soon'],
   ['defense','Defense','soon'],['research','Research','soon'],['settings','Settings',()=>openSettings()]];
 function settingsPanel(){
-  return `<h2>${_t('Settings')}</h2><h3>${_t('Language')}</h3><div class="menug">${LANGS.map(([c,n])=>`<button class="sbtn mitem${c===LANG?' on':''}" data-act="lang" data-l="${c}"><em>${n}</em>${c===LANG?' ✔':''}</button>`).join('')}</div>
+  return `<h2>${_t('Settings')}</h2><h3>${_t('Language')}</h3><div class="menug">${LANGS.map(([c,n])=>`<button class="sbtn mitem${c===LANG?' on':''}" data-act="lang" data-l="${c}"><em>${n}</em>${c===LANG?' '+IC.ok:''}</button>`).join('')}</div>
   <h3>${_t('Test tools')}</h3><p class="sub" style="margin-bottom:8px">${_t('Erase your save and restart from zero. This option will be removed in the final game.')}</p>
   <button class="sec" data-act="reset">${IC.settings} ${_t('Reset save')}</button>`; }
 function openSettings(){ cur='__settings'; openedAt=Date.now(); renderSheet(); document.getElementById('sheet').classList.add('open'); document.getElementById('back').classList.add('open'); }
@@ -302,7 +304,12 @@ function sprite(key, im, w, h, z, d){ const pw=Math.max(8,Math.round(w*z*d)), ck
 const badgeCache=new Map();
 function badgeSprite(txt,col){ const k=txt+col; let cv=badgeCache.get(k); if(cv) return cv;
   cv=document.createElement('canvas'); const g=cv.getContext('2d'); g.font='700 15px "Black Ops One", Impact, sans-serif';
-  const w=Math.max(24,g.measureText(txt).width+12); cv.width=Math.ceil(w+6)*2; cv.height=56; g.scale(2,2); badge(g,cv.width/4,14,txt,col); badgeCache.set(k,cv); return cv; }
+  const star=txt.startsWith('* '); if(star) txt=txt.slice(2);
+  const w=Math.max(24,g.measureText(txt).width+12)+(star?18:0); cv.width=Math.ceil(w+6)*2; cv.height=56; g.scale(2,2);
+  if(star){ badge(g,cv.width/4,14,'    '+txt,col); if(starImg.complete) g.drawImage(starImg,cv.width/4-w/2+3,3,22,22); else starImg.onload=()=>{ badgeCache.clear(); requestDraw(); }; }
+  else badge(g,cv.width/4,14,txt,col);
+  badgeCache.set(k,cv); return cv; }
+const starImg=new Image(); starImg.src='assets/img/ui_star.webp';
 document.fonts && document.fonts.ready.then(()=>{ badgeCache.clear(); if(view==='map') requestDraw(); });
 function badge(c,x,y,txt,col){ c.font='700 15px "Black Ops One", Impact, sans-serif'; const w=Math.max(24,c.measureText(txt).width+12);
   c.fillStyle=col; c.strokeStyle='#3a2604'; c.lineWidth=2.5; c.beginPath(); c.roundRect(x-w/2,y-12,w,24,5); c.fill(); c.stroke();
@@ -333,7 +340,7 @@ function drawMap(){
       const key = sprKey(tl), sp=MSPR[key], im=MIMG[key];
       const w = TW*(tl.t==='home'?1.3: tl.t==='camp'?1.2:1.12), h=w*sp.r;
       if(im.complete && im.naturalWidth) c.drawImage(sprite(key,im,w,h,z,d), wx-w/2, wy-sp.cy*h, w, h);
-      if(tl.t==='home') badges.push([wx, wy+TH*0.42, '★ '+tl.lvl, '#7fd06a']);
+      if(tl.t==='home') badges.push([wx, wy+TH*0.42, '* '+tl.lvl, '#7fd06a']);
       else if(tl.lvl && tl.t!=='plain' && z>0.42) badges.push([wx+w*0.3, wy+TH*0.2, String(tl.lvl), tl.t==='camp'?'#e0574a':'#f3c534']);
     }
   }
@@ -353,11 +360,11 @@ function tilePanel(){
   let h=`<div class="hd"><div class="big"><img class="bimg" src="${MSPR[key].img}" alt=""></div><div><h2>${tl?tileName(tl):_t('Plains')}</h2>
     <div class="sub">X ${x} · Y ${y} · ${_t('Distance: {d} tiles',{d:dist(x,y).toFixed(1)})}</div></div></div>`;
   if(!tl || tl.t==='plain') return h+`<p>${_t('Empty land. Nothing to collect here.')}</p>`;
-  if(tl.t==='home') return h+`<button data-act="gocity">🏰 ${_t('Enter base')}</button>`;
+  if(tl.t==='home') return h+`<button data-act="gocity">${IC.base} ${_t('Enter base')}</button>`;
   const df=defenders(tl), lo=lootOf(tl);
   h+=`<h3>${_t('Enemy forces')}</h3><div class="armyg">${Object.keys(df).map(u=>`<div class="acell"><img src="${UNITS[u].img}" alt=""><b>${fmtN(df[u])}</b><span>${_t(UNITS[u].name)}</span></div>`).join('')}</div>
     <h3>${_t('Possible loot')}</h3><div class="chips">${Object.keys(lo).map(r=>`<span class="chip">${ICON[r]} ${fmtN(lo[r])}</span>`).join('')}</div>
-    <button data-act="attack">⚔️ ${_t('Attack')}</button>`;
+    <button data-act="attack">${IC.atk} ${_t('Attack')}</button>`;
   return h;
 }
 
@@ -377,15 +384,15 @@ function whyNotMarch(q){
   for(const u in q) if((q[u]||0)>(state.troops[u]||0)) return _t('Choose your troops');
   return ''; }
 function atkSummary(){ const st=marchStats(atkQty, atkTitan), why=whyNotMarch(atkQty);
-  return `<div class="chips"><span class="chip">${IC.troops} ${_t('Troops: {a} / {b}',{a:fmtN(st.n),b:fmtN(marchTroopMax())})}</span><span class="chip">⏱ ${_t('Travel time: {t}',{t:fmtT(st.secs)})}</span><span class="chip">📦 ${_t('Carry capacity: {n}',{n:fmtN(st.load)})}</span><span class="chip">${_t('Marches: {a} / {b}',{a:state.marches.length,b:marchMax()})}</span></div>
-    <button data-act="launch"${why?' disabled':''}>⚔️ ${_t('Launch attack')}</button>${why&&(st.n||atkTitan)?`<div class="why">${why}</div>`:''}`; }
+  return `<div class="chips"><span class="chip">${IC.troops} ${_t('Troops: {a} / {b}',{a:fmtN(st.n),b:fmtN(marchTroopMax())})}</span><span class="chip">${IC.time} ${_t('Travel time: {t}',{t:fmtT(st.secs)})}</span><span class="chip">${IC.load} ${_t('Carry capacity: {n}',{n:fmtN(st.load)})}</span><span class="chip">${_t('Marches: {a} / {b}',{a:state.marches.length,b:marchMax()})}</span></div>
+    <button data-act="launch"${why?' disabled':''}>${IC.atk} ${_t('Launch attack')}</button>${why&&(st.n||atkTitan)?`<div class="why">${why}</div>`:''}`; }
 function attackPanel(){
   const own=UNIT_ORDER.filter(u=>(state.troops[u]||0)>0);
   let h=`<h2>${_t('Send troops')}</h2><div class="sub">→ ${place(mapSel.x,mapSel.y)}</div>`;
   if(bldLevel('hangar')){ const T=titanState(), ok=titanReady();
     h+=`<div class="row trow-t${atkTitan?' on':''}"><div class="top"><img class="uimg" src="${titanImg()}" alt=""><div style="flex:1;min-width:0"><b>${_t('Titan')}</b>
       <div class="sub">${_t('Lv {l} · Health {h}%',{l:T.lvl,h:Math.floor(T.hp)})} · ${IC.troops} +${Math.round(titanTroopBonus()*100)}% ${_t('troop attack')}</div>
-      <button class="${atkTitan?'':'sec '}sm" data-act="ttoggle"${ok?'':' disabled'}>${atkTitan?'✔ ':''}${_t(ok?'Send the Titan':'Titan unavailable')}</button></div></div></div>`; }
+      <button class="${atkTitan?'':'sec '}sm" data-act="ttoggle"${ok?'':' disabled'}>${atkTitan?IC.ok+' ':''}${_t(ok?'Send the Titan':'Titan unavailable')}</button></div></div></div>`; }
   if(!own.length && !titanReady()) return h+`<p style="margin-top:10px">${_t('You have no troops. Train some at the Barracks.')}</p>`;
   for(const u of own){ const d=UNITS[u];
     h+=`<div class="row"><div class="top"><img class="uimg" src="${d.img}" alt=""><div style="flex:1;min-width:0"><b>${_t(d.name)}</b><div class="sub">${_t('Available: {n}',{n:fmtN(state.troops[u])})}</div>
@@ -398,7 +405,7 @@ function launch(){
   state.marches.push({id:now, x:mapSel.x, y:mapSel.y, troops:q, titan:ti, s:now, a:now+st.secs*1000, b:now+st.secs*2000, st:'out'});
   if(ti) titanState().away=true;
   for(const u in atkQty) delete atkQty[u]; atkTitan=false;
-  save(); toast('⚔️ '+_t('Troops sent to {p}',{p:`(${mapSel.x}, ${mapSel.y})`})); closeSheet(); renderAll(); drawMap(); }
+  save(); toast(IC.atk+' '+_t('Troops sent to {p}',{p:`(${mapSel.x}, ${mapSel.y})`})); closeSheet(); renderAll(); drawMap(); }
 
 // ---------- battle ----------
 function battle(att, def, titan){
@@ -422,13 +429,13 @@ function arrive(m){
   let tinfo=null;
   if(m.titan){ const T=titanState(), h0=T.hp, killed=Object.keys(df).reduce((s,u)=>s+(df[u]-(res.dleft[u]||0))*UNITS[u].pw,0);
     T.hp=Math.max(5, T.hp*(0.35+0.65*res.tLeft)); const xp=Math.round(killed*(res.win?6:2)+(res.win?20*tl.lvl:0)), up=gainXp(xp);
-    const drop=res.win?rollDrop(tl):null; if(drop){ T.inv.push(drop); toast('🎁 '+_t('New part won: {p}',{p:_t(EQ_NAME[drop.s])+' · '+_t(EQ_TIER[drop.t])})); }
+    const drop=res.win?rollDrop(tl):null; if(drop){ T.inv.push(drop); toast(IC.drop+' '+_t('New part won: {p}',{p:_t(EQ_NAME[drop.s])+' · '+_t(EQ_TIER[drop.t])})); }
     tinfo={xp, hp0:Math.floor(h0), hp:Math.floor(T.hp), up, drop}; }
   if(res.win){ let cap=Object.keys(res.left).reduce((s,u)=>s+res.left[u]*UNITS[u].ld,0)+(m.titan?titanStats().ld:0); const lo=lootOf(tl), tot=Object.values(lo).reduce((a,b)=>a+b,0);
     for(const r in lo){ loot[r]=Math.floor(Math.min(lo[r], cap*lo[r]/Math.max(1,tot))); } }
   const rep={id:m.id, t:Date.now(), x:m.x, y:m.y, tt:tl.t, lvl:tl.lvl, win:res.win, sent:m.troops, left:res.left, def:df, dleft:res.dleft, loot, titan:tinfo, read:false};
   state.reports.unshift(rep); state.reports=state.reports.slice(0,40);
-  toast((res.win?'🏆 ':'💀 ')+_t(res.win?'Victory at {p}':'Defeat at {p}',{p:place(m.x,m.y)}));
+  toast((res.win?IC.win+' ':IC.lose+' ')+_t(res.win?'Victory at {p}':'Defeat at {p}',{p:place(m.x,m.y)}));
   const alive=Object.values(res.left).reduce((a,b)=>a+b,0);
   if(!alive && !m.titan){ state.marches=state.marches.filter(x=>x!==m); return; }
   m.st='back'; m.troops=res.left; m.loot=loot; }
@@ -436,7 +443,7 @@ function returnHome(m){
   for(const u in m.troops) state.troops[u]=(state.troops[u]||0)+m.troops[u];
   const c=cap(); for(const r in (m.loot||{})) state.res[r]= r==='gold' ? state.res[r]+m.loot[r] : Math.max(state.res[r], Math.min(c, state.res[r]+m.loot[r]));
   if(m.titan) titanState().away=false;
-  state.marches=state.marches.filter(x=>x!==m); toast('✅ '+_t('Troops returned with loot')); }
+  state.marches=state.marches.filter(x=>x!==m); toast(IC.ok+' '+_t('Troops returned with loot')); }
 function processMarches(){ const now=Date.now(); let ch=false;
   for(const m of [...state.marches]){ if(m.st==='out' && now>=m.a){ arrive(m); ch=true; } else if(m.st==='back' && now>=m.b){ returnHome(m); ch=true; } }
   if(ch){ save(); renderAll(); } }
@@ -450,7 +457,7 @@ function reportsPanel(){
   let h=`<h2>${_t('Reports')}</h2>`;
   if(!state.reports.length) return h+`<p style="margin-top:10px">${_t('No reports yet.')}</p>`;
   for(const r of state.reports){ const open=r.id===openRep, nm=`${_t(TILE[r.tt].name)} · ${_t('Lv')} ${r.lvl} (${r.x}, ${r.y})`;
-    h+=`<div class="row rep${r.read?'':' unread'}" data-act="rep" data-id="${r.id}"><div class="top"><div class="big" style="width:46px;height:46px;font-size:24px">${r.win?'🏆':'💀'}</div>
+    h+=`<div class="row rep${r.read?'':' unread'}" data-act="rep" data-id="${r.id}"><div class="top"><div class="big" style="width:46px;height:46px;font-size:24px">${r.win?IC.win:IC.lose}</div>
       <div style="flex:1"><b style="color:${r.win?'var(--ok)':'var(--red)'}">${_t(r.win?'Victory':'Defeat')}</b> — ${nm}<div class="sub">${ago(r.t)}</div></div></div>`;
     if(open) h+=`<p style="margin-top:8px">${_t(r.win?'All enemy troops were destroyed.':'Your troops had to retreat.')}</p>
       <h3>${_t('Your troops')}</h3>${unitList(r.sent,r.left,_t('Sent'),_t('Lost'))}
@@ -473,7 +480,7 @@ const EQ_NAME = {armor:'Armor Plate', weapon:'Arm Cannon', reactor:'Jet Reactor'
 const EQ_TIER = ['', 'Standard', 'Advanced', 'Elite'];
 const EQ_BONUS = [0, 0.10, 0.22, 0.40];
 const EQ_COL = ['', '#9aa39c', '#f3c534', '#ff8a3d'];
-const EQ_EMOJI = {armor:'🛡️', weapon:'💥', reactor:'🚀', legs:'🦿'};
+const EQ_EMOJI = {armor:IC.def, weapon:'💥', reactor:'🚀', legs:'🦿'};
 const EQIMG = {}; for(const sl of ['armor','weapon','reactor','legs']) for(const t of [1,2,3]) EQIMG[sl+'_'+t]=`assets/img/eq_${sl}_${t}.webp`;   // painted icons (Gemini)
 function titanState(){ if(!state.titan) state.titan={lvl:1, xp:0, hp:100, away:false, eq:{}, inv:[]}; if(state.titan.lvl>10) state.titan.lvl=10; return state.titan; }
 const titanMax = () => Math.min(10, Math.max(1, bldLevel('hangar')));   // like the Great Dragon: level capped by its hangar, 10 max
@@ -491,7 +498,7 @@ function eqIcon(it, size=46){ const src=EQIMG[it.s+'_'+it.t];
   return `<span class="eqi" style="width:${size}px;height:${size}px;border-color:${EQ_COL[it.t]}">${src?`<img src="${src}" alt="">`:`<b style="font-size:${size*0.5}px">${EQ_EMOJI[it.s]}</b>`}</span>`; }
 function gainXp(n){ const T=titanState(); if(T.lvl>=titanMax()){ T.xp=Math.min(T.xp+n, xpNeed(T.lvl)); return 0; }
   T.xp+=n; let up=0; while(T.lvl<titanMax() && T.xp>=xpNeed(T.lvl)){ T.xp-=xpNeed(T.lvl); T.lvl++; up++; }
-  if(up) toast('🤖 '+_t('Titan reached level {l}!',{l:T.lvl})); return up; }
+  if(up) toast(IC.titan_ic+' '+_t('Titan reached level {l}!',{l:T.lvl})); return up; }
 function rollDrop(tl){
   if(tl.t!=='camp') return null; const L=tl.lvl, r=Math.random();
   if(r > 0.15+0.035*L) return null;
@@ -506,11 +513,11 @@ function titanPanel(){
   const T=titanState(), st=titanStats(), need=xpNeed(T.lvl), stage=titanStage();
   let h=`<div class="hd"><div class="big tbig"><img class="bimg" src="${titanImg()}" alt=""></div><div style="flex:1">
       <h2>${_t('Titan')} · ${_t('Lv')} ${T.lvl} / ${titanMax()}</h2><div class="sub">${_t(['Prototype','Standard','Elite'][stage])} · ${IC.power} ${fmtN(titanPower())} ${_t('power')}</div>
-      <div class="sub">${T.away?'⚔️ '+_t('On a mission'):T.hp<30?'🔧 '+_t('Too damaged to fight (30% needed)'):'✅ '+_t('Ready for battle')}</div></div></div>
+      <div class="sub">${T.away?IC.atk+' '+_t('On a mission'):T.hp<30?IC.repair+' '+_t('Too damaged to fight (30% needed)'):IC.ok+' '+_t('Ready for battle')}</div></div></div>
     <div class="tbar"><span>XP</span><div class="prog"><i style="width:${Math.min(100,T.xp/need*100)}%"></i></div><small>${fmtN(T.xp)} / ${fmtN(need)}</small></div>
-    <div class="tbar"><span>❤️</span><div class="prog hpb"><i style="width:${T.hp}%"></i></div><small>${Math.floor(T.hp)}% · +${repairRate()}%/h</small></div>
+    <div class="tbar"><span>${IC.hp}</span><div class="prog hpb"><i style="width:${T.hp}%"></i></div><small>${Math.floor(T.hp)}% · +${repairRate()}%/h</small></div>
     ${T.lvl>=titanMax()?`<div class="why">${_t('Upgrade the Titan Hangar to raise the maximum level.')}</div>`:''}
-    <div class="ust" style="margin:8px 0"><span>⚔️ ${fmtN(st.at)}</span><span>🛡️ ${fmtN(st.df)}</span><span>❤️ ${fmtN(st.hp)}</span><span>💨 ${st.sp}</span><span>📦 ${fmtN(st.ld)}</span><span>${IC.troops} +${Math.round(titanTroopBonus()*100)}% ${_t('troop attack')}</span></div>
+    <div class="ust" style="margin:8px 0"><span>${IC.atk} ${fmtN(st.at)}</span><span>${IC.def} ${fmtN(st.df)}</span><span>${IC.hp} ${fmtN(st.hp)}</span><span>${IC.spd} ${st.sp}</span><span>${IC.load} ${fmtN(st.ld)}</span><span>${IC.troops} +${Math.round(titanTroopBonus()*100)}% ${_t('troop attack')}</span></div>
     <h3>${_t('Equipment')}</h3><div class="eqgrid">${EQ_SLOTS.map(s=>{ const it=T.eq[s];
       return `<div class="eqslot">${it?eqIcon(it,58):`<span class="eqi empty" style="width:58px;height:58px"><img src="${EQIMG[s+'_1']}" alt="" style="filter:grayscale(1)"></span>`}<b>${_t(EQ_NAME[s])}</b>
         <small>${it?`<span style="color:${EQ_COL[it.t]}">${_t(EQ_TIER[it.t])}</span> · +${Math.round(EQ_BONUS[it.t]*100)}%`:_t('Empty')}</small>
@@ -607,11 +614,11 @@ function startBuild(slot,t,l){
   if(whyNot(t,l)) return;
   const c=costOf(t,l); for(const r of RES) state.res[r]-=c[r];
   const now=Date.now(); state.queue={slot,type:t,lvl:l,start:now,end:now+timeOf(t,l)*1000};
-  save(); renderAll(); toast('🔨 '+_t('{b} started',{b:_t(B[t].name)}));
+  save(); renderAll(); toast(IC.build+' '+_t('{b} started',{b:_t(B[t].name)}));
 }
 function complete(){
   const q=state.queue, p0=totalPower(); state.slots[q.slot]={type:q.type,lvl:q.lvl}; state.queue=null;
-  save(); renderAll(); toast('✅ '+_t('{b} level {l} complete',{b:_t(B[q.type].name),l:q.lvl})); powerGain(totalPower()-p0);
+  save(); renderAll(); toast(IC.ok+' '+_t('{b} level {l} complete',{b:_t(B[q.type].name),l:q.lvl})); powerGain(totalPower()-p0);
 }
 function cancel(){
   const q=state.queue; if(!q) return; const c=costOf(q.type,q.lvl);
@@ -916,7 +923,7 @@ function fieldScene(){
   if(FBG){
     fieldCache=`<image href="${FBG}" x="0" y="0" width="${FW}" height="${FH}"/>
     <g class="goto" data-goto="city" style="cursor:pointer"><rect x="1030" y="50" width="560" height="330" fill="#000" fill-opacity="0"/>
-      <rect x="1205" y="196" width="194" height="42" rx="10" fill="#d4a72c" stroke="#5a3d05" stroke-width="3"/><text class="gotxt" x="1302" y="225">🏰 ${_t('Enter base')}</text></g>`;
+      <rect x="1205" y="196" width="194" height="42" rx="10" fill="#d4a72c" stroke="#5a3d05" stroke-width="3"/><text class="gotxt" x="1302" y="225">${IC.base} ${_t('Enter base')}</text></g>`;
     return fieldCache;
   }
   const r=rnd(23);
@@ -947,7 +954,7 @@ function fieldScene(){
   <path d="${smoothPath(RIV)}" stroke="#4fa3a3" stroke-width="48" fill="none" stroke-linecap="round"/>
   <path d="${smoothPath(RIV)}" stroke="#bfe6e0" stroke-width="3" fill="none" stroke-dasharray="14 26" opacity=".5"/>
   ${BG?`<g class="goto" data-goto="city" style="cursor:pointer"><image href="${BG}" x="${bx}" y="${by}" width="${bw}" height="${bh}" mask="url(#baseMask)"/>
-    <rect x="${FOX-95}" y="${by+bh-30}" width="190" height="40" rx="10" fill="#d4a72c" stroke="#5a3d05" stroke-width="3"/><text class="gotxt" x="${FOX}" y="${by+bh-2}">🏰 ${_t('Enter base')}</text></g>`:''}
+    <rect x="${FOX-95}" y="${by+bh-30}" width="190" height="40" rx="10" fill="#d4a72c" stroke="#5a3d05" stroke-width="3"/><text class="gotxt" x="${FOX}" y="${by+bh-2}">${IC.base} ${_t('Enter base')}</text></g>`:''}
   ${items.sort((a,b)=>a.y-b.y).map(o=>o.s).join('')}
   <rect width="${FW}" height="${FH}" fill="url(#vig)" pointer-events="none"/>`;
   return fieldCache;
@@ -984,9 +991,9 @@ function renderPower(){
   document.getElementById('pXp').style.width=Math.min(100,(p-a)/(b-a)*100)+'%';
   const hb=state.slots.hangar, tp=document.getElementById('tPortrait');
   const nt=document.getElementById('nTitan');
-  if(hb && TITAN){ if(!nt.querySelector('.tport')) nt.innerHTML=`<img class="tport" src="${TITAN.img}" alt="">`; } else if(nt.textContent!=='🔒') nt.textContent='🔒';
-  if(hb && TITAN){ tp.style.backgroundImage=`url(${titanImg()})`; tp.textContent=''; const T=titanState(); document.getElementById('tSub').textContent = T.away ? '⚔️ '+_t('On a mission') : _t('Lv {l} · Health {h}%',{l:T.lvl,h:Math.floor(T.hp)}); }
-  else { tp.style.backgroundImage=''; tp.textContent='🔒'; document.getElementById('tSub').textContent=_t('Build the Titan Hangar'); }
+  if(hb && TITAN){ const src=titanImg(); if(!nt.querySelector('.tport') || nt.querySelector('.tport').getAttribute('src')!==src) nt.innerHTML=`<img class="tport" src="${src}" alt="">`; } else if(!nt.querySelector('[data-lk]')) nt.innerHTML=`<img class="ic" data-lk="1" src="${ICS.lock}" alt="">`;
+  if(hb && TITAN){ tp.style.backgroundImage=`url(${titanImg()})`; tp.innerHTML=''; const T=titanState(); document.getElementById('tSub').innerHTML = T.away ? IC.atk+' '+_t('On a mission') : _t('Lv {l} · Health {h}%',{l:T.lvl,h:Math.floor(T.hp)}); }
+  else { tp.style.backgroundImage=''; if(!tp.querySelector('img')) tp.innerHTML=IC.lock; document.getElementById('tSub').textContent=_t('Build the Titan Hangar'); }
 }
 function powerGain(n){ if(n<=0) return; const el=document.getElementById('powpop'); el.innerHTML=`+${n.toLocaleString('en-US')} ${IC.power}`; el.classList.remove('go'); void el.offsetWidth; el.classList.add('go'); }
 function renderRes(){
@@ -1005,16 +1012,16 @@ function renderQueue(){
   el.style.display = busy ? '' : 'none';
   if(!q) h='';
   else { const p=Math.min(1,(Date.now()-q.start)/(q.end-q.start))*100;
-    h=`<div class="qrow"><span>🔨 ${B[q.type].img?`<img class="ic" src="${B[q.type].img}" alt="">`:B[q.type].icon} ${_t(B[q.type].name)} · ${_t('Lv')} ${q.lvl}</span><div class="bar"><i style="width:${p}%"></i></div><span>${fmtT((q.end-Date.now())/1000)}</span><button class="sm" data-act="finish">${_t('Finish (test)')}</button></div>`; }
+    h=`<div class="qrow"><span>${IC.build} ${B[q.type].img?`<img class="ic" src="${B[q.type].img}" alt="">`:B[q.type].icon} ${_t(B[q.type].name)} · ${_t('Lv')} ${q.lvl}</span><div class="bar"><i style="width:${p}%"></i></div><span>${fmtT((q.end-Date.now())/1000)}</span><button class="sm" data-act="finish">${_t('Finish (test)')}</button></div>`; }
   for(const bl of TRAINERS){ const tq=state.training[bl]; if(!tq||!tq.length) continue; const j=tq[0];
-    h+=`<div class="qrow"><span>🪖 ${fmtN(j.n)} ${_t(UNITS[j.u].name)}${tq.length>1?` (+${tq.length-1})`:''}</span><div class="bar"><i style="width:${pct(j.s,j.e)}%"></i></div><span>${fmtT((j.e-Date.now())/1000)}</span><button class="sm" data-act="tfinish" data-bld="${bl}">${_t('Finish (test)')}</button></div>`; }
+    h+=`<div class="qrow"><span>${IC.troops} ${fmtN(j.n)} ${_t(UNITS[j.u].name)}${tq.length>1?` (+${tq.length-1})`:''}</span><div class="bar"><i style="width:${pct(j.s,j.e)}%"></i></div><span>${fmtT((j.e-Date.now())/1000)}</span><button class="sm" data-act="tfinish" data-bld="${bl}">${_t('Finish (test)')}</button></div>`; }
   for(const m of state.marches){ const out=m.st==='out', a=out?m.s:m.a, b=out?m.a:m.b;
-    h+=`<div class="qrow"><span>${out?'⚔️':'↩️'} ${_t(out?'Marching':'Returning')} (${m.x}, ${m.y})</span><div class="bar"><i style="width:${pct(a,b)}%"></i></div><span>${fmtT((b-Date.now())/1000)}</span><button class="sm" data-act="mfinish" data-id="${m.id}">${_t('Finish (test)')}</button></div>`; }
+    h+=`<div class="qrow"><span>${out?IC.atk:IC.back} ${_t(out?'Marching':'Returning')} (${m.x}, ${m.y})</span><div class="bar"><i style="width:${pct(a,b)}%"></i></div><span>${fmtT((b-Date.now())/1000)}</span><button class="sm" data-act="mfinish" data-id="${m.id}">${_t('Finish (test)')}</button></div>`; }
   el.innerHTML=h;
 }
 function costChips(t,l){
   const c=costOf(t,l);
-  return `<div class="chips">${RES.filter(r=>c[r]>0).map(r=>`<span class="chip${state.res[r]<c[r]?' no':''}">${ICON[r]} ${fmtN(c[r])}</span>`).join('')}<span class="chip">⏱ ${fmtT(timeOf(t,l))}</span><span class="chip pw">${IC.power} +${(bPower(t,l)-bPower(t,l-1)).toLocaleString('en-US')} ${_t('Power')}</span></div>`;
+  return `<div class="chips">${RES.filter(r=>c[r]>0).map(r=>`<span class="chip${state.res[r]<c[r]?' no':''}">${ICON[r]} ${fmtN(c[r])}</span>`).join('')}<span class="chip">${IC.time} ${fmtT(timeOf(t,l))}</span><span class="chip pw">${IC.power} +${(bPower(t,l)-bPower(t,l-1)).toLocaleString('en-US')} ${_t('Power')}</span></div>`;
 }
 function actionBtn(t,l,label){
   const why=whyNot(t,l);
@@ -1041,7 +1048,7 @@ function renderSheet(){
     h+=`<div class="hd"><div class="big" style="background:${d.color}">${bigIcon(d)}</div><div><h2>${_t(d.name)}</h2><div class="sub">${_t('Level {l} / {m}',{l:b.lvl,m:MAX})} · ${IC.power} ${bPower(b.type,b.lvl).toLocaleString('en-US')} ${_t('power')}</div></div></div>
         <p>${_t(d.desc)}</p><div class="eff">${_t('Current:')} ${effect(b.type,b.lvl)}</div>`;
     if(TRAINERS.includes(b.type)) h+=trainSection(b.type);
-    if(b.type==='hangar'){ const T=titanState(); h+=`<h3>🤖 ${_t('Your Titan')}</h3><div class="sub">${_t('Lv {l} · Health {h}%',{l:T.lvl,h:Math.floor(T.hp)})}</div><button data-act="titan" style="margin-top:6px">🤖 ${_t('Manage Titan')}</button>`; }
+    if(b.type==='hangar'){ const T=titanState(); h+=`<h3>${IC.titan_ic} ${_t('Your Titan')}</h3><div class="sub">${_t('Lv {l} · Health {h}%',{l:T.lvl,h:Math.floor(T.hp)})}</div><button data-act="titan" style="margin-top:6px">${IC.titan_ic} ${_t('Manage Titan')}</button>`; }
     if(b.lvl<MAX){ const n=b.lvl+1; h+=`<h3>${_t('Upgrade to level {l}',{l:n})}</h3><div class="eff">${_t('Next:')} ${effect(b.type,n)}</div>${costChips(b.type,n)}${actionBtn(b.type,n,_t('Upgrade'))}`; }
     else h+=`<h3>${_t('Maximum level reached')}</h3>`;
   } else if(s.fixed){
@@ -1061,7 +1068,7 @@ function renderAll(){ renderRes(); renderQueue(); renderSlots(); renderSheet(); 
 let openedAt=0; // ignore the "ghost" click that phones send right after the tap that opened the panel
 function openSlot(id){ cur=id; openedAt=Date.now(); renderSheet(); renderSlots(); document.getElementById('sheet').classList.add('open'); document.getElementById('back').classList.add('open'); }
 function closeSheet(){ cur=null; document.getElementById('sheet').classList.remove('open'); document.getElementById('back').classList.remove('open'); renderSlots(); }
-let tt; function toast(m){ const el=document.getElementById('toast'); el.textContent=m; el.classList.add('on'); clearTimeout(tt); tt=setTimeout(()=>el.classList.remove('on'),2200); }
+let tt; function toast(m){ const el=document.getElementById('toast'); el.innerHTML=m; el.classList.add('on'); clearTimeout(tt); tt=setTimeout(()=>el.classList.remove('on'),2200); }
 
 // ===== EVENTS =====
 function onAct(e){
