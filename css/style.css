@@ -387,3 +387,13 @@ p{font-size:15px;color:#d6d6ca;line-height:1.35;font-weight:500}
 #toast .ic{width:20px;height:20px;vertical-align:-4px}
 .ust .ic,.chip .ic,.why .ic,.sub .ic,h3 .ic,.qrow .ic,.tbar .ic,button .ic{width:18px;height:18px;vertical-align:-4px}
 .big>.ic{width:70%;height:70%}
+
+/* research */
+.big.tech .ic{width:72%;height:72%}
+.tech-row.locked{opacity:.65}
+.rcur{border-color:var(--brass)}
+.unl{font-size:13px;margin-top:5px;color:#c9c3a8;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.unl span{display:inline-flex;align-items:center;gap:3px;background:#0005;border-radius:6px;padding:1px 6px 1px 2px}
+.unl span.ok{color:var(--ok)}
+.unl img{width:22px;height:22px;object-fit:contain}
+.qrow[data-act=openres]{cursor:pointer}
