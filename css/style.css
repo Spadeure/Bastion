@@ -408,3 +408,5 @@ p{font-size:15px;color:#d6d6ca;line-height:1.35;font-weight:500}
 .itrow{display:flex;flex-wrap:wrap;gap:12px}
 .itc{display:flex;flex-direction:column;align-items:center;gap:6px;width:92px;text-align:center;font-size:12px}
 .qrow .sec.sm{padding:3px 6px}
+.chip .iti,#toast .iti{margin-right:5px;vertical-align:middle;border-width:1px}
+.chip .iti .ittag,#toast .iti .ittag,.chip .iti .itres,#toast .iti .itres{display:none}
