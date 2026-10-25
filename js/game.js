@@ -32,7 +32,9 @@ const ICON = {metal:IC.metal,wood:IC.wood,stone:IC.stone,fuel:IC.fuel,rations:IC
 const BASE_RATE = {metal:300,wood:300,stone:300,fuel:150,rations:200,gold:0}; // per hour, produced by the base itself
 // Production of one field at level l (per hour)
 const PROD_MUL = {fuel:90, rations:220}; // other resources: 150 per level
-const prodAt = (t,l) => Math.round((PROD_MUL[B[t].res]||150)*l*Math.pow(1.15,l-1));
+// accelerating growth: each level multiplies by a bigger factor than the previous one (r0, r0+step, r0+2·step...)
+const growth = (l, r0, step) => { let m=1; for(let i=2;i<=l;i++) m*=r0+step*(i-2); return m; };
+const prodAt = (t,l) => Math.round((PROD_MUL[B[t].res]||150)*l*Math.pow(1.3,l-1));
 // ===== POWER (like Might in Dragons of Atlantis) =====
 // Every building level adds power. Troops and research will add power later.
 const POWER = {command:120, wall:60, hangar:150, barracks:40, garrison:30, housing:15, warehouse:20, lab:50, factory:60, rally:25, radar:35, mine:12, sawmill:12, quarry:12, pump:12, mess:12, helipad:45};
@@ -198,7 +200,7 @@ function researchState(){ if(!state.research) state.research={lv:{}, cur:null}; 
 const techLv = t => researchState().lv[t]||0;
 const techB = t => techLv(t)*TECH[t].p;
 const labSpeed = () => 1 + 0.05*bldLevel('lab');
-const techCost = (t,l) => { const d=TECH[t], o={}; for(const r of RES) o[r]=Math.round((d.cost[r]||0)*d.m*3*Math.pow(d.g,l-1)); return o; };
+const techCost = (t,l) => { const d=TECH[t], o={}; for(const r of RES) o[r]=Math.round((d.cost[r]||0)*d.m*3*growth(l,1.9,0.2)); return o; };   // x1.9 ... x3.5 per level
 const techTime = (t,l) => { const d=TECH[t]; return Math.max(5, Math.round(d.time*d.tm*4*Math.pow(2.1,l-1)/labSpeed())); };   // last levels take days, like Dragons of Atlantis
 // prerequisites grow with the level: +1 level of each required technology every 2 levels
 function techReqAt(t,l){ const o={}, r=TECH[t].req; for(const k in r) o[k]=Math.min(MAX, r[k]+Math.floor((l-1)/2)); return o; }
@@ -537,8 +539,9 @@ function defenders(tl){
 // what an attack can bring back
 function lootOf(tl){
   const L=tl.lvl, o={};
-  if(tl.t==='camp'){ for(const r of ['metal','wood','stone','fuel']) o[r]=Math.round(450*Math.pow(1.85,L-1)); o.gold=Math.round(40*Math.pow(1.75,L-1)); }
-  else if(TILE[tl.t].res) o[TILE[tl.t].res]=Math.round(450*Math.pow(1.8,L-1));
+  // farming pays: a level 10 camp carries about 1 million of each resource
+  if(tl.t==='camp'){ for(const r of ['metal','wood','stone','fuel']) o[r]=Math.round(600*Math.pow(2.3,L-1)); o.gold=Math.round(60*Math.pow(2.1,L-1)); }
+  else if(TILE[tl.t].res) o[TILE[tl.t].res]=Math.round(600*Math.pow(2.2,L-1));
   return o;
 }
 
@@ -872,11 +875,11 @@ state.pos.x-=state.pos.x%2; state.pos.y-=state.pos.y%2; // bases sit on the tile
 function save(){ try{ localStorage.setItem(KEY, JSON.stringify(state)); }catch(e){} }
 
 const ccLvl = () => state.slots.cc.lvl;
-// storage grows fast so the most expensive buildings and research stay affordable (level 10: about 17.8 million)
-const capAt = l => Math.round(50000*Math.pow(1.8,l)/1000)*1000;
+// storage grows as fast as the costs, so everything stays affordable
+const capAt = l => Math.round(50000*growth(l+1,1.9,0.25)/1000)*1000;
 function cap(){ return capAt(bldLevel('warehouse')); }
 // Dragons of Atlantis scale: cost doubles every level (millions at the top), time x2.03 per level (Command Center: 30 min at level 2, about 6 days at level 10)
-const costOf = (t,l) => { const o={}; for(const r of RES) o[r]=Math.round((B[t].cost[r]||0)*6*Math.pow(2,l-1)); return o; };
+const costOf = (t,l) => { const o={}; for(const r of RES) o[r]=Math.round((B[t].cost[r]||0)*6*growth(l,2,0.25)); return o; };   // x2, x2.25, x2.5 ... x4: the Titan Hangar level 10 asks about 76 million metal
 const timeOf = (t,l) => Math.max(1, Math.round(B[t].time*45*Math.pow(2.03,l-1)/(1+techB('engineering'))));
 function exists(t){ for(const k in state.slots) if(state.slots[k].type===t) return true; return state.queue && state.queue.type===t; }
 
