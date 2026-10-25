@@ -222,9 +222,15 @@ function vnoise(x,y){ const xi=Math.floor(x), yi=Math.floor(y), fx=x-xi, fy=y-yi
   const a=hash(xi,yi,7), b=hash(xi+1,yi,7), c=hash(xi,yi+1,7), d=hash(xi+1,yi+1,7), u=sm(fx), v=sm(fy);
   return a+(b-a)*u+(c-a)*v+(a-b-c+d)*u*v; }
 // What is on tile (x, y)? null = empty ground
+const tileCache=new Map();
 function tileAt(x,y){
   if(x<1||y<1||x>MAPN||y>MAPN) return null;
   if(x===state.pos.x && y===state.pos.y) return {t:'home', lvl:playerLevel(totalPower())};
+  const ck=x*1024+y; if(tileCache.has(ck)) return tileCache.get(ck);
+  if(tileCache.size>60000) tileCache.clear();
+  const res=tileGen(x,y); tileCache.set(ck,res); return res;
+}
+function tileGen(x,y){
   if(x%2 || y%2) return null;                       // tiles sit on every other square: always grass around them
   if(hash(x,y,1)<0.08) return null;                 // a few empty spots
   const t=mixType(x,y);
@@ -246,14 +252,24 @@ const dist = (x,y) => Math.hypot(x-state.pos.x, y-state.pos.y);
 // enemy forces guarding a tile
 function defenders(tl){
   if(!tl || !tl.lvl || tl.t==='home' || tl.t==='plain') return {};
-  const L=tl.lvl, budget=25*Math.pow(1.9,L-1)*(tl.t==='camp'?1.6:1);
-  const mix = L<=2?{recruit:1}: L<=4?{recruit:.5,rifleman:.5}: L<=6?{rifleman:.4,sniper:.3,assault:.3}: L<=8?{assault:.4,sniper:.3,apc:.3}:{assault:.3,tank:.4,artillery:.3};
+  const L=tl.lvl, camp=tl.t==='camp', budget=40*Math.pow(2.05,L-1)*(camp?3:1);
+  // raider camps field a real mixed army: infantry, snipers, vehicles and air units at higher levels
+  const CAMP_MIX=[null,
+    {recruit:.55,rifleman:.45}, {recruit:.35,rifleman:.40,sniper:.25}, {recruit:.25,rifleman:.30,sniper:.25,assault:.20},
+    {rifleman:.30,sniper:.25,assault:.25,apc:.20}, {rifleman:.20,sniper:.20,assault:.25,apc:.15,heli:.20},
+    {sniper:.20,assault:.25,apc:.10,heli:.25,tank:.20}, {sniper:.15,assault:.20,heli:.20,tank:.25,artillery:.20},
+    {assault:.20,heli:.15,tank:.30,artillery:.20,gunship:.15}, {assault:.15,tank:.35,artillery:.25,gunship:.25},
+    {assault:.10,tank:.35,artillery:.25,gunship:.30}];
+  const TILE_MIX=[null, {recruit:1}, {recruit:.6,rifleman:.4}, {recruit:.4,rifleman:.4,sniper:.2}, {rifleman:.5,sniper:.3,assault:.2},
+    {rifleman:.35,sniper:.3,assault:.35}, {sniper:.3,assault:.4,apc:.3}, {sniper:.25,assault:.35,apc:.2,heli:.2},
+    {assault:.35,apc:.2,heli:.25,tank:.2}, {assault:.3,heli:.25,tank:.3,artillery:.15}, {assault:.25,tank:.35,artillery:.2,gunship:.2}];
+  const mix=(camp?CAMP_MIX:TILE_MIX)[L];
   const o={}; for(const u in mix) o[u]=Math.max(1,Math.round(budget*mix[u]/UNITS[u].pw)); return o;
 }
 // what an attack can bring back
 function lootOf(tl){
   const L=tl.lvl, o={};
-  if(tl.t==='camp'){ for(const r of ['metal','wood','stone','fuel']) o[r]=Math.round(260*Math.pow(1.8,L-1)); o.gold=Math.round(25*Math.pow(1.7,L-1)); }
+  if(tl.t==='camp'){ for(const r of ['metal','wood','stone','fuel']) o[r]=Math.round(450*Math.pow(1.85,L-1)); o.gold=Math.round(40*Math.pow(1.75,L-1)); }
   else if(TILE[tl.t].res) o[TILE[tl.t].res]=Math.round(450*Math.pow(1.8,L-1));
   return o;
 }
@@ -265,23 +281,35 @@ let mcam=null, mapSel=null, groundPat=null;
 const gImg=new Image(); gImg.onload=()=>{ groundPat=null; if(view==='map') drawMap(); }; gImg.src=MSPR.ground.img;
 const cellW = (x,y) => [(x-y)*TW/2, (x+y)*TH/2];                    // tile centre in world pixels
 function camCenter(x,y){ const [wx,wy]=cellW(x,y); mcam.x=wx; mcam.y=wy; clampCam(); }
-function clampCam(){ mcam.z=Math.min(1.4,Math.max(0.3,mcam.z)); mcam.x=Math.max(-MAPN*TW/2,Math.min(MAPN*TW/2,mcam.x)); mcam.y=Math.max(TH,Math.min(MAPN*TH,mcam.y)); }
+function clampCam(){ mcam.z=Math.min(1.4,Math.max(0.4,mcam.z)); mcam.x=Math.max(-MAPN*TW/2,Math.min(MAPN*TW/2,mcam.x)); mcam.y=Math.max(TH,Math.min(MAPN*TH,mcam.y)); }
 function screenToCell(sx,sy){ const v=vsize(), wx=(sx-v.w/2)/mcam.z+mcam.x, wy=(sy-v.h/2)/mcam.z+mcam.y;
   const a=wx/(TW/2), b=wy/(TH/2); return [Math.round((a+b)/2), Math.round((b-a)/2)]; }
-function resizeMap(){ const v=vsize(), d=window.devicePixelRatio||1; mapc.width=Math.round(v.w*d); mapc.height=Math.round(v.h*d); mapc.style.width=v.w+'px'; mapc.style.height=v.h+'px'; }
+const mapDpr = () => Math.min(1.5, window.devicePixelRatio||1);
+function resizeMap(){ const v=vsize(), d=mapDpr(); mapc.width=Math.round(v.w*d); mapc.height=Math.round(v.h*d); mapc.style.width=v.w+'px'; mapc.style.height=v.h+'px'; }
+let mapRaf=0; function requestDraw(){ if(mapRaf) return; mapRaf=requestAnimationFrame(()=>{ mapRaf=0; drawMap(); }); }
 function mapZoomAt(f,sx,sy){ const v=vsize(), z0=mcam.z; const wx=(sx-v.w/2)/z0+mcam.x, wy=(sy-v.h/2)/z0+mcam.y;
-  mcam.z*=f; clampCam(); mcam.x=wx-(sx-v.w/2)/mcam.z; mcam.y=wy-(sy-v.h/2)/mcam.z; clampCam(); drawMap(); updateCoords(); }
-function mapPan(dx,dy){ mcam.x-=dx/mcam.z; mcam.y-=dy/mcam.z; clampCam(); drawMap(); updateCoords(); }
+  mcam.z*=f; clampCam(); mcam.x=wx-(sx-v.w/2)/mcam.z; mcam.y=wy-(sy-v.h/2)/mcam.z; clampCam(); requestDraw(); updateCoords(); }
+function mapPan(dx,dy){ mcam.x-=dx/mcam.z; mcam.y-=dy/mcam.z; clampCam(); requestDraw(); updateCoords(); }
 function updateCoords(){ const v=vsize(), [x,y]=screenToCell(v.w/2,v.h/2), ix=document.getElementById('cxi'), iy=document.getElementById('cyi');
   if(document.activeElement!==ix) ix.value=Math.max(1,Math.min(MAPN,x)); if(document.activeElement!==iy) iy.value=Math.max(1,Math.min(MAPN,y)); }
 
 // ---------- drawing ----------
+const sprCache=new Map();
+function sprite(key, im, w, h, z, d){ const pw=Math.max(8,Math.round(w*z*d)), ck=key+'|'+pw; let cv=sprCache.get(ck);
+  if(!cv){ if(sprCache.size>400) sprCache.clear(); cv=document.createElement('canvas'); cv.width=pw; cv.height=Math.max(8,Math.round(h*z*d));
+    const g=cv.getContext('2d'); g.imageSmoothingQuality='high'; g.drawImage(im,0,0,cv.width,cv.height); sprCache.set(ck,cv); }
+  return cv; }
+const badgeCache=new Map();
+function badgeSprite(txt,col){ const k=txt+col; let cv=badgeCache.get(k); if(cv) return cv;
+  cv=document.createElement('canvas'); const g=cv.getContext('2d'); g.font='700 15px "Black Ops One", Impact, sans-serif';
+  const w=Math.max(24,g.measureText(txt).width+12); cv.width=Math.ceil(w+6)*2; cv.height=56; g.scale(2,2); badge(g,cv.width/4,14,txt,col); badgeCache.set(k,cv); return cv; }
+document.fonts && document.fonts.ready.then(()=>{ badgeCache.clear(); if(view==='map') requestDraw(); });
 function badge(c,x,y,txt,col){ c.font='700 15px "Black Ops One", Impact, sans-serif'; const w=Math.max(24,c.measureText(txt).width+12);
   c.fillStyle=col; c.strokeStyle='#3a2604'; c.lineWidth=2.5; c.beginPath(); c.roundRect(x-w/2,y-12,w,24,5); c.fill(); c.stroke();
   c.fillStyle='#241803'; c.textAlign='center'; c.textBaseline='middle'; c.fillText(txt,x,y+1); }
 function drawMap(){
   if(view!=='map' || !mcam) return;
-  const v=vsize(), d=window.devicePixelRatio||1, c=mctx, z=mcam.z;
+  const v=vsize(), d=mapDpr(), c=mctx, z=mcam.z;
   c.setTransform(1,0,0,1,0,0); c.fillStyle='#22281c'; c.fillRect(0,0,mapc.width,mapc.height);
   c.setTransform(z*d,0,0,z*d,(v.w/2-mcam.x*z)*d,(v.h/2-mcam.y*z)*d);
   const x0=mcam.x-v.w/2/z, y0=mcam.y-v.h/2/z, x1=mcam.x+v.w/2/z, y1=mcam.y+v.h/2/z;
@@ -304,7 +332,7 @@ function drawMap(){
       const [wx,wy]=cellW(x,y); if(wx<x0-TW||wx>x1+TW||wy<y0-TH||wy>y1+TH*2.5) continue;
       const key = sprKey(tl), sp=MSPR[key], im=MIMG[key];
       const w = TW*(tl.t==='home'?1.3: tl.t==='camp'?1.2:1.12), h=w*sp.r;
-      if(im.complete && im.naturalWidth) c.drawImage(im, wx-w/2, wy-sp.cy*h, w, h);
+      if(im.complete && im.naturalWidth) c.drawImage(sprite(key,im,w,h,z,d), wx-w/2, wy-sp.cy*h, w, h);
       if(tl.t==='home') badges.push([wx, wy+TH*0.42, '★ '+tl.lvl, '#7fd06a']);
       else if(tl.lvl && tl.t!=='plain' && z>0.42) badges.push([wx+w*0.3, wy+TH*0.2, String(tl.lvl), tl.t==='camp'?'#e0574a':'#f3c534']);
     }
@@ -316,7 +344,7 @@ function drawMap(){
     c.setLineDash([14/z,10/z]); c.strokeStyle=m.st==='out'?'#ff6a3d':'#7fd06a'; c.lineWidth=4/z; c.beginPath(); c.moveTo(hx,hy); c.lineTo(tx2,ty2); c.stroke(); c.setLineDash([]);
     c.fillStyle=c.strokeStyle; c.beginPath(); c.arc(hx+(tx2-hx)*p, hy+(ty2-hy)*p, 9/z, 0, 7); c.fill(); }
   const bs=Math.min(1.25,Math.max(0.8,1/z));
-  for(const [bx2,by2,t,col] of badges){ c.save(); c.translate(bx2,by2); c.scale(bs,bs); badge(c,0,0,t,col); c.restore(); }
+  for(const [bx2,by2,t,col] of badges){ const b=badgeSprite(t,col), bw=b.width/2*bs, bh=b.height/2*bs; c.drawImage(b, bx2-bw/2, by2-bh/4-6*bs, bw, bh); }
 }
 
 // ---------- tile panel ----------
@@ -381,12 +409,13 @@ function battle(att, def, titan){
     let dmg=0; for(const u in from){ const d=U(u); if(round===0 && !d.rg) continue; dmg+=from[u]*d.at*(round===0?1.5:1)*(mine&&u!=='titan'?bonus:1); }
     const hpTot=Object.keys(to).reduce((s,u)=>s+to[u]*U(u).hp,0); if(!hpTot) return {};
     const k={}; for(const u in to){ const d=U(u), share=to[u]*d.hp/hpTot; k[u]=Math.min(to[u], dmg*share*(100/(100+d.df))/d.hp); } return k; };
-  for(let r=0;r<10 && sum(A)>0.5 && sum(D)>0.5;r++){
+  for(let r=0;r<200 && sum(A)>0.5 && sum(D)>0.5;r++){
     const kd=hit(A,D,r,true), ka=hit(D,A,r,false);
     for(const u in kd) D[u]=Math.max(0,D[u]-kd[u]); for(const u in ka) A[u]=Math.max(0,A[u]-ka[u]); }
   const tLeft = titan ? Math.max(0,A.titan) : 1; delete A.titan;
-  const ri=o=>{ const x={}; for(const u in o) x[u]=Math.round(o[u]); return x; };
-  const left=ri(A), dleft=ri(D), tAlive=titan && tLeft>0.05, win=sum(dleft)===0 && (sum(left)>0 || tAlive);
+  const ri=o=>{ const x={}; for(const u in o) x[u]=o[u]<0.5?0:Math.round(o[u]); return x; };
+  const left=ri(A), dleft=ri(D), tAlive=titan && tLeft>0.05;
+  const win=sum(dleft)===0 && (sum(left)>0 || tAlive);
   return {win, left, dleft, tLeft}; }
 function arrive(m){
   const tl=tileAt(m.x,m.y), df=defenders(tl), res=battle(m.troops,df,m.titan), loot={};
@@ -1129,7 +1158,7 @@ function tick(){
   if(state.queue && now>=state.queue.end) complete();
   checkTraining(); processMarches();
   { const T=titanState(); if(!T.away && T.hp<100 && bldLevel('hangar')) T.hp=Math.min(100, T.hp+repairRate()*dt/3600); }
-  updateRepBadge(); if(view==='map') drawMap();
+  updateRepBadge(); if(view==='map' && state.marches.length) requestDraw();
   renderRes(); renderQueue(); if(state.queue) renderSlots();
   if(cur){ const ae=document.activeElement; // don't rebuild the panel while the player is typing a number
     if(ae && ae.tagName==='INPUT' && document.getElementById('sheet').contains(ae)) liveSheet(); else renderSheet(); }
