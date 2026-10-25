@@ -19,7 +19,7 @@ let W = 2576, H = 1438; const MAX = 10;
 const BG = 'assets/img/bg.jpg';
 // The wall is painted into the base background: one version per wall stage (levels 1-3, 4-6, 7-9, 10).
 // A stage without its own picture uses the closest lower one, then the current background.
-const BG_WALL = {2:'assets/img/bg.jpg'};
+const BG_WALL = {1:'assets/img/bg_wall1.jpg', 2:'assets/img/bg.jpg', 3:'assets/img/bg_wall3.jpg', 4:'assets/img/bg_wall4.jpg'};   // bg_wall0.jpg = the base without any wall
 const wallStage = () => { const L=(state.slots.wall||{}).lvl||1; return L<=3?1: L<=6?2: L<=9?3:4; };
 function bgNow(){ for(let k=wallStage();k>=1;k--) if(BG_WALL[k]) return BG_WALL[k]; return BG; }
 const RES = ['metal','wood','stone','fuel','rations','gold'];
