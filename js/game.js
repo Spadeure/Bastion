@@ -446,14 +446,15 @@ const EQ_BONUS = [0, 0.10, 0.22, 0.40];
 const EQ_COL = ['', '#9aa39c', '#f3c534', '#ff8a3d'];
 const EQ_EMOJI = {armor:'🛡️', weapon:'💥', reactor:'🚀', legs:'🦿'};
 const EQIMG = {}; for(const sl of ['armor','weapon','reactor','legs']) for(const t of [1,2,3]) EQIMG[sl+'_'+t]=`assets/img/eq_${sl}_${t}.webp`;   // painted icons (Gemini)
-function titanState(){ if(!state.titan) state.titan={lvl:1, xp:0, hp:100, away:false, eq:{}, inv:[]}; return state.titan; }
-const titanMax = () => Math.max(1, bldLevel('hangar'))*5;
-const xpNeed = L => Math.round(220*Math.pow(L,1.8));
+function titanState(){ if(!state.titan) state.titan={lvl:1, xp:0, hp:100, away:false, eq:{}, inv:[]}; if(state.titan.lvl>10) state.titan.lvl=10; return state.titan; }
+const titanMax = () => Math.min(10, Math.max(1, bldLevel('hangar')));   // like the Great Dragon: level capped by its hangar, 10 max
+const xpNeed = L => Math.round(600*Math.pow(L,2.4));
+const tScale = L => L*(1+0.25*(L-1));   // stats grow faster at high level (level 10 = x32.5)
 const eqB = slot => { const it=titanState().eq[slot]; return it ? EQ_BONUS[it.t] : 0; };
-function titanStats(){ const T=titanState(), L=T.lvl;
+function titanStats(){ const T=titanState(), L=tScale(T.lvl);
   return { at: Math.round(450*L*(1+eqB('weapon'))), df: Math.round(150*L*(1+eqB('armor'))), hp: Math.round(2500*L*(1+eqB('armor')+eqB('legs')/2)),
-           sp: Math.round(380*(1+eqB('reactor'))), ld: Math.round(300*L*(1+eqB('legs'))), rg:0, pw: Math.round(40*L*(L+1)/2) }; }
-const titanTroopBonus = () => 0.02*titanState().lvl;      // +2% attack for the troops marching with the Titan, per level
+           sp: Math.round(380*(1+eqB('reactor'))), ld: Math.round(300*L*(1+eqB('legs'))), rg:0, pw: Math.round(120*L) }; }
+const titanTroopBonus = () => 0.05*titanState().lvl;      // +5% attack for the troops marching with the Titan, per level (+50% at level 10)
 const titanReady = () => { const T=titanState(); return bldLevel('hangar')>0 && !T.away && T.hp>=30; };
 const repairRate = () => 5 + 2*bldLevel('hangar');         // health % repaired per hour at the hangar
 function titanPower(){ if(!bldLevel('hangar')) return 0; const T=titanState(); let p=titanStats().pw; for(const s of EQ_SLOTS) if(T.eq[s]) p+=150*T.eq[s].t; return p; }
@@ -490,7 +491,7 @@ function titanPanel(){
   else h+=`<div class="eqgrid">${[...T.inv].sort((a,b)=>b.t-a.t).map(it=>`<div class="eqslot">${eqIcon(it,52)}<b>${_t(EQ_NAME[it.s])}</b><small style="color:${EQ_COL[it.t]}">${_t(EQ_TIER[it.t])} · +${Math.round(EQ_BONUS[it.t]*100)}%</small>
       <div style="display:flex;gap:4px"><button class="sm" data-act="equip" data-id="${it.id}">${_t('Equip')}</button><button class="sec sm" data-act="scrap" data-id="${it.id}" title="${_t('Scrap for gold')}">${IC.gold}</button></div></div>`).join('')}</div>`;
   return h; }
-const titanStage = () => { const L=titanState().lvl; return L<=10?0: L<=30?1:2; };
+const titanStage = () => { const L=titanState().lvl; return L<=3?0: L<=7?1:2; };   // prototype 1-3, standard 4-7, elite 8-10
 const TITAN_STAGES = {0:'assets/img/titan_0.webp', 1:'assets/img/titan_1.webp', 2:'assets/img/titan_2.webp'};   // prototype, standard, elite
 const TITAN_R = {"0": 1.4231, "1": 1.586, "2": 1.4379};
 const titanImg = () => TITAN_STAGES[titanStage()] || TITAN.img;
@@ -517,7 +518,7 @@ function effect(t,l){
     case 'lab':      return _t('Research speed +{p}%',{p:l*5});
     case 'factory':  return _t('Vehicle production speed +{p}%',{p:l*5});
     case 'rally':    return _t('Max troops per march: {n}',{n:l*1000});
-    case 'hangar':   return _t('Titan maximum level: {n}',{n:l*5});
+    case 'hangar':   return _t('Titan maximum level: {n}',{n:Math.min(10,l)});
     case 'helipad':  return _t('Air unit training speed +{p}%',{p:l*5});
     case 'radar':    return l<3 ? _t('Detects incoming attacks.') : _t('Detects attacks and enemy troop count');
   }
