@@ -389,7 +389,7 @@ p{font-size:15px;color:#d6d6ca;line-height:1.35;font-weight:500}
 .big>.ic{width:70%;height:70%}
 
 /* research */
-.big.tech .ic{width:72%;height:72%}
+.big.tech .ic{width:90%;height:90%}
 .tech-row.locked{opacity:.65}
 .rcur{border-color:var(--brass)}
 .unl{font-size:13px;margin-top:5px;color:#c9c3a8;display:flex;flex-wrap:wrap;gap:6px;align-items:center}

@@ -183,7 +183,7 @@ const TECH_BR = [['eco','Economy'],['mil','Military'],['log','Logistics & Titan'
 const UNIT_TECH = {rifleman:{drill:1}, sniper:{ballistics:2}, assault:{ballistics:3,armor:2}, truck:{logistics:1}, drone:{engines:1},
   apc:{armor:3,logistics:2}, tank:{armor:5,ballistics:4}, artillery:{ballistics:6,engines:3}, heli:{engines:3}, gunship:{engines:5,armor:4}};
 // painted technology icons (Gemini): filled in when the icon sheet arrives, e.g. TECH_ART.extraction='assets/img/tech_extraction.webp'
-const TECH_ART = {};
+const TECH_ART = {}; for(const t of Object.keys(TECH)) TECH_ART[t]=`assets/img/tech_${t}.webp`;
 const techIcon = t => `<img class="ic" src="${TECH_ART[t]||ICS[TECH[t].ic]}" alt="">`;
 function researchState(){ if(!state.research) state.research={lv:{}, cur:null}; return state.research; }
 const techLv = t => researchState().lv[t]||0;
