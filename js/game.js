@@ -299,7 +299,7 @@ ITEMS.repair_s = {kind:'repair', pct:25, size:'s'}; ITEMS.repair_l = {kind:'repa
 ITEMS.supply = {kind:'box'};
 const ITEM_ORDER = Object.keys(ITEMS);
 // painted item pictures (Gemini)
-const ITEM_ART = {}; for(const k of ['crate_s','crate_m','crate_l','gold_s','gold_m','gold_l','speed_1','speed_2','speed_3','repair_s','repair_l','supply']) ITEM_ART[k]=`assets/img/item_${k}.webp`;
+const ITEM_ART = {}; for(const k of ['crate_s','crate_m','crate_l','gold_s','gold_m','gold_l','speed_1','speed_2','speed_3','repair_s','repair_l','supply','boost_prod','boost_atk','boost_def','march_25','march_50','train_30']) ITEM_ART[k]=`assets/img/item_${k}.webp`;   // item_medal / item_ticket / item_wheel / item_truce_* are ready for the wheel and the truces
 function itemArt(id){ const it=ITEMS[id];
   if(it.kind==='crate') return ITEM_ART[(it.res==='gold'?'gold_':'crate_')+it.size];
   if(it.kind==='speed') return ITEM_ART['speed_'+it.tier];
