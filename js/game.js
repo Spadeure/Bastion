@@ -445,7 +445,7 @@ const EQ_TIER = ['', 'Standard', 'Advanced', 'Elite'];
 const EQ_BONUS = [0, 0.10, 0.22, 0.40];
 const EQ_COL = ['', '#9aa39c', '#f3c534', '#ff8a3d'];
 const EQ_EMOJI = {armor:'🛡️', weapon:'💥', reactor:'🚀', legs:'🦿'};
-const EQIMG = {};   // filled with painted icons when available: EQIMG['armor_2'] = 'assets/img/eq_armor_2.webp'
+const EQIMG = {}; for(const sl of ['armor','weapon','reactor','legs']) for(const t of [1,2,3]) EQIMG[sl+'_'+t]=`assets/img/eq_${sl}_${t}.webp`;   // painted icons (Gemini)
 function titanState(){ if(!state.titan) state.titan={lvl:1, xp:0, hp:100, away:false, eq:{}, inv:[]}; return state.titan; }
 const titanMax = () => Math.max(1, bldLevel('hangar'))*5;
 const xpNeed = L => Math.round(220*Math.pow(L,1.8));
@@ -491,7 +491,8 @@ function titanPanel(){
       <div style="display:flex;gap:4px"><button class="sm" data-act="equip" data-id="${it.id}">${_t('Equip')}</button><button class="sec sm" data-act="scrap" data-id="${it.id}" title="${_t('Scrap for gold')}">${IC.gold}</button></div></div>`).join('')}</div>`;
   return h; }
 const titanStage = () => { const L=titanState().lvl; return L<=10?0: L<=30?1:2; };
-const TITAN_STAGES = {};   // filled when the evolution pictures arrive: TITAN_STAGES[0] = 'assets/img/titan_0.webp'
+const TITAN_STAGES = {0:'assets/img/titan_0.webp', 1:'assets/img/titan_1.webp', 2:'assets/img/titan_2.webp'};   // prototype, standard, elite
+const TITAN_R = {"0": 1.4231, "1": 1.586, "2": 1.4379};
 const titanImg = () => TITAN_STAGES[titanStage()] || TITAN.img;
 function openTitan(){ if(!bldLevel('hangar')){ setView('city'); openSlot('hangar'); return; } openPanel('__titan'); }
 
@@ -836,13 +837,12 @@ function constructionFX(){
 }
 function titanSVG(){
   const hb=state.slots.hangar; if(!hb || !TITAN || titanState().away) return null;
-  const T=SLOTS.find(x=>x.id==='titan'), w=150+Math.min(hb.lvl,10)*5, ih=w*TITAN.imgR, ay=0.95;
+  const stg=titanStage(), T=SLOTS.find(x=>x.id==='titan'), w=(130+Math.min(hb.lvl,10)*5)*(stg===2?1.12:1), ih=w*(TITAN_R[stg]||TITAN.imgR), ay=0.97;
   const vis=ANIM.titan.visor, vx=-w/2+vis[0]*w, vy=-ih*ay+vis[1]*ih;
   return {y:T.y, svg:`<g class="titan" data-titan="1" transform="translate(${T.x},${T.y})">
     <ellipse cx="6" cy="2" rx="${w*0.36}" ry="${w*0.11}" fill="#000" opacity=".28"/>
     <g class="anim" style="animation:bob 3.4s ease-in-out infinite;${ph(3.4)}">
       <image href="${titanImg()}" x="${-w/2}" y="${-ih*ay}" width="${w}" height="${ih}"/>
-      <ellipse cx="${vx}" cy="${vy}" rx="${w*0.05}" ry="${w*0.025}" fill="#ff7a2f" style="animation:glow 2s ease-in-out infinite;${ph(2)};filter:blur(2px)"/>
     </g></g>`};
 }
 function slotSVG(s){
