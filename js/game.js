@@ -17,6 +17,11 @@ function setLang(l){ LANG=l; try{ localStorage.setItem('bastion_lang',l); }catch
 let W = 2576, H = 1438; const MAX = 10;
 // Background painted image (Gemini). Set to '' to go back to the code-drawn scene.
 const BG = 'assets/img/bg.jpg';
+// The wall is painted into the base background: one version per wall stage (levels 1-3, 4-6, 7-9, 10).
+// A stage without its own picture uses the closest lower one, then the current background.
+const BG_WALL = {2:'assets/img/bg.jpg'};
+const wallStage = () => { const L=(state.slots.wall||{}).lvl||1; return L<=3?1: L<=6?2: L<=9?3:4; };
+function bgNow(){ for(let k=wallStage();k>=1;k--) if(BG_WALL[k]) return BG_WALL[k]; return BG; }
 const RES = ['metal','wood','stone','fuel','rations','gold'];
 // Painted icons (Gemini art)
 const ICS = {"metal": "assets/img/metal.webp", "wood": "assets/img/wood.webp", "stone": "assets/img/stone.webp", "fuel": "assets/img/fuel.webp", "rations": "assets/img/rations.webp", "gold": "assets/img/gold.webp", "pop": "assets/img/pop.webp", "power": "assets/img/power.webp", "fields": "assets/img/fields.webp", "map": "assets/img/map.webp", "base": "assets/img/base.webp", "shop": "assets/img/shop.webp", "quests": "assets/img/quests.webp", "reports": "assets/img/reports.webp", "defense": "assets/img/defense.webp", "troops": "assets/img/troops.webp", "research": "assets/img/research.webp", "messages": "assets/img/messages.webp", "inventory": "assets/img/inventory.webp", "settings": "assets/img/settings.webp"};
@@ -707,7 +712,8 @@ function startBuild(slot,t,l){
   save(); renderAll(); toast(IC.build+' '+_t('{b} started',{b:_t(B[t].name)}));
 }
 function complete(){
-  const q=state.queue, p0=totalPower(); state.slots[q.slot]={type:q.type,lvl:q.lvl}; state.queue=null;
+  const q=state.queue, p0=totalPower(), st0=q.type==='wall'?wallStage():0; state.slots[q.slot]={type:q.type,lvl:q.lvl}; state.queue=null;
+  if(q.type==='wall' && wallStage()!==st0){ cityCache=null; if(view==='city'){ buildWorld(); } }
   save(); renderAll(); toast(IC.ok+' '+_t('{b} level {l} complete',{b:_t(B[q.type].name),l:q.lvl})); powerGain(totalPower()-p0);
 }
 function cancel(){
@@ -1053,7 +1059,7 @@ function buildWorld(){
   let inner;
   if(view==='city'){
     W=2576; H=1438;
-    if(!cityCache){ const sc0=BG ? {sceneBack:`<image href="${BG}" x="0" y="0" width="${W}" height="${H}"/>`, sceneFront:'', sceneFore:''} : buildScene(); cityCache=sc0; }
+    if(!cityCache){ const sc0=BG ? {sceneBack:`<image href="${bgNow()}" x="0" y="0" width="${W}" height="${H}"/>`, sceneFront:'', sceneFore:''} : buildScene(); cityCache=sc0; }
     inner=`${cityCache.sceneBack}<g id="slots"></g>${cityCache.sceneFront}<g id="gate"></g>${cityCache.sceneFore}`;
   } else { W=FW; H=FH; inner=`${fieldScene()}<g id="slots"></g><g id="gate"></g>`; }
   world.innerHTML=`<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">${inner}</svg>`;
