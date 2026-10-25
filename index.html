@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Bastion</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="app">
+  <div id="viewport"><div id="world"></div></div>
+  <div id="hud">
+    <div class="plate cmd" id="cmdCard">
+      <div class="avatar" id="avatar"><span class="lvl" id="pLvl">1</span></div>
+      <div class="cinfo">
+        <div class="cname" data-i18n="COMMANDER">COMMANDER</div>
+        <div class="power"><span class="pi"><img class="ic" data-ic="power" alt=""></span><b id="pPow">0</b><small data-i18n="POWER">POWER</small></div>
+        <div class="xp" title="Progress to next level" data-i18n-title="Progress to next level"><i id="pXp"></i></div>
+      </div>
+      <button class="menub" id="menuBtn" title="Menu" data-i18n-title="Menu">☰</button>
+    </div>
+    <div class="navicons">
+      <button class="nicon" id="nTitan" title="Titan" data-i18n-title="Titan">🔒</button>
+      <button class="nicon" data-view="fields" title="Fields" data-i18n-title="Fields"><img class="ic" data-ic="fields" alt=""></button>
+      <button class="nicon" data-view="map" title="Map" data-i18n-title="Map"><img class="ic" data-ic="map" alt=""></button>
+      <button class="nicon on" data-view="city" title="Base" data-i18n-title="Base"><img class="ic" data-ic="base" alt=""></button>
+    </div>
+    <div id="powpop"></div>
+    <div class="plate coordbox" id="coordBox"><span>X</span><input id="cxi" type="number" min="1" max="750" inputmode="numeric"><span>Y</span><input id="cyi" type="number" min="1" max="750" inputmode="numeric">
+      <button id="cgo" data-i18n="GO">GO</button><button class="sec" id="chome" title="Back to my base" data-i18n-title="Back to my base">🏠</button></div>
+    <div class="side left">
+      <button class="sbtn" data-soon="1"><span><img class="ic" data-ic="shop" alt=""></span><em data-i18n="Shop">Shop</em></button>
+      <button class="sbtn" data-soon="1"><span><img class="ic" data-ic="quests" alt=""></span><em data-i18n="Quests">Quests</em></button>
+      <button class="sbtn ph-hide" data-soon="1"><span><img class="ic" data-ic="messages" alt=""></span><em data-i18n="Messages">Messages</em></button>
+      <button class="sbtn" id="reportsBtn"><span><img class="ic" data-ic="reports" alt=""><b class="rbadge" id="repBadge" style="display:none">0</b></span><em data-i18n="Reports">Reports</em></button>
+    </div>
+    <div class="plate tabs">
+      <div class="brand">BASTION</div>
+      <div class="trow">
+        <a class="tab" data-view="map"><img class="ic" data-ic="map" alt=""> <span data-i18n="MAP">MAP</span></a>
+        <a class="tab" data-view="fields"><img class="ic" data-ic="fields" alt=""> <span data-i18n="FIELDS">FIELDS</span></a>
+        <a class="tab on" data-view="city"><img class="ic" data-ic="base" alt=""> <span data-i18n="BASE">BASE</span></a>
+      </div>
+      <div class="trow two">
+        <a class="tab dim" data-soon="1">👑 <span data-i18n="EMPIRE">EMPIRE</span></a>
+        <a class="tab dim" data-soon="1"><img class="ic" data-ic="defense" alt=""> <span data-i18n="ALLIANCE">ALLIANCE</span></a>
+      </div>
+    </div>
+    <div class="plate titanp" id="titanCard">
+      <div class="tinfo"><div class="tname" data-i18n="TITAN">TITAN</div><div class="tsub" id="tSub">Build the Titan Hangar</div></div>
+      <div class="portrait" id="tPortrait">🔒</div>
+    </div>
+    <div class="side right">
+      <button class="sbtn ph-hide" data-soon="1"><span><img class="ic" data-ic="inventory" alt=""></span><em data-i18n="Inventory">Inventory</em></button>
+      <button class="sbtn" data-soon="1"><span><img class="ic" data-ic="defense" alt=""></span><em data-i18n="Defense">Defense</em></button>
+      <button class="sbtn" id="troopsBtn"><span><img class="ic" data-ic="troops" alt=""></span><em data-i18n="Troops">Troops</em></button>
+      <button class="sbtn" data-soon="1"><span><img class="ic" data-ic="research" alt=""></span><em data-i18n="Research">Research</em></button>
+    </div>
+    <div class="ctrls"><button id="zin">+</button><button id="zout">−</button></div>
+    <div class="bottom">
+      <div class="plate" id="queue"></div>
+      <div class="plate resbar">
+        <div class="res"><span class="ri"><img class="ic" data-ic="metal" alt=""></span><div class="rv"><span class="v" id="r-metal">0</span><small id="rr-metal"></small></div></div>
+        <div class="res"><span class="ri"><img class="ic" data-ic="wood" alt=""></span><div class="rv"><span class="v" id="r-wood">0</span><small id="rr-wood"></small></div></div>
+        <div class="res"><span class="ri"><img class="ic" data-ic="stone" alt=""></span><div class="rv"><span class="v" id="r-stone">0</span><small id="rr-stone"></small></div></div>
+        <div class="res"><span class="ri"><img class="ic" data-ic="fuel" alt=""></span><div class="rv"><span class="v" id="r-fuel">0</span><small id="rr-fuel"></small></div></div>
+        <div class="res"><span class="ri"><img class="ic" data-ic="rations" alt=""></span><div class="rv"><span class="v" id="r-rations">0</span><small id="rr-rations"></small></div></div>
+        <div class="res"><span class="ri"><img class="ic" data-ic="gold" alt=""></span><div class="rv"><span class="v" id="r-gold">0</span><small id="rr-gold"></small></div></div>
+        <div class="res popc"><span class="ri"><img class="ic" data-ic="pop" alt=""></span><div class="rv"><span class="v" id="r-pop">0</span><small id="rr-pop"></small></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="back"></div>
+<div id="sheet"><button class="close" data-act="close">✕</button><div id="sheetBody"></div></div>
+<div id="toast"></div>
+
+<script src="js/game.js"></script>
+</body>
+</html>
