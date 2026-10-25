@@ -512,7 +512,7 @@ function titanPanel(){
     ${T.lvl>=titanMax()?`<div class="why">${_t('Upgrade the Titan Hangar to raise the maximum level.')}</div>`:''}
     <div class="ust" style="margin:8px 0"><span>⚔️ ${fmtN(st.at)}</span><span>🛡️ ${fmtN(st.df)}</span><span>❤️ ${fmtN(st.hp)}</span><span>💨 ${st.sp}</span><span>📦 ${fmtN(st.ld)}</span><span>${IC.troops} +${Math.round(titanTroopBonus()*100)}% ${_t('troop attack')}</span></div>
     <h3>${_t('Equipment')}</h3><div class="eqgrid">${EQ_SLOTS.map(s=>{ const it=T.eq[s];
-      return `<div class="eqslot">${it?eqIcon(it,58):`<span class="eqi empty" style="width:58px;height:58px">${EQ_EMOJI[s]}</span>`}<b>${_t(EQ_NAME[s])}</b>
+      return `<div class="eqslot">${it?eqIcon(it,58):`<span class="eqi empty" style="width:58px;height:58px"><img src="${EQIMG[s+'_1']}" alt="" style="filter:grayscale(1)"></span>`}<b>${_t(EQ_NAME[s])}</b>
         <small>${it?`<span style="color:${EQ_COL[it.t]}">${_t(EQ_TIER[it.t])}</span> · +${Math.round(EQ_BONUS[it.t]*100)}%`:_t('Empty')}</small>
         ${it?`<button class="sec sm" data-act="uneq" data-s="${s}">${_t('Remove')}</button>`:''}</div>`; }).join('')}</div>
     <h3>${_t('Parts inventory')} (${T.inv.length})</h3>`;
@@ -1005,7 +1005,7 @@ function renderQueue(){
   el.style.display = busy ? '' : 'none';
   if(!q) h='';
   else { const p=Math.min(1,(Date.now()-q.start)/(q.end-q.start))*100;
-    h=`<div class="qrow"><span>🔨 ${B[q.type].icon} ${_t('Lv')} ${q.lvl}</span><div class="bar"><i style="width:${p}%"></i></div><span>${fmtT((q.end-Date.now())/1000)}</span><button class="sm" data-act="finish">${_t('Finish (test)')}</button></div>`; }
+    h=`<div class="qrow"><span>🔨 ${B[q.type].img?`<img class="ic" src="${B[q.type].img}" alt="">`:B[q.type].icon} ${_t(B[q.type].name)} · ${_t('Lv')} ${q.lvl}</span><div class="bar"><i style="width:${p}%"></i></div><span>${fmtT((q.end-Date.now())/1000)}</span><button class="sm" data-act="finish">${_t('Finish (test)')}</button></div>`; }
   for(const bl of TRAINERS){ const tq=state.training[bl]; if(!tq||!tq.length) continue; const j=tq[0];
     h+=`<div class="qrow"><span>🪖 ${fmtN(j.n)} ${_t(UNITS[j.u].name)}${tq.length>1?` (+${tq.length-1})`:''}</span><div class="bar"><i style="width:${pct(j.s,j.e)}%"></i></div><span>${fmtT((j.e-Date.now())/1000)}</span><button class="sm" data-act="tfinish" data-bld="${bl}">${_t('Finish (test)')}</button></div>`; }
   for(const m of state.marches){ const out=m.st==='out', a=out?m.s:m.a, b=out?m.a:m.b;
