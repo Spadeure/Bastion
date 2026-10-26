@@ -410,3 +410,15 @@ p{font-size:15px;color:#d6d6ca;line-height:1.35;font-weight:500}
 .qrow .sec.sm{padding:3px 6px}
 .chip .iti,#toast .iti{margin-right:5px;vertical-align:middle;border-width:1px}
 .chip .iti .ittag,#toast .iti .ittag,.chip .iti .itres,#toast .iti .itres{display:none}
+/* login screen (online server) */
+#login{position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;padding:16px;background:radial-gradient(circle at 50% 40%,#2a3324ee,#0b0e09f5),url(../assets/img/bg.jpg) center/cover}
+#login .lbox{width:100%;max-width:380px;display:flex;flex-direction:column;gap:10px;padding:26px 22px;border:18px solid transparent;border-image:var(--fr-win) 40 fill stretch;color:#e8e2c8}
+#login .ltitle{font-family:'Black Ops One',Impact,sans-serif;font-size:42px;letter-spacing:4px;text-align:center;color:#f3c534;text-shadow:0 3px 0 #3a2a05}
+#login .lsub{text-align:center;font-size:13px;opacity:.8;margin-top:-8px}
+#login .ltabs{display:flex;gap:6px}
+#login .ltabs button{flex:1;padding:8px;background:#1c2218;color:#cfc9ad;border:1px solid #5a5a3a;border-radius:8px;font-weight:700;cursor:pointer}
+#login .ltabs button.on{background:#d4a72c;color:#2a1d02;border-color:#5a3d05}
+#login input,#login select{padding:11px 12px;border-radius:8px;border:1px solid #6a6440;background:#10140e;color:#f0ead0;font-size:16px}
+#login .lgo{padding:12px;border-radius:9px;border:2px solid #5a3d05;background:linear-gradient(#f3c534,#c8941e);color:#2a1d02;font-weight:800;font-size:16px;cursor:pointer}
+#login .lgo:disabled{opacity:.6}
+#login .lerr{min-height:18px;color:#ff8a6a;font-size:13px;text-align:center}
