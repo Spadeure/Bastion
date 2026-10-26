@@ -538,3 +538,22 @@ p{font-size:15px;color:#d6d6ca;line-height:1.35;font-weight:500}
 #lvlfx .chips{justify-content:center}
 #lvlfx button{margin-top:6px;min-width:160px}
 @keyframes lvin{from{opacity:0}}@keyframes lvpop{from{transform:scale(.2) rotate(-40deg);opacity:0}}
+
+/* activity panel: header always visible, lines shown when opened */
+.qhead{display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none;min-height:26px}
+.qhead .qt{display:flex;align-items:center;gap:6px;font:15px var(--disp);letter-spacing:.5px;color:var(--brass2);white-space:nowrap}
+.qhead .qt small{font:700 12px var(--ui);background:#d4a72c;color:#241803;border-radius:9px;padding:0 7px;line-height:18px}
+.qhead .qnext{flex:1;min-width:0;text-align:right;color:var(--mut);font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.qhead .chev{flex:none;width:10px;height:10px;border-right:2.5px solid var(--brass2);border-bottom:2.5px solid var(--brass2);transform:rotate(45deg) translate(-2px,-2px);transition:transform .2s}
+.qhead .chev.up{transform:rotate(-135deg) translate(-2px,-2px)}
+#queue:not(.closed) .qhead{border-bottom:1px solid #4a3c1c66;padding-bottom:4px;margin-bottom:2px}
+.qrow.idle > span{color:var(--mut)}
+.qrow em{flex:1;font-style:normal;color:var(--mut);font-size:13px}.qrow em.ok{color:#8fd16a}
+.qrow .qtt{white-space:nowrap;font-size:13px}
+#queue .bar.hp i{background:linear-gradient(90deg,#3f9b47,#8fd16a)}
+.qrow[data-act]{cursor:pointer}
+.qrow > span:first-child{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+@media (max-width:760px){.qhead .qt{font-size:13px}.qhead .qnext{font-size:12px}.qrow .qtt{font-size:11px}.qrow em{font-size:11px}}
+#queue .lv-time,#queue button{white-space:nowrap}
+.qrow > span:first-child{flex:0 1 auto;max-width:46%}
+#queue .bar{min-width:40px}
