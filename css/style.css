@@ -564,3 +564,7 @@ p{font-size:15px;color:#d6d6ca;line-height:1.35;font-weight:500}
 .tlook{display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 6px;border:1px solid #4a3c1c;border-radius:8px;background:#0f1314;text-align:center}
 .tlook img{height:84px;object-fit:contain}.tlook b{font-size:14px}.tlook small{font-size:11px;color:var(--mut);line-height:1.2}
 .tlook.on{border-color:#ffd54a;box-shadow:0 0 10px #ffd54a55}.tlook.lock img{filter:grayscale(1) brightness(.55)}
+
+/* several wheel spins at once */
+.wbtns{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.wmulti{text-align:center;margin-top:8px}.wmulti > b{display:block;margin-bottom:6px;color:var(--brass2)}

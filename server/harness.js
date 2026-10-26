@@ -15,7 +15,7 @@ openChest = function (id, count) {
     else titanState().inv.push({ id: Date.now() * 10 + i, s: r.s, t: r.t }); }
   __events.push({ t: 'chest', id, rewards });
 };
-wheelResult = (wheel, idx, reward) => { __events.push({ t: 'wheel', wheel, idx, reward }); };
+wheelResult = (wheel, idx, reward, all) => { __events.push({ t: 'wheel', wheel, idx, reward, all }); };
 levelUpShow = (from, to, rew) => { __events.push({ t: 'levelup', from, to, rew }); };
 // catch up everything that happened since the last visit (production, constructions, research, training, marches, repairs).
 // The time away is replayed event by event: each finished construction, research, training order, march step or boost
@@ -64,7 +64,7 @@ const __ACTIONS = {
   speed(id, tg) { if (!ITEMS[id] || !invN(id) || typeof tg !== 'string' || tg.length > 40) return 'bad_order'; speedTarget = tg; if (!speedJob(tg)) return 'bad_order'; useSpeed(id); },
   defend(u, n) { if (!UNITS[u]) return 'bad_order'; moveDefense(u, __int(n, -1e8, 1e8)); },
   claimQuest(id) { return claimQuest(String(id || '')); },
-  spin(w) { if (!WHEELS[w]) return 'bad_order'; return doSpin(w); },
+  spin(w, n) { if (!WHEELS[w]) return 'bad_order'; return doSpin(w, __int(n, 1, SPIN_MAX)); },
   daily() { return claimDailyTicket(); },
   readReport(id) { const r = state.reports.find(x => x.id === Number(id)); if (!r) return 'bad_order'; r.read = true; },
   readAllReports() { for (const r of state.reports) r.read = true; },
