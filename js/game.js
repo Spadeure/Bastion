@@ -1414,7 +1414,7 @@ function renderPower(){
   if(hb && TITAN){ tp.style.backgroundImage=`url(${titanImg()})`; tp.innerHTML=''; const T=titanState(); document.getElementById('tSub').innerHTML = T.away ? IC.atk+' '+_t('On a mission') : _t('Lv {l} · Health {h}%',{l:T.lvl,h:Math.floor(T.hp)}); }
   else { tp.style.backgroundImage=''; if(!tp.querySelector('img')) tp.innerHTML=IC.lock; document.getElementById('tSub').textContent=_t('Build the Titan Hangar'); }
 }
-function powerGain(n){ if(n<=0) return; const el=document.getElementById('powpop'); el.innerHTML=`+${fmtI(n)} ${IC.power}`; el.classList.remove('go'); void el.offsetWidth; el.classList.add('go'); }
+function powerGain(n){ if(n<=0) return; if(typeof fxBusy==='function' && fxBusy()) return afterFx(()=>powerGain(n)); const el=document.getElementById('powpop'); el.innerHTML=`+${fmtI(n)} ${IC.power}`; el.classList.remove('go'); void el.offsetWidth; el.classList.add('go'); }
 function renderRes(){
   renderPower();
   const c=cap(), rt=rates();
@@ -1908,7 +1908,7 @@ function wheelAnimate(wheel, idx, reward){
   const el=document.getElementById('wspin'); if(el){ el.style.transition='none'; void el.offsetWidth; el.style.transition='transform 4.6s cubic-bezier(.15,.7,.2,1)'; el.style.transform=`rotate(${target}deg)`; }
   setTimeout(()=>{ wheelSpinning=false;
     wheelLast[wheel]=`<div class="cfx-card" style="--rc:${RARITY_COL[reward.rarity]}">${rewardIcon(reward,72)}<b>${reward.n&&reward.k!=='part'?'× '+fmtN(reward.n)+' ':''}${rewardName(reward)}</b><small style="color:${RARITY_COL[reward.rarity]}">${_t(RARITY_NAME[reward.rarity])}</small></div>`;
-    toast(IC.drop+' '+rewardName(reward)); renderSheetNow(); }, 4700); }
+    toast(IC.drop+' '+rewardName(reward)); renderSheetNow(); flushFx(); }, 4700); }
 function renderSheetNow(){ const sp=wheelSpinning; wheelSpinning=false; if(cur==='__wheel') setBody(wheelPanel()); wheelSpinning=sp;
   const b=document.querySelector('#sheet [data-act=wspin]'); if(b && sp) b.disabled=true; }
 
@@ -2044,7 +2044,12 @@ async function openChest(id, count){
     save(); }
   closeSheet(); renderAll(); chestShow(id, rewards); }
 // "Level up!" window: new level, rank reached, rewards
-function levelUpShow(from, to, rew){
+// level-up window and power gain wait for the end of a wheel spin or a chest opening: the result is never shown before
+let fxWaiting=[];
+const fxBusy = () => wheelSpinning || !!document.getElementById('chestfx');
+function afterFx(fn){ if(fxBusy()) fxWaiting.push(fn); else fn(); }
+function flushFx(){ if(fxBusy()) return; const w=fxWaiting; fxWaiting=[]; w.forEach((f,i)=>setTimeout(f, 250+i*150)); }
+function levelUpShow(from, to, rew){ if(fxBusy()) return afterFx(()=>levelUpShow(from, to, rew));
   let fx=document.getElementById('lvlfx'); if(fx) fx.remove();
   const newRank=rankOf(to)!==rankOf(from);
   const chips=Object.keys(rew.res).filter(r=>rew.res[r]).map(r=>`<span class="chip">${ICON[r]} +${fmtN(rew.res[r])}</span>`).join('')
@@ -2075,7 +2080,7 @@ function chestShow(id, rewards){
     if(res.innerHTML==='') res.innerHTML=`<div class="cfx-grid">${rewards.slice().sort((a,b)=>RARITY_ORDER.indexOf(a.rarity)-RARITY_ORDER.indexOf(b.rarity)).map((r,i)=>`<div class="cfx-mini" style="--rc:${RARITY_COL[r.rarity]};animation-delay:${Math.min(i,30)*40}ms">${rewardIcon(r,46)}<span>${r.n&&r.k!=='part'?'×'+fmtN(r.n)+' ':''}${rewardName(r)}</span></div>`).join('')}</div>`;
     const left=invN(id);
     fx.querySelector('.cfx-btns').innerHTML=`<button data-cfx="ok">${_t('Collect')}</button>${left?`<button class="sec" data-cfx="again">${_t('Open another')} (${fmtN(left)})</button>`:''}${left>1?`<button class="sec" data-cfx="all">${_t('Open all')} (${fmtN(Math.min(left,50))})</button>`:''}`;
-    fx.querySelectorAll('[data-cfx]').forEach(b=>b.onclick=()=>{ const a=b.dataset.cfx; fx.remove(); if(a==='again') openChest(id,1); if(a==='all') openChest(id,50); });
+    fx.querySelectorAll('[data-cfx]').forEach(b=>b.onclick=()=>{ const a=b.dataset.cfx; fx.remove(); if(a==='again') openChest(id,1); else if(a==='all') openChest(id,50); else flushFx(); });
   }, 1750); }
 
 // =====================================================================
