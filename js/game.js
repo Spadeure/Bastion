@@ -1258,7 +1258,7 @@ function fieldScene(){
 }
 // Ultra-wide screens (21:9): wider versions of the backgrounds, with more scenery on the left and right.
 // The base keeps its coordinates: everything is shifted by OX inside the wider picture.
-const WIDE = {city:null, fields:null};   // e.g. {w:3360, img:{1:'assets/img/bg_wall1_w.jpg', ...}} · {w:3360, img:'assets/img/fbg_w.jpg'}
+const WIDE = {city:{w:3616, img:{1:'assets/img/bg_wall1_w.jpg', 2:'assets/img/bg_wall2_w.jpg', 3:'assets/img/bg_wall3_w.jpg', 4:'assets/img/bg_wall4_w.jpg'}}, fields:{w:3448, img:'assets/img/fbg_w.jpg'}};
 let OX = 0;
 function buildWorld(){
   let inner;
@@ -1271,7 +1271,7 @@ function buildWorld(){
     inner=`${wd?`<image href="${wd.img}" x="0" y="0" width="${W}" height="${H}"/>`:''}<g transform="translate(${OX},0)">${fieldScene()}<g id="slots"></g><g id="gate"></g></g>`; }
   world.innerHTML=`<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">${inner}</svg>`;
   slotsLayer=document.getElementById('slots'); gateLayer=document.getElementById('gate');
-  vp.style.setProperty('--vbg', `url(${new URL(view==='city'?bgNow():FBG, location.href).href})`);   // absolute: CSS would read it relative to the css folder
+  vp.style.setProperty('--vbg', `url(${new URL(view==='city'?(WIDE.city?WIDE.city.img[wallStage()]:bgNow()):(WIDE.fields?WIDE.fields.img:FBG), location.href).href})`);   // absolute: CSS would read it relative to the css folder
 }
 let cur=null;
 function renderSlots(){
@@ -1460,7 +1460,7 @@ const vsize=()=>({w:vp.clientWidth,h:vp.clientHeight});
 // responsive zoom limit: the picture fills the screen; only a screen much wider than the picture (21:9 without wide art)
 // or a phone held upright may zoom out further, the empty sides then show a blurred copy of the picture
 const minS=()=>{ const v=vsize(), contain=Math.min(v.w/W,v.h/H), cover=Math.max(v.w/W,v.h/H);
-  if(v.h>v.w) return Math.max(contain, cover*0.5);
+  if(v.h>v.w) return cover;   // phone held upright: the picture fills the screen, slide to see the rest
   return v.w/v.h > (W/H)*1.15 ? contain : cover; };
 function apply(){ const v=vsize(); sc=Math.min(1.6,Math.max(minS(),sc));
   tx = W*sc<=v.w ? (v.w-W*sc)/2 : Math.min(0,Math.max(v.w-W*sc,tx));   /* smaller than the screen: centred over the blurred backdrop */
