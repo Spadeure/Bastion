@@ -13,6 +13,7 @@ const LOOT = {
     [7,  'uncommon',  {k:'item', id:'speed_1h', n:[1,1]}],
     [6,  'uncommon',  {k:'item', id:'boost_prod_*', n:[1,1]}],
     [5,  'uncommon',  {k:'item', id:'repair_s', n:[1,2]}],
+    [4,  'uncommon',  {k:'item', id:'truce_1h', n:[1,1]}],
     [4,  'rare',      {k:'item', id:'crate_gold_m', n:[1,1]}],
     [3,  'rare',      {k:'item', id:'speed_8h', n:[1,1]}],
     [1,  'epic',      {k:'item', id:'chest_silver', n:[1,1]}]
@@ -28,6 +29,7 @@ const LOOT = {
     [7,  'rare',      {k:'item', id:'speed_8h', n:[1,2]}],
     [6,  'rare',      {k:'item', id:'boost_atk|boost_def', n:[1,1]}],
     [5,  'rare',      {k:'item', id:'march_50', n:[1,2]}],
+    [4,  'rare',      {k:'item', id:'truce_12h', n:[1,1]}],
     [4,  'epic',      {k:'part', s:'*', t:2}],
     [3,  'epic',      {k:'item', id:'speed_24h', n:[1,1]}],
     [2,  'epic',      {k:'item', id:'crate_gold_l', n:[1,1]}],
@@ -45,6 +47,7 @@ const LOOT = {
     [8,  'epic',      {k:'part', s:'*', t:2}],
     [6,  'epic',      {k:'item', id:'speed_60h', n:[1,1]}],
     [5,  'legendary', {k:'part', s:'*', t:3}],
+    [4,  'epic',      {k:'item', id:'truce_3d', n:[1,1]}],
     [4,  'legendary', {k:'item', id:'speed_96h', n:[1,1]}]
   ]
 };
@@ -70,7 +73,7 @@ const WHEELS = {
     [9,  'epic',      {k:'troops', u:'tank', n:[20,50]}],
     [10, 'rare',      {k:'item', id:'boost_atk|boost_def', n:[1,1]}],
     [9,  'epic',      {k:'item', id:'speed_24h', n:[1,1]}],
-    [10, 'rare',      {k:'item', id:'chest_bronze', n:[3,3]}],
+    [10, 'rare',      {k:'item', id:'truce_12h', n:[1,1]}],
     [8,  'epic',      {k:'item', id:'chest_silver', n:[1,1]}],
     [7,  'epic',      {k:'troops', u:'gunship', n:[15,40]}],
     [7,  'epic',      {k:'part', s:'*', t:2}],
