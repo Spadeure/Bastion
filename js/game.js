@@ -1690,6 +1690,8 @@ function drawClock(){
 // =====================================================================
 // ===== MYSTERY CHESTS: opening animation (the server draws the rewards) =====
 // =====================================================================
+const openChances = new Set();   // chance lists the player opened stay open when the window refreshes
+document.getElementById('sheet').addEventListener('toggle', e=>{ const d=e.target; if(d.dataset && d.dataset.ch){ if(d.open) openChances.add(d.dataset.ch); else openChances.delete(d.dataset.ch); } }, true);
 const RARITY_COL = {common:'#a9b0a6', uncommon:'#5fd16a', rare:'#4aa8ff', epic:'#b46cff', legendary:'#ff9a2e'};
 const RARITY_NAME = {common:'Common', uncommon:'Uncommon', rare:'Rare', epic:'Epic', legendary:'Legendary'};
 const RARITY_ORDER = ['legendary','epic','rare','uncommon','common'];
@@ -1711,7 +1713,7 @@ function chestChances(id){
     if(m) return q+_t({s:'Small crate of a random resource',m:'Medium crate of a random resource',l:'Large crate of a random resource'}[m[1]]);
     if(rw.id==='boost_prod_*') return q+_t('Production boost (random resource)');
     return q+rw.id.split('|').map(itemName).join(' / '); };
-  return `<details class="chances"><summary>${_t('See the chances')}</summary>${RARITY_ORDER.map(rar=>{ const ls=pool.filter(l=>l[1]===rar); if(!ls.length) return '';
+  return `<details class="chances" data-ch="${id}"${openChances.has(id)?' open':''}><summary>${_t('See the chances')}</summary>${RARITY_ORDER.map(rar=>{ const ls=pool.filter(l=>l[1]===rar); if(!ls.length) return '';
     return `<div class="chr"><b style="color:${RARITY_COL[rar]}">${_t(RARITY_NAME[rar])} · ${(ls.reduce((s,l)=>s+l[0],0)/tot*100).toFixed(1).replace('.0','')} %</b>${ls.map(l=>`<div>${label(l[2])} <span>${(l[0]/tot*100).toFixed(1).replace('.0','')} %</span></div>`).join('')}</div>`; }).join('')}</details>`; }
 async function openChest(id, count){
   if(!invN(id)) return;
