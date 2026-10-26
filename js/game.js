@@ -1661,7 +1661,7 @@ function renderDock(){
       : d.lab==='lock' ? `<em>${IC.lock}</em>` : d.lab ? `<em>${d.lab}</em>` : `<em>${_t(d.warn?'Idle':'—')}</em>`;
     h+=`<button class="dk${d.j?' run':''}${d.warn?' warn':''}${d.dim?' dim':''}${actCat===c&&cur==='__act'?' on':''}" data-act="dock" data-c="${c}" title="${_t(lab)}">
       <span class="dkic"><svg viewBox="0 0 48 48"><circle class="bg" cx="24" cy="24" r="21"/>${ring}</svg><img src="${d.ic}" alt="">${d.n>1?`<b class="dkn">${d.n}</b>`:''}${d.warn?'<b class="dkw">!</b>':''}</span>${sub}</button>`; }
-  const k=liveKey(h); if(k!==el.dataset.k){ el.dataset.k=k; el.innerHTML=h; } else liveIn(el);
+  const k=liveKey(h); if(k!==el.dataset.k){ const c=document.getElementById('srvclock'); el.dataset.k=k; el.innerHTML=h; if(c && c.classList.contains('indock')) el.appendChild(c); } else liveIn(el);   // the clock may live here
   if(cur==='__act') renderSheet(); }
 function actPanel(){
   const lab=(DOCK.find(x=>x[0]===actCat)||DOCK[0])[1], d=dockInfo(actCat), rows=ACT_ROWS.filter(r=>r[0]===actCat).map(r=>r[1]);
@@ -2295,7 +2295,10 @@ if(typeof __SERVER==='undefined') document.addEventListener('visibilitychange', 
 async function pingBurst(){ for(let i=0;i<3;i++){ await ping(); if(CLOCK.rtt<0) break; } }
 function drawClock(){
   let el=document.getElementById('srvclock');
-  if(!el){ el=document.createElement('div'); el.id='srvclock'; el.innerHTML='<i></i><b></b><span></span>'; document.body.appendChild(el); }
+  if(!el){ el=document.createElement('div'); el.id='srvclock'; el.innerHTML='<i></i><b></b><span></span>'; }
+  // phone: in the free box of the resource bar (it used to cover the XP bar); bigger screens: bottom-right corner
+  const w=window.innerWidth, bar=w<=760 && document.querySelector('.resbar'), dock=!bar && w<=1100 && document.getElementById('dock'), home=bar||dock||document.body;
+  if(el.parentNode!==home){ home.appendChild(el); el.classList.toggle('inbar', !!bar); el.classList.toggle('indock', !!dock); }   // medium screens: at the end of the activity buttons
   const now=new Date(Date.now()), opt={hour:'2-digit',minute:'2-digit',second:'2-digit'}; if(CLOCK.tz) opt.timeZone=CLOCK.tz;
   let t; try{ t=new Intl.DateTimeFormat(LANG,opt).format(now); }catch(e){ t=now.toLocaleTimeString(); }
   el.querySelector('b').textContent=t;

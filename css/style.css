@@ -717,3 +717,10 @@ p{font-size:15px;color:#d6d6ca;line-height:1.35;font-weight:500}
   #dock .dk > .lv-time,#dock .dk > em{font-size:10.5px;padding:0 4px;line-height:14px}
   .actlist .qrow{font-size:13px;flex-wrap:wrap}
 }
+/* server clock inside the resource bar on phones */
+#srvclock.inbar{position:static;display:grid;grid-template-columns:auto 1fr;grid-template-rows:auto auto;column-gap:6px;row-gap:0;align-items:center;justify-items:center;padding:3px 6px;border-radius:9px;font-size:13px;min-width:0;background:#0d110bcc;border:1px solid #5a5a3a}
+#srvclock.inbar i{grid-row:1 / 3}
+#srvclock.inbar b{font-size:13px;line-height:1.15}
+#srvclock.inbar span{font-size:10.5px;line-height:1.1}
+#dock{position:relative}
+#srvclock.indock{position:absolute;right:0;bottom:22px;top:auto;pointer-events:auto}
