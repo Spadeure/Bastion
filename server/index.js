@@ -31,7 +31,13 @@ db.exec(`PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL;
   CREATE TABLE IF NOT EXISTS sessions (token TEXT PRIMARY KEY, user_id INTEGER NOT NULL, created INTEGER NOT NULL, seen INTEGER NOT NULL);
   CREATE TABLE IF NOT EXISTS bases (user_id INTEGER PRIMARY KEY, x INTEGER NOT NULL, y INTEGER NOT NULL, lvl INTEGER NOT NULL DEFAULT 1, power INTEGER NOT NULL DEFAULT 0,
     state TEXT, updated INTEGER NOT NULL DEFAULT 0);
-  CREATE UNIQUE INDEX IF NOT EXISTS bases_pos ON bases (x, y);`);
+  CREATE UNIQUE INDEX IF NOT EXISTS bases_pos ON bases (x, y);
+  CREATE TABLE IF NOT EXISTS attacks (id INTEGER PRIMARY KEY, att INTEGER NOT NULL, def INTEGER NOT NULL, kind TEXT NOT NULL, mid INTEGER NOT NULL,
+    launched INTEGER NOT NULL, eta0 INTEGER NOT NULL, arrive INTEGER NOT NULL, troops TEXT, titan INTEGER NOT NULL DEFAULT 0, status TEXT NOT NULL DEFAULT 'out', result TEXT);
+  CREATE INDEX IF NOT EXISTS attacks_out ON attacks (status, arrive);
+  CREATE INDEX IF NOT EXISTS attacks_def ON attacks (def, status);`);
+// shield: end of the beginner protection or of the truce (0 = can be attacked)
+if (!db.prepare("SELECT 1 FROM pragma_table_info('bases') WHERE name = 'shield'").get()) db.exec("ALTER TABLE bases ADD COLUMN shield INTEGER NOT NULL DEFAULT 0");
 // roles: player · tester (test account with every power) · admin (can also create accounts)
 if (!db.prepare("SELECT 1 FROM pragma_table_info('users') WHERE name = 'role'").get()) db.exec("ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'player'");
 if (!db.prepare("SELECT 1 FROM users WHERE role = 'admin'").get()) {   // the very first account becomes the administrator
@@ -42,17 +48,26 @@ const Q = {
   userByName: db.prepare('SELECT * FROM users WHERE name = ?'),
   addUser: db.prepare('INSERT INTO users (name, salt, hash, created) VALUES (?, ?, ?, ?)'),
   addSession: db.prepare('INSERT INTO sessions (token, user_id, created, seen) VALUES (?, ?, ?, ?)'),
-  session: db.prepare('SELECT s.token, u.id, u.name, u.role FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token = ?'),
+  session: db.prepare('SELECT s.token, u.id, u.name, u.role, u.created FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token = ?'),
+  user: db.prepare('SELECT id, name, role, created FROM users WHERE id = ?'),
   seen: db.prepare('UPDATE sessions SET seen = ? WHERE token = ?'),
   delSession: db.prepare('DELETE FROM sessions WHERE token = ?'),
   oldSessions: db.prepare('DELETE FROM sessions WHERE seen < ?'),
   base: db.prepare('SELECT * FROM bases WHERE user_id = ?'),
   addBase: db.prepare('INSERT INTO bases (user_id, x, y, updated) VALUES (?, ?, ?, ?)'),
-  saveBase: db.prepare('UPDATE bases SET state = ?, lvl = ?, power = ?, updated = ? WHERE user_id = ?'),
+  saveBase: db.prepare('UPDATE bases SET state = ?, lvl = ?, power = ?, updated = ?, shield = ? WHERE user_id = ?'),
   allPos: db.prepare('SELECT x, y FROM bases'),
   baseAt: db.prepare('SELECT user_id FROM bases WHERE x = ? AND y = ?'),
   // alliance: always empty until alliances exist (the map already shows it, so nothing changes on the player side then)
-  players: db.prepare('SELECT u.name, b.x, b.y, b.lvl, b.power, NULL AS alliance FROM bases b JOIN users u ON u.id = b.user_id WHERE b.user_id != ?'),
+  players: db.prepare('SELECT u.name, b.x, b.y, b.lvl, b.power, b.shield, NULL AS alliance FROM bases b JOIN users u ON u.id = b.user_id WHERE b.user_id != ?'),
+  target: db.prepare('SELECT b.user_id, b.lvl, b.shield, u.name FROM bases b JOIN users u ON u.id = b.user_id WHERE b.x = ? AND b.y = ?'),
+  atkByMarch: db.prepare('SELECT id, status FROM attacks WHERE att = ? AND mid = ?'),
+  atkAdd: db.prepare('INSERT INTO attacks (att, def, kind, mid, launched, eta0, arrive, troops, titan) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'),
+  atkArrive: db.prepare("UPDATE attacks SET arrive = ? WHERE id = ? AND status = 'out'"),
+  atkOutOf: db.prepare("SELECT id, mid FROM attacks WHERE att = ? AND status = 'out'"),
+  atkStatus: db.prepare('UPDATE attacks SET status = ?, result = ? WHERE id = ?'),
+  atkDue: db.prepare("SELECT * FROM attacks WHERE status = 'out' AND arrive <= ? ORDER BY arrive LIMIT 50"),
+  atkIncoming: db.prepare("SELECT a.*, u.name AS aname FROM attacks a JOIN users u ON u.id = a.att WHERE a.def = ? AND a.status = 'out' ORDER BY a.arrive"),
   count: db.prepare('SELECT COUNT(*) AS n FROM users'),
   setRole: db.prepare('UPDATE users SET role = ? WHERE id = ?'),
   accounts: db.prepare('SELECT u.name, u.role, u.created, b.lvl, b.power, b.updated FROM users u LEFT JOIN bases b ON b.user_id = u.id ORDER BY u.id'),
@@ -180,15 +195,24 @@ async function api(req, res, url, ip) {
   if (url === '/api/logout' && req.method === 'POST') { Q.delSession.run(me.token); seenAt.delete(me.token); log('DÉCONNEXION', `${me.name} · ${ip}`); return send(res, 200, { ok: true }); }
   if (url === '/api/state' && req.method === 'GET') {
     const b = Q.base.get(me.id), r = runFor(me, b, null, [], langOf(req));
-    return send(res, 200, { name: me.name, role: me.role, pos: { x: b.x, y: b.y }, state: r.state, events: r.events, serverTime: Date.now() });
+    return send(res, 200, { name: me.name, role: me.role, pos: { x: b.x, y: b.y }, state: r.state, events: r.events, serverTime: Date.now(),
+      beginner: beginnerEnd(r.state, me.created), incoming: incomingFor(me.id, r.state) });
   }
   if (url === '/api/act' && req.method === 'POST') {             // one order from the player: checked and run by the server
     const { a, args = [], lang } = await readBody(req, 20_000);
     const b = Q.base.get(me.id), act = clean(a);
-    if (a === 'launch' && Array.isArray(args) && args[0]) {      // the engine does not know other players: their bases cannot be attacked yet
-      const o = Q.baseAt.get(Math.floor(Number(args[0].x) || 0), Math.floor(Number(args[0].y) || 0));
-      if (o && o.user_id !== me.id) { refusedOrder(me, ip, act, args, 'bad_order'); const r0 = runFor(me, b, null, [], lang); return send(res, 200, { state: r0.state, events: r0.events, error: 'bad_order', serverTime: Date.now() }); }
+    const refuse = err => { if (err === 'bad_order') refusedOrder(me, ip, act, args, err); const r0 = runFor(me, b, null, [], lang); return send(res, 200, { state: r0.state, events: r0.events, error: err, serverTime: Date.now() }); };
+    if (a === 'launch' && Array.isArray(args) && args[0] && typeof args[0] === 'object') {
+      const o = args[0]; delete o.pvp;                             // only the server says that the target is a player
+      const t = Q.target.get(Math.floor(Number(o.x) || 0), Math.floor(Number(o.y) || 0));
+      if (t) {
+        if (t.user_id === me.id) return refuse('bad_order');
+        if (t.shield > Date.now()) return refuse('target_protected');
+        if (b.lvl - t.lvl > PVP.levelGap) return refuse('target_too_weak');
+        o.pvp = { uid: t.user_id, name: t.name, kind: o.kind === 'spy' ? 'spy' : 'attack' };
+      } else if (o.kind === 'spy') return refuse('bad_order');
     }
+    if (a === 'useItem' && Array.isArray(args) && /^truce_/.test(String(args[0])) && Q.atkIncoming.all(me.id).length) return refuse('attack_incoming');
     const r = runFor(me, b, String(a || ''), Array.isArray(args) ? args.slice(0, 5) : [], lang);
     refusedOrder(me, ip, act, args, r.error);
     return send(res, 200, { state: r.state, events: r.events, error: r.error, serverTime: Date.now() });
@@ -196,7 +220,8 @@ async function api(req, res, url, ip) {
   if (url === '/api/state' && req.method === 'PUT') { cheat(me, ip, 'tentative d\'envoyer une partie modifiée (PUT /api/state)'); return send(res, 403, { error: 'forbidden' }); }
   if (url === '/api/admin' && req.method === 'POST') return admin(req, res, me, ip);
   if (url === '/api/chest' && req.method === 'POST') return openChest(req, res, me, ip);
-  if (url === '/api/players' && req.method === 'GET') return send(res, 200, { players: Q.players.all(me.id) });
+  if (url === '/api/players' && req.method === 'GET') { const now = Date.now(); return send(res, 200, { players: Q.players.all(me.id).map(p => ({ ...p, shield: p.shield > now ? p.shield : 0 })) }); }
+  if (url === '/api/incoming' && req.method === 'GET') { const b = Q.base.get(me.id); return send(res, 200, { incoming: incomingFor(me.id, b && b.state ? JSON.parse(b.state) : {}) }); }
   return send(res, 404, { error: 'not_found' });
 }
 // an order the server refused. 'forbidden' and 'bad_order' never come from the normal game buttons
@@ -219,16 +244,69 @@ function shape(s) {
   const { res, last, titan, ...rest } = s;
   return JSON.stringify(rest) + (titan ? JSON.stringify({ ...titan, hp: titan.hp >= 100 ? 100 : 0 }) : '');
 }
+// ---------- attacks between players ----------
+const PVP = { beginnerMs: 3 * 86400_000, beginnerCC: 5, levelGap: 10 };
+// beginner protection: 3 days, or until the Command Center reaches level 5, or until the player attacks someone
+const beginnerEnd = (st, created) => (st && !st.attackedPlayer && ((st.slots || {}).cc || {}).lvl < PVP.beginnerCC) ? created + PVP.beginnerMs : 0;
+const shieldOf = (st, created) => Math.max(beginnerEnd(st, created), (st && st.truce) || 0);
+// the attacks table follows the marches of the attacker (speed-ups change the arrival time, a cancelled game removes them)
+function syncAttacks(uid, st) {
+  const seen = new Set();
+  for (const m of (st.marches || [])) {
+    if (!m.pvp || m.st !== 'out') continue;
+    seen.add(m.id);
+    const row = Q.atkByMarch.get(uid, m.id);
+    if (!row) Q.atkAdd.run(uid, m.pvp, m.kind === 'spy' ? 'spy' : 'attack', m.id, m.s, m.a, m.a, JSON.stringify(m.troops || {}), m.titan ? 1 : 0);
+    else if (row.status === 'out') Q.atkArrive.run(m.a, row.id);
+  }
+  for (const r of Q.atkOutOf.all(uid)) if (!seen.has(r.mid)) Q.atkStatus.run('gone', null, r.id);
+}
+function saveState(uid, created, r) {
+  Q.saveBase.run(JSON.stringify(r.state), r.lvl, r.power, Date.now(), shieldOf(r.state, created), uid); STATS.saved++;
+  syncAttacks(uid, r.state);
+}
 function runFor(me, b, action, args, lang, force) {
   const st = b.state ? JSON.parse(b.state) : { pos: { x: b.x, y: b.y } };
   st.pos = { x: b.x, y: b.y };                                          // the position always comes from the server
   const before = shape(st);
   const r = engine.run(st, LANG_OK.includes(lang) ? lang : 'en', action, args, me.role);
   r.state.pos = { x: b.x, y: b.y };
-  if (force || action || r.events.length || !b.state || shape(r.state) !== before || b.lvl !== r.lvl) {
-    Q.saveBase.run(JSON.stringify(r.state), r.lvl, r.power, Date.now(), me.id); STATS.saved++;
-  } else STATS.skipped++;
+  if (force || action || r.events.length || !b.state || shape(r.state) !== before || b.lvl !== r.lvl || b.shield !== shieldOf(r.state, me.created)) saveState(me.id, me.created, r);
+  else STATS.skipped++;
   return r;
+}
+// arrival of an attack or a spy mission: both bases are read, resolved together and saved
+function resolveAttack(row) {
+  const ab = Q.base.get(row.att), dbs = Q.base.get(row.def), au = Q.user.get(row.att), du = Q.user.get(row.def);
+  if (!ab || !dbs || !au || !du || !ab.state) { Q.atkStatus.run('gone', null, row.id); return; }
+  const ast = JSON.parse(ab.state); ast.pos = { x: ab.x, y: ab.y };
+  const dst = dbs.state ? JSON.parse(dbs.state) : { pos: { x: dbs.x, y: dbs.y } }; dst.pos = { x: dbs.x, y: dbs.y };
+  const r = engine.pvp(ast, dst, row.mid, au.name, du.name);
+  if (r.gone) { Q.atkStatus.run('gone', null, row.id); return; }
+  r.att.pos = { x: ab.x, y: ab.y }; r.def.pos = { x: dbs.x, y: dbs.y };
+  Q.atkStatus.run('done', JSON.stringify(r.r).slice(0, 2000), row.id);
+  saveState(row.att, au.created, { state: r.att, lvl: r.a.lvl, power: r.a.power });
+  saveState(row.def, du.created, { state: r.def, lvl: r.d.lvl, power: r.d.power });
+  const loot = Object.entries((r.r && r.r.loot) || {}).map(([k, v]) => `${k} ${v}`).join(', ');
+  if (r.kind === 'spy') log('ESPIONNAGE', `${au.name} → ${du.name} : ${r.r.ok ? 'réussi' : 'échoué'} (${r.r.killed} drone(s) abattu(s))`);
+  else log('ATTAQUE', `${au.name} → ${du.name} : ${r.r.win ? 'victoire' : 'défaite'} · pertes attaquant ${r.r.attLost}, défenseur ${r.r.defLost} (puissance de combat)${loot ? ' · pillage ' + loot : ''}`);
+}
+setInterval(() => {
+  const due = Q.atkDue.all(Date.now());
+  for (const row of due) { try { resolveAttack(row); } catch (e) { log('ERREUR', `attaque ${row.id} : ${e.message}`); Q.atkStatus.run('error', String(e.message).slice(0, 200), row.id); } }
+}, 1000).unref();
+// alert for the defender: what the Radar Station and the Intelligence research reveal
+function alertLevel(st) { let r = 0; for (const k in (st.slots || {})) if (st.slots[k].type === 'radar') r = Math.max(r, st.slots[k].lvl); return r + (((st.research || {}).lv || {}).intel || 0); }
+const ALERT = { name: 1, eta: 4, count: 8, detail: 13 };
+function incomingFor(uid, st) {
+  const L = alertLevel(st || {});
+  return Q.atkIncoming.all(uid).map(a => { const o = { id: a.id, kind: a.kind, level: L };
+    const tr = JSON.parse(a.troops || '{}');
+    if (L >= ALERT.name) o.name = a.aname;
+    if (L >= ALERT.eta) o.eta = a.eta0;                                 // the time planned at departure: the attacker's speed-ups can make it wrong
+    if (L >= ALERT.count) o.n = Object.values(tr).reduce((s, v) => s + v, 0);
+    if (L >= ALERT.detail) { o.units = tr; o.titan = !!a.titan; }
+    return o; });
 }
 
 // ---------- administration (admin and test accounts only) ----------

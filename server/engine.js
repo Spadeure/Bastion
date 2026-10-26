@@ -51,4 +51,10 @@ function run(st, lang, action, args, role) {
   finally { fakeNow = null; }   // whatever happens, the clock goes back to real time
   return JSON.parse(out);
 }
-module.exports = { run, load };
+// attack between two players: both saved games in, both saved games out
+function pvp(attSt, defSt, mid, attName, defName) {
+  if (!ctx) load();
+  try { return JSON.parse(ctx.__pvp(JSON.stringify(attSt), JSON.stringify(defSt), mid, attName, defName)); }
+  finally { fakeNow = null; }
+}
+module.exports = { run, load, pvp };

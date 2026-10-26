@@ -52,13 +52,21 @@ const __ACTIONS = {
   train(u, n) { n = __int(n, 0, 1e7); if (!UNITS[u]) return 'bad_order'; const why = whyNotTrain(u, n); if (why) return why; train(u, n); },
   research(t) { if (!TECH[t]) return 'bad_order'; const why = whyNotResearch(t, techLv(t) + 1); if (why) return why; startResearch(t); },
   cancelResearch() { if (!researchState().cur) return 'bad_order'; cancelResearch(); },
+  // o.pvp is added by the server only (after its own checks) when the target is another player's base
   launch(o) {
     o = o || {}; const x = __int(o.x, 1, MAPN), y = __int(o.y, 1, MAPN); mapSel = { x, y };
     for (const k in atkQty) delete atkQty[k];
-    for (const u in (o.q || {})) if (UNITS[u]) atkQty[u] = __int(o.q[u], 0, 1e8);
-    atkTitan = !!o.titan;
-    const tl = tileAt(x, y); if (!tl || tl.t === 'home' || tl.t === 'plain' || tl.t === 'player') return 'bad_order';
-    const why = whyNotMarch(atkQty); if (why) return why; launch();
+    const pv = o.pvp, spy = pv && pv.kind === 'spy';
+    for (const u in (o.q || {})) if (UNITS[u] && (!spy || u === 'drone')) atkQty[u] = __int(o.q[u], 0, 1e8);
+    atkTitan = !spy && !!o.titan;
+    if (spy && !atkQty.drone) return 'bad_order';
+    if (!pv) { const tl = tileAt(x, y); if (!tl || tl.t === 'home' || tl.t === 'plain' || tl.t === 'player') return 'bad_order'; }
+    if (x === state.pos.x && y === state.pos.y) return 'bad_order';
+    const why = whyNotMarch(atkQty); if (why) return why;
+    const n0 = state.marches.length; launch();
+    if (pv && state.marches.length > n0) { const m = state.marches[state.marches.length - 1];
+      m.pvp = pv.uid; m.kind = spy ? 'spy' : 'attack'; m.tname = String(pv.name).slice(0, 16);
+      state.truce = 0; state.attackedPlayer = true; }   // attacking or spying ends your own truce and your beginner protection
   },
   useItem(id, all) { if (!ITEMS[id] || !invN(id)) return 'bad_order'; useItem(id, !!all); },
   speed(id, tg) { if (!ITEMS[id] || !invN(id) || typeof tg !== 'string' || tg.length > 40) return 'bad_order'; speedTarget = tg; if (!speedJob(tg)) return 'bad_order'; useSpeed(id); },
@@ -76,6 +84,17 @@ const __ACTIONS = {
   finishMarch(id) { finishMarch(id); },
   reset() { const op = state.pos; state = fresh(); state.pos = op; normalizeState(); },
 };
+// an attack (or a spy mission) arrives: both bases are brought up to date, then the fight is resolved
+function __pvp(attJson, defJson, mid, attName, defName) {
+  __events = [];
+  const load = j => { const st = JSON.parse(j); state = st && st.slots ? st : fresh(); normalizeState(); __catchUp(); return state; };
+  const att = load(attJson), def = load(defJson);
+  const m = att.marches.find(x => x.id === mid && x.pvp && x.st === 'out');
+  if (!m) return JSON.stringify({ gone: true });
+  const r = m.kind === 'spy' ? spyResolve(att, def, m, attName, defName) : pvpResolve(att, def, m, attName, defName);
+  const info = st => { state = st; return { lvl: playerLevel(totalPower()), power: totalPower() }; };
+  return JSON.stringify({ att, def, r, kind: m.kind, a: info(att), d: info(def) });
+}
 function __run(stJson, lang, action, argsJson, role) {
   __events = []; LANG = lang;
   let st = JSON.parse(stJson);

@@ -48,9 +48,7 @@ function totalPower(){ let p=troopPower()+titanPower()+techPower(); for(const k 
 // Commander level: 1 to 100. About 10 when everything is level 3, 20 at level 5, 30 at level 7, 50 at level 9,
 // 65 with everything level 10 and a big army, 80 at 500 million power, 100 near 825 million.
 const LVL_MAX = 100;
-// power needed to reach commander level l (a new base has 0): level 10 ≈ 125,000 (everything level 3), 20 ≈ 330,000 (level 5),
-// 30 ≈ 640,000 (level 7), 50 ≈ 1.6 million (everything level 10 and a good army), then +7% per level up to 100 ≈ 50 million (huge armies)
-const levelReq = l => l<=1 ? 0 : l<=50 ? Math.round(4580*Math.pow(l-1,1.505)) : Math.round(4580*Math.pow(49,1.505)*Math.pow(1.0713,l-50));
+const levelReq = l => l<=1 ? 0 : Math.round(19500*Math.pow(l-1,2.32));   // power needed to reach commander level l (a new base has 0): level 20 ≈ 18 million, 30 ≈ 48 million, 100 ≈ 830 million
 function playerLevel(p){ let l=1; while(l<LVL_MAX && levelReq(l+1)<=p) l++; return l; }
 // military rank, every 10 levels
 const RANKS = [[100,'Marshal'],[90,'Army General'],[80,'Brigadier General'],[70,'Colonel'],[60,'Major'],[50,'Captain'],[40,'Lieutenant'],[30,'Warrant Officer'],[20,'Sergeant'],[10,'Corporal'],[1,'Private']];
