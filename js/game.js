@@ -584,14 +584,43 @@ function badgeSprite(txt,col){ const k=txt+col; let cv=badgeCache.get(k); if(cv)
   cv=document.createElement('canvas'); const g=cv.getContext('2d'); g.font='700 15px "Black Ops One", Impact, sans-serif';
   const star=txt.startsWith('* '); if(star) txt=txt.slice(2);
   const w=Math.max(24,g.measureText(txt).width+12)+(star?18:0); cv.width=Math.ceil(w+6)*2; cv.height=56; g.scale(2,2);
-  if(star){ badge(g,cv.width/4,14,'    '+txt,col); if(starImg.complete) g.drawImage(starImg,cv.width/4-w/2+3,3,22,22); else starImg.onload=()=>{ badgeCache.clear(); requestDraw(); }; }
+  if(star){ badge(g,cv.width/4,14,'    '+txt,col); if(starImg.complete) g.drawImage(starImg,cv.width/4-w/2+3,3,22,22); else starImg.onload=()=>{ badgeCache.clear(); chunkCache.clear(); requestDraw(); }; }
   else badge(g,cv.width/4,14,txt,col);
   badgeCache.set(k,cv); return cv; }
 const starImg=new Image(); starImg.src='assets/img/ui_star.webp';
-document.fonts && document.fonts.ready.then(()=>{ badgeCache.clear(); if(view==='map') requestDraw(); });
+document.fonts && document.fonts.ready.then(()=>{ badgeCache.clear(); chunkCache.clear(); if(view==='map') requestDraw(); });
 function badge(c,x,y,txt,col){ c.font='700 15px "Black Ops One", Impact, sans-serif'; const w=Math.max(24,c.measureText(txt).width+12);
   c.fillStyle=col; c.strokeStyle='#3a2604'; c.lineWidth=2.5; c.beginPath(); c.roundRect(x-w/2,y-12,w,24,5); c.fill(); c.stroke();
   c.fillStyle='#241803'; c.textAlign='center'; c.textBaseline='middle'; c.fillText(txt,x,y+1); }
+// ---------- map chunks: squares of 512 world pixels drawn once per zoom step, then reused ----------
+const CHUNK=512, chunkCache=new Map(); let lastHomeLvl=-1;
+const chunkW = zb => CHUNK/Math.min(zb,1);   // zoomed out: bigger squares, so there are always few of them on screen (about 512 pixels each)
+const zBucket = z => Math.pow(2, Math.round(Math.log2(z)*3)/3);     // zoom steps of about 26%
+function resetTiles(){ tileCache.clear(); chunkCache.clear(); }
+function renderChunk(cx,cy,zb,d){
+  const CW=chunkW(zb), zr=Math.min(zb,1)*d, size=Math.ceil(CW*zr), cv=document.createElement('canvas'); cv.width=cv.height=size;
+  const g=cv.getContext('2d'), X0=cx*CW, Y0=cy*CW; g.setTransform(zr,0,0,zr,-X0*zr,-Y0*zr);
+  // cells whose picture can reach this square (pictures stand up to 3 tiles high)
+  const toCell=(wx,wy)=>{ const a=wx/(TW/2), b=wy/(TH/2); return [(a+b)/2,(b-a)/2]; };
+  const cs=[toCell(X0-TW,Y0-TH),toCell(X0+CW+TW,Y0-TH),toCell(X0-TW,Y0+CW+TH*3.5),toCell(X0+CW+TW,Y0+CW+TH*3.5)];
+  const gx0=Math.max(1,Math.floor(Math.min(...cs.map(p=>p[0])))), gx1=Math.min(MAPN,Math.ceil(Math.max(...cs.map(p=>p[0]))));
+  const gy0=Math.max(1,Math.floor(Math.min(...cs.map(p=>p[1])))), gy1=Math.min(MAPN,Math.ceil(Math.max(...cs.map(p=>p[1]))));
+  let ok=true; const badges=[];
+  for(let s=gx0+gy0; s<=gx1+gy1; s++){
+    for(let x=Math.max(gx0,s-gy1); x<=Math.min(gx1,s-gy0); x++){
+      const y=s-x, tl=tileAt(x,y); if(!tl) continue;
+      const [wx,wy]=cellW(x,y); if(wx<X0-TW||wx>X0+CW+TW||wy<Y0-TH||wy>Y0+CW+TH*3.5) continue;
+      const key=sprKey(tl), sp=MSPR[key], im=MIMG[key];
+      const w=TW*(tl.t==='home'||tl.t==='player'?1.3: tl.t==='camp'?1.2:1.12), h=w*sp.r;
+      if(im.complete && im.naturalWidth) g.drawImage(sprite(key,im,w,h,zr,1), wx-w/2, wy-sp.cy*h, w, h); else ok=false;
+      if(tl.t==='home') badges.push([wx, wy+TH*0.42, '* '+tl.lvl, '#7fd06a']);
+      else if(tl.t==='player') badges.push([wx, wy+TH*0.42, tl.name+' · '+tl.lvl, '#e0574a']);
+      else if(tl.lvl && tl.t!=='plain' && zb>0.42) badges.push([wx+w*0.3, wy+TH*0.2, String(tl.lvl), tl.t==='camp'?'#e0574a':'#f3c534']);
+    }
+  }
+  const bs=Math.min(1.25,Math.max(0.8,1/zb));
+  for(const [bx2,by2,t,col] of badges){ const b=badgeSprite(t,col), bw=b.width/2*bs, bh=b.height/2*bs; g.drawImage(b, bx2-bw/2, by2-bh/4-6*bs, bw, bh); }
+  return {cv, ok}; }
 function drawMap(){
   if(view!=='map' || !mcam) return;
   const v=vsize(), d=mapDpr(), c=mctx, z=mcam.z;
@@ -608,29 +637,26 @@ function drawMap(){
   const corners=[[0,0],[v.w,0],[0,v.h],[v.w,v.h]].map(([sx,sy])=>screenToCell(sx,sy));
   const gx0=Math.max(1,Math.min(...corners.map(p=>p[0]))-1), gx1=Math.min(MAPN,Math.max(...corners.map(p=>p[0]))+1);
   const gy0=Math.max(1,Math.min(...corners.map(p=>p[1]))-1), gy1=Math.min(MAPN,Math.max(...corners.map(p=>p[1]))+2);
-  if(mapSel){ const [sx,sy]=cellW(mapSel.x,mapSel.y); c.fillStyle='#ffd54a33'; c.strokeStyle='#ffd54a'; c.lineWidth=3/z;
-    c.beginPath(); c.moveTo(sx-TW/2,sy); c.lineTo(sx,sy-TH/2); c.lineTo(sx+TW/2,sy); c.lineTo(sx,sy+TH/2); c.closePath(); c.fill(); c.stroke(); }
-  const badges=[];
-  for(let s=gx0+gy0; s<=gx1+gy1; s++){
-    for(let x=Math.max(gx0,s-gy1); x<=Math.min(gx1,s-gy0); x++){
-      const y=s-x, tl=tileAt(x,y); if(!tl) continue;
-      const [wx,wy]=cellW(x,y); if(wx<x0-TW||wx>x1+TW||wy<y0-TH||wy>y1+TH*2.5) continue;
-      const key = sprKey(tl), sp=MSPR[key], im=MIMG[key];
-      const w = TW*(tl.t==='home'||tl.t==='player'?1.3: tl.t==='camp'?1.2:1.12), h=w*sp.r;
-      if(im.complete && im.naturalWidth) c.drawImage(sprite(key,im,w,h,z,d), wx-w/2, wy-sp.cy*h, w, h);
-      if(tl.t==='home') badges.push([wx, wy+TH*0.42, '* '+tl.lvl, '#7fd06a']);
-      else if(tl.t==='player') badges.push([wx, wy+TH*0.42, tl.name+' · '+tl.lvl, '#e0574a']);
-      else if(tl.lvl && tl.t!=='plain' && z>0.42) badges.push([wx+w*0.3, wy+TH*0.2, String(tl.lvl), tl.t==='camp'?'#e0574a':'#f3c534']);
-    }
+  // tiles come from pre-drawn pieces of the map (chunks): moving the map only copies a few pictures
+  const hl=playerLevel(totalPower()); if(hl!==lastHomeLvl){ lastHomeLvl=hl; chunkCache.clear(); }
+  const zb=zBucket(z), CW=chunkW(zb), cx0=Math.floor(x0/CW), cx1=Math.floor(x1/CW), cy0=Math.floor(y0/CW), cy1=Math.floor(y1/CW);
+  let budget=6, missing=false;
+  for(let cy=cy0; cy<=cy1; cy++) for(let cx=cx0; cx<=cx1; cx++){
+    const k=cx+','+cy+','+zb+','+d; let ch=chunkCache.get(k);
+    if(ch){ chunkCache.delete(k); chunkCache.set(k,ch); }                 // most recently used goes last
+    else if(budget>0){ budget--; ch=renderChunk(cx,cy,zb,d); if(ch.ok){ chunkCache.set(k,ch); if(chunkCache.size>160) chunkCache.delete(chunkCache.keys().next().value); } else missing=true; }
+    else { missing=true; continue; }
+    c.drawImage(ch.cv, cx*CW, cy*CW, CW, CW);
   }
+  if(missing) requestDraw();
+  if(mapSel){ const [sx,sy]=cellW(mapSel.x,mapSel.y); c.fillStyle='#ffd54a22'; c.strokeStyle='#ffd54a'; c.lineWidth=3/z;
+    c.beginPath(); c.moveTo(sx-TW/2,sy); c.lineTo(sx,sy-TH/2); c.lineTo(sx+TW/2,sy); c.lineTo(sx,sy+TH/2); c.closePath(); c.fill(); c.stroke(); }
   // marches: dashed line base -> target with a moving dot
   const [hx,hy]=cellW(state.pos.x,state.pos.y), now=Date.now();
   for(const m of state.marches){ const [tx2,ty2]=cellW(m.x,m.y);
     const p = m.st==='out' ? pct(m.s,m.a)/100 : 1-pct(m.a,m.b)/100;
     c.setLineDash([14/z,10/z]); c.strokeStyle=m.st==='out'?'#ff6a3d':'#7fd06a'; c.lineWidth=4/z; c.beginPath(); c.moveTo(hx,hy); c.lineTo(tx2,ty2); c.stroke(); c.setLineDash([]);
     c.fillStyle=c.strokeStyle; c.beginPath(); c.arc(hx+(tx2-hx)*p, hy+(ty2-hy)*p, 9/z, 0, 7); c.fill(); }
-  const bs=Math.min(1.25,Math.max(0.8,1/z));
-  for(const [bx2,by2,t,col] of badges){ const b=badgeSprite(t,col), bw=b.width/2*bs, bh=b.height/2*bs; c.drawImage(b, bx2-bw/2, by2-bh/4-6*bs, bw, bh); }
 }
 
 // ---------- tile panel ----------
@@ -1534,7 +1560,7 @@ function pushSave(force){
     .finally(()=>{ NET.pushing=false; }); }
 async function loadPlayers(){
   if(!ONLINE || !NET.token) return;
-  try{ const j=await apiCall('GET','api/players'); const m=new Map(); for(const p of j.players) m.set(p.x*1024+p.y, p); NET.others=m; tileCache.clear(); if(view==='map') requestDraw(); }catch(e){} }
+  try{ const j=await apiCall('GET','api/players'); const m=new Map(); for(const p of j.players) m.set(p.x*1024+p.y, p); NET.others=m; resetTiles(); if(view==='map') requestDraw(); }catch(e){} }
 function logout(expired){
   if(NET.token) apiCall('POST','api/logout').catch(()=>{});
   try{ localStorage.removeItem(TOKEN_KEY); }catch(e){}
@@ -1574,7 +1600,7 @@ async function enterOnline(){
   if(!st){ // brand new commander: offer to bring the game played on this device
     let local=null; try{ local=JSON.parse(localStorage.getItem(KEY)); }catch(e){}
     st = local && local.slots && confirm(_t('Bring the game saved on this device into your new account?')) ? local : fresh(); NET.dirty=true; }
-  st.pos=j.pos; state=st; normalizeState(); tileCache.clear(); mcam=null;
+  st.pos=j.pos; state=st; normalizeState(); resetTiles(); mcam=null;
   startGame(); pushSave(true); loadPlayers();
   setInterval(()=>pushSave(), 15000); setInterval(loadPlayers, 60000);
   document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='hidden') pushSave(true); });
@@ -1593,7 +1619,7 @@ async function boot(){
 const isStaff = () => ONLINE && ['admin','tester'].includes(NET.role);
 async function adminDo(action, p){
   try{ const j=await apiCall('POST','api/admin',{action, p, state});
-    if(j.state){ state=j.state; normalizeState(); tileCache.clear(); cityCache=null; if(view!=='map') buildWorld(); renderAll(); }
+    if(j.state){ state=j.state; normalizeState(); resetTiles(); cityCache=null; if(view!=='map') buildWorld(); renderAll(); }
     toast(IC.ok+' '+_t('Done')); return j; }
   catch(e){ toast(IC.warn+' '+_t(LOGIN_ERR[e.message]||'Action refused by the server.')); return null; } }
 let adminAccounts=null;
