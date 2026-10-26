@@ -868,8 +868,11 @@ async function startAuto(){ const plans=autoDraft.map(p=>({tt:p.tt, lvl:p.lvl, q
   const e=autoStart(plans); if(e) toast(IC.warn+' '+e); else { autoDraft=null; renderSheet(); } }
 // ---------- battle ----------
 // The fight is a series of short exchanges (a fifth of a full volley each): the bigger army wears the smaller one down,
-// and an overwhelming army loses almost nothing (2x stronger: ~15% lost, 5x: ~3%, 10x: ~1%).
-const BATTLE_STEP=0.2, BATTLE_OPEN=0.6, BATTLE_ROUNDS=1500;   // BATTLE_OPEN: the opening volley of snipers and artillery = 3 exchanges
+// and an overwhelming army loses almost nothing (2x stronger: ~4% lost, 3x: ~1%, 5x and more: nothing).
+const BATTLE_STEP=0.2, BATTLE_OPEN=0.6, BATTLE_ROUNDS=1500;
+// Overwhelmed side: an army much weaker than its enemy panics and shoots badly. Its fire is multiplied by (its strength / enemy strength)^BATTLE_CRUSH,
+// so an army several times stronger loses (almost) nothing. Even fights are not changed.
+var BATTLE_CRUSH=1.5;   // BATTLE_OPEN: the opening volley of snipers and artillery = 3 exchanges
 // One side of a fight: troops, their stats with this player's research, boosts and (in defense) Wall bonus, and the Titan if it fights
 function combatSide(st, troops, withTitan, wall){
   const keep=state; if(st) state=st;
@@ -882,16 +885,18 @@ const raiderSide = troops => ({q:{...troops}, M:UNITS, T:null, bonus:1});
 function fightSides(SA, SB){
   const A={...SA.q}, D={...SB.q}; if(SA.T) A.titan=1; if(SB.T) D.titan=1;
   const UA=u=>u==='titan'?SA.T:SA.M[u], UB=u=>u==='titan'?SB.T:SB.M[u], sum=o=>Object.keys(o).reduce((a,u)=>a+(u==='titan'?(o[u]>0.05?1:0):o[u]),0);
-  const hit=(from,to,round,Uf,Ut,bonus)=>{ // each attacking unit spreads its fire over the enemy units according to their health, with the counters
+  const hit=(from,to,round,Uf,Ut,bonus,mul)=>{ // each attacking unit spreads its fire over the enemy units according to their health, with the counters
     const hpTot=Object.keys(to).reduce((s,u)=>s+to[u]*Ut(u).hp,0); if(!hpTot) return {};
     const dmg={}; for(const v in to) dmg[v]=0;
     for(const u in from){ const d=Uf(u); if(!from[u] || (round===0 && !d.rg)) continue;
-      const fire=from[u]*d.at*(round===0?BATTLE_OPEN:BATTLE_STEP)*(u!=='titan'?bonus:1);   // opening volley of the long-range units, then short exchanges
+      const fire=from[u]*d.at*(round===0?BATTLE_OPEN:BATTLE_STEP)*(u!=='titan'?bonus:1)*mul;   // opening volley of the long-range units, then short exchanges
       for(const v in to){ if(!to[v]) continue; dmg[v]+=fire*(to[v]*Ut(v).hp/hpTot)*vsMul(d.cl,Ut(v).tg); } }
     const k={}; for(const v in to){ const d=Ut(v); k[v]=Math.min(to[v], dmg[v]*(100/(100+d.df))/d.hp); } return k; };
+  const str=(o,U,b)=>Object.keys(o).reduce((s,u)=>{ const d=U(u); return s+(o[u]>0?o[u]*Math.sqrt(d.at*d.hp)*(u==='titan'?1:b):0); },0);   // fighting strength of a side
   const men=o=>Object.keys(o).reduce((a,u)=>a+(u==='titan'?0:o[u]),0), al=[[men(A),men(D)]];   // troops alive after each exchange, for the battle log
   for(let r=0;r<BATTLE_ROUNDS && sum(A)>0.5 && sum(D)>0.5;r++){
-    const kd=hit(A,D,r,UA,UB,SA.bonus), ka=hit(D,A,r,UB,UA,SB.bonus);
+    const sA=str(A,UA,SA.bonus), sB=str(D,UB,SB.bonus), mA=sA<sB?Math.pow(sA/sB,BATTLE_CRUSH):1, mB=sB<sA?Math.pow(sB/sA,BATTLE_CRUSH):1;
+    const kd=hit(A,D,r,UA,UB,SA.bonus,mA), ka=hit(D,A,r,UB,UA,SB.bonus,mB);
     for(const u in kd) D[u]=Math.max(0,D[u]-kd[u]); for(const u in ka) A[u]=Math.max(0,A[u]-ka[u]); al.push([men(A),men(D)]); }
   // battle log: the opening volley, then the rest of the fight cut into up to 5 phases (losses of each side)
   const R=al.length-1, log=[], seg=(i,j)=>[Math.round(al[i][0]-al[j][0]), Math.round(al[i][1]-al[j][1])];
