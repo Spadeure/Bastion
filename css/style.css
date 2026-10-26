@@ -515,3 +515,8 @@ p{font-size:15px;color:#d6d6ca;line-height:1.35;font-weight:500}
 .pcrow span{color:var(--mut);display:flex;align-items:center;gap:6px}
 .pcrow b{font-size:16px;text-align:right;overflow-wrap:anywhere}
 .pcrow b.pw{color:#ffd54a}.pcrow b.none{color:var(--mut);font-weight:600;font-style:italic}
+
+/* strong / weak against, on the unit cards */
+.ucnt{display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:4px;font-size:13px}
+.ucnt span{display:flex;align-items:center;gap:4px}.ucnt .ic{width:16px;height:16px}
+.ucnt .good{color:#8fd16a}.ucnt .bad{color:#e8806a}
