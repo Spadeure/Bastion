@@ -1265,7 +1265,7 @@ function buildWorld(){
   } else { W=FW; H=FH; inner=`${fieldScene()}<g id="slots"></g><g id="gate"></g>`; }
   world.innerHTML=`<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">${inner}</svg>`;
   slotsLayer=document.getElementById('slots'); gateLayer=document.getElementById('gate');
-  vp.style.setProperty('--vbg', `url(${view==='city'?bgNow():FBG})`);
+  vp.style.setProperty('--vbg', `url(${new URL(view==='city'?bgNow():FBG, location.href).href})`);   // absolute: CSS would read it relative to the css folder
 }
 let cur=null;
 function renderSlots(){
