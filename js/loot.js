@@ -1,6 +1,7 @@
 // Bastion · loot tables of the mystery chests.
 // Shared by the game (to show the chances) and by the server (which does the real draw, so nobody can cheat).
-// Each line: [weight, rarity, reward]. Rewards: {k:'item', id, n:[min,max]} · {k:'troops', u, n:[min,max]} · {k:'part', s:'*', t}
+// Each line: [weight, rarity, reward]. Rewards: {k:'item', id, n:[min,max]} · {k:'troops', u, n:[min,max]}
+// (no Titan armor here: its 4 pieces are found only in Raider Camps level 5+)
 // In an item id, '*' means a random resource (metal, wood, stone, fuel, rations) and 'a|b' means one of them.
 const LOOT = {
   chest_bronze: [
@@ -30,7 +31,7 @@ const LOOT = {
     [6,  'rare',      {k:'item', id:'boost_atk|boost_def', n:[1,1]}],
     [5,  'rare',      {k:'item', id:'march_50', n:[1,2]}],
     [4,  'rare',      {k:'item', id:'truce_12h', n:[1,1]}],
-    [4,  'epic',      {k:'part', s:'*', t:2}],
+    [4,  'epic',      {k:'troops', u:'apc', n:[15,40]}],
     [3,  'epic',      {k:'item', id:'speed_24h', n:[1,1]}],
     [2,  'epic',      {k:'item', id:'crate_gold_l', n:[1,1]}],
     [1,  'legendary', {k:'item', id:'chest_gold', n:[1,1]}]
@@ -44,9 +45,9 @@ const LOOT = {
     [10, 'epic',      {k:'troops', u:'tank', n:[20,60]}],
     [8,  'epic',      {k:'troops', u:'gunship', n:[15,40]}],
     [8,  'epic',      {k:'troops', u:'artillery', n:[15,40]}],
-    [8,  'epic',      {k:'part', s:'*', t:2}],
+    [8,  'epic',      {k:'troops', u:'heli', n:[60,150]}],
     [6,  'epic',      {k:'item', id:'speed_60h', n:[1,1]}],
-    [5,  'legendary', {k:'part', s:'*', t:3}],
+    [5,  'legendary', {k:'troops', u:'tank', n:[80,150]}],
     [4,  'epic',      {k:'item', id:'truce_3d', n:[1,1]}],
     [4,  'legendary', {k:'item', id:'speed_96h', n:[1,1]}]
   ]
@@ -76,9 +77,9 @@ const WHEELS = {
     [10, 'rare',      {k:'item', id:'truce_12h', n:[1,1]}],
     [8,  'epic',      {k:'item', id:'chest_silver', n:[1,1]}],
     [7,  'epic',      {k:'troops', u:'gunship', n:[15,40]}],
-    [7,  'epic',      {k:'part', s:'*', t:2}],
+    [7,  'epic',      {k:'troops', u:'artillery', n:[15,40]}],
     [5,  'legendary', {k:'item', id:'speed_96h', n:[1,1]}],
-    [4,  'legendary', {k:'part', s:'*', t:3}],
+    [4,  'legendary', {k:'item', id:'truce_3d', n:[1,1]}],
     [5,  'legendary', {k:'item', id:'chest_gold', n:[1,1]}]
   ]
 };
@@ -92,6 +93,6 @@ function makeReward(line, rnd){
   const [ , rarity, rw] = line, n = rw.n ? rw.n[0] + rnd(rw.n[1]-rw.n[0]+1) : 1;
   if(rw.k === 'item'){ let id = rw.id; if(id.includes('|')){ const o = id.split('|'); id = o[rnd(o.length)]; } id = id.replace('*', LOOT_RES[rnd(LOOT_RES.length)]); return {rarity, k:'item', id, n}; }
   if(rw.k === 'troops') return {rarity, k:'troops', u:rw.u, n};
-  return {rarity, k:'part', s: rw.s === '*' ? LOOT_PARTS[rnd(4)] : rw.s, t: rw.t};
+  return {rarity, k:'troops', u:'recruit', n:1};   // unknown kind (should not happen)
 }
 if(typeof module !== 'undefined') module.exports = { LOOT, WHEELS, rollLoot, spinWheel };

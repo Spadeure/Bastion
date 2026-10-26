@@ -12,8 +12,7 @@ openChest = function (id, count) {
   if (!ITEMS[id] || ITEMS[id].kind !== 'chest' || !invN(id)) return;
   count = Math.max(1, Math.min(count || 1, invN(id), 50)); const rewards = [];
   for (let i = 0; i < count; i++) { takeItem(id); const r = rollLoot(id, __rnd); rewards.push(r);
-    if (r.k === 'item') addItem(r.id, r.n); else if (r.k === 'troops') state.troops[r.u] = (state.troops[r.u] || 0) + r.n;
-    else titanState().inv.push({ id: Date.now() * 10 + i, s: r.s, t: r.t }); }
+    if (r.k === 'item') addItem(r.id, r.n); else if (r.k === 'troops') state.troops[r.u] = (state.troops[r.u] || 0) + r.n; }
   __events.push({ t: 'chest', id, rewards });
 };
 wheelResult = (wheel, idx, reward, all) => { __events.push({ t: 'wheel', wheel, idx, reward, all }); };
@@ -77,7 +76,6 @@ const __ACTIONS = {
   daily() { return claimDailyTicket(); },
   readReport(id) { const r = state.reports.find(x => x.id === Number(id)); if (!r) return 'bad_order'; r.read = true; },
   readAllReports() { for (const r of state.reports) r.read = true; },
-  equip(id) { equip(id); }, unequip(s) { if (!EQ_SLOTS.includes(s)) return 'bad_order'; unequip(s); }, scrap(id) { scrap(id); },
   // test buttons (admin and test accounts only)
   finish() { if (state.queue) complete(); },
   finishTraining(bl) { if (!TRAINERS.includes(bl)) return 'bad_order'; finishTraining(bl); },

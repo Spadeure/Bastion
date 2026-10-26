@@ -680,3 +680,4 @@ p{font-size:15px;color:#d6d6ca;line-height:1.35;font-weight:500}
 #maint .mbar i{display:block;height:100%;width:35%;background:linear-gradient(90deg,#b8913a,#f0d27a);border-radius:5px;animation:mbar 1.4s ease-in-out infinite}
 @keyframes mbar{0%{transform:translateX(-110%)}100%{transform:translateX(300%)}}
 @keyframes mspin{0%,100%{transform:rotate(-12deg)}50%{transform:rotate(12deg)}}
+.why.okk{color:var(--ok)}
