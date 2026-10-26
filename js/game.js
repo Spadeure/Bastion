@@ -41,14 +41,13 @@ const POWER = {command:120, wall:60, hangar:150, barracks:40, garrison:30, housi
 // Power scale: troops weigh most, like the Might of Dragons of Atlantis. A maxed base with a big army is around 300-400 million,
 // the very biggest players (huge armies fed by farming) reach 500 million to 1 billion.
 const PW_TROOP = 500, PW_BASE = 100;   // UNITS[u].pw stays the combat weight of a unit; power shown = pw × PW_TROOP
-const bPower = (t,l) => Math.round((POWER[t]||10)*l*(l+1)/2)*PW_BASE;
+const FREE_LVL1 = {command:1, wall:1};   // given to every new base: their level 1 gives no power, so a new player starts at 0
+const bPower = (t,l) => Math.round((POWER[t]||10)*(l*(l+1)/2-(FREE_LVL1[t]?1:0)))*PW_BASE;
 function totalPower(){ let p=troopPower()+titanPower()+techPower(); for(const k in state.slots){ const b=state.slots[k]; p+=bPower(b.type,b.lvl); } return p; }
 // Commander level: 1 to 100. About 10 when everything is level 3, 20 at level 5, 30 at level 7, 50 at level 9,
 // 65 with everything level 10 and a big army, 80 at 500 million power, 100 near 825 million.
 const LVL_MAX = 100;
-// counted from the power of a brand-new base (Command Center and Wall level 1), so the level bar starts empty
-const START_POWER = (POWER.command+POWER.wall)*PW_BASE;
-const levelReq = l => l<=1 ? 0 : START_POWER+Math.round(19500*Math.pow(l-1,2.32));   // power needed to reach commander level l
+const levelReq = l => l<=1 ? 0 : Math.round(19500*Math.pow(l-1,2.32));   // power needed to reach commander level l (a new base has 0)
 function playerLevel(p){ let l=1; while(l<LVL_MAX && levelReq(l+1)<=p) l++; return l; }
 // military rank, every 10 levels
 const RANKS = [[100,'Marshal'],[90,'Army General'],[80,'Brigadier General'],[70,'Colonel'],[60,'Major'],[50,'Captain'],[40,'Lieutenant'],[30,'Warrant Officer'],[20,'Sergeant'],[10,'Corporal'],[1,'Private']];
@@ -1389,7 +1388,7 @@ function setView(v){
   document.querySelectorAll('#hud [data-view]').forEach(a=>a.classList.toggle('on',a.dataset.view===v));
 }
 function renderPower(){
-  const p=totalPower(), l=playerLevel(p), a=l<=1 ? Math.min(p,START_POWER) : levelReq(l), b=l>=LVL_MAX ? a+1 : levelReq(l+1);
+  const p=totalPower(), l=playerLevel(p), a=levelReq(l), b=l>=LVL_MAX ? a+1 : levelReq(l+1);
   { const pp=document.getElementById('pPow'); pp.textContent=fmtI(p);   // full number; shortened (120M) only if the screen is too narrow for it
     if(pp.parentElement && pp.parentElement.scrollWidth>pp.parentElement.clientWidth+1) pp.textContent=fmtN(p); pp.title=fmtI(p); }
   { const nm=document.getElementById('pName'), v=ONLINE&&NET.name ? NET.name : _t('COMMANDER'); if(nm.textContent!==v){ nm.textContent=v; nm.title=v; } }   // the player's own name
