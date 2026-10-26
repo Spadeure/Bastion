@@ -234,7 +234,7 @@ function runFor(me, b, action, args, lang, force) {
 // ---------- administration (admin and test accounts only) ----------
 const RESS = ['metal', 'wood', 'stone', 'fuel', 'rations', 'gold'];
 const UNIT_IDS = ['recruit', 'rifleman', 'sniper', 'assault', 'truck', 'drone', 'apc', 'tank', 'artillery', 'heli', 'gunship'];
-const TECH_IDS = ['extraction', 'forestry', 'rationing', 'refining', 'engineering', 'drill', 'ballistics', 'armor', 'medicine', 'logistics', 'engines', 'robotics'];
+const TECH_IDS = ['extraction', 'forestry', 'rationing', 'refining', 'engineering', 'drill', 'ballistics', 'armor', 'medicine', 'logistics', 'engines', 'robotics', 'intel'];
 const int = (v, lo, hi) => Math.max(lo, Math.min(hi, Math.floor(Number(v) || 0)));
 function createAccount(name, password, role) {
   const n = String(name || '').trim();
