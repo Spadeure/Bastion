@@ -681,3 +681,39 @@ p{font-size:15px;color:#d6d6ca;line-height:1.35;font-weight:500}
 @keyframes mbar{0%{transform:translateX(-110%)}100%{transform:translateX(300%)}}
 @keyframes mspin{0%,100%{transform:rotate(-12deg)}50%{transform:rotate(12deg)}}
 .why.okk{color:var(--ok)}
+/* ===== activity dock (replaces the activity panel) ===== */
+#dock{display:flex;justify-content:center;align-items:flex-end;gap:12px;pointer-events:none;min-height:0}
+#dock button.dk{pointer-events:auto;background:none!important;border:0!important;box-shadow:none!important;padding:0!important;min-width:0!important;width:60px;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;color:var(--txt)}
+.dkic{position:relative;width:56px;height:56px;border-radius:50%;background:radial-gradient(circle at 50% 38%,#3a4a2e,#0e120e 75%);border:2px solid #8a6a24;box-shadow:0 0 0 2px #0b0d0e,0 4px 10px #000b;display:flex;align-items:center;justify-content:center;transition:transform .12s}
+#dock button.dk:active .dkic{transform:scale(.93)}
+.dkic svg{position:absolute;inset:-1px;width:calc(100% + 2px);height:calc(100% + 2px);transform:rotate(-90deg)}
+.dkic svg circle{fill:none;stroke-width:3.6}
+.dkic svg .bg{stroke:#00000066}
+.dkic svg .fg{stroke:#f0c24a;stroke-linecap:round;stroke-dasharray:131.95;filter:drop-shadow(0 0 2px #f0c24a)}
+.dkic svg .fg.hp{stroke:#6fcf5a;filter:drop-shadow(0 0 2px #6fcf5a)}
+.dkic img{width:36px;height:36px;object-fit:contain;position:relative;filter:drop-shadow(0 2px 2px #000)}
+.dk.run .dkic{border-color:var(--brass2);box-shadow:0 0 0 2px #0b0d0e,0 0 12px #e0b63e66,0 4px 10px #000b}
+.dk.on .dkic{border-color:#fff3c4;background:radial-gradient(circle at 50% 38%,#5a6b3c,#18200f 75%)}
+.dk.dim .dkic img{filter:grayscale(1) brightness(.6)}
+.dkn{position:absolute;top:-5px;right:-5px;min-width:20px;height:20px;padding:0 5px;border-radius:10px;background:#c0392b;color:#fff;font:700 12px/20px var(--ui);border:1.5px solid #0b0d0e;text-align:center}
+.dkw{position:absolute;top:-4px;left:-4px;width:20px;height:20px;border-radius:50%;background:#e0b63e;color:#241803;font:900 14px/20px var(--ui);border:1.5px solid #0b0d0e;text-align:center;animation:dkw 1.6s ease-in-out infinite}
+@keyframes dkw{50%{transform:scale(1.18)}}
+#dock .dk > .lv-time,#dock .dk > em{font-style:normal;font:700 12px var(--ui);line-height:16px;padding:0 6px;border-radius:8px;background:#0b0e0dcc;border:1px solid #4a3c1c;white-space:nowrap;max-width:76px;overflow:hidden;text-overflow:ellipsis}
+#dock .dk > .lv-time{color:var(--brass2)}
+#dock .dk > em{color:var(--mut);display:flex;align-items:center}
+#dock .dk > em .ic{width:13px;height:13px}
+#dock .dk.warn > em{color:#e0b63e}
+.actlist{display:flex;flex-direction:column;gap:6px;margin-top:8px}
+.actlist .qrow{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:10px;background:#141917;border:1px solid #3d3a26;font-size:15px}
+.actlist .bar{flex:1;height:9px;min-width:40px;background:#0c0f10;border:1px solid #000;border-radius:5px;overflow:hidden}
+.actlist .bar i{display:block;height:100%;background:linear-gradient(90deg,#c9972a,#ffe08a)}
+.actlist .bar.hp i{background:linear-gradient(90deg,#3f9b47,#8fd16a)}
+.actlist .lv-time,.actlist button{white-space:nowrap}
+@media (max-width:760px){
+  #dock{gap:4px;justify-content:space-around}
+  #dock button.dk{width:50px}
+  .dkic{width:46px;height:46px}
+  .dkic img{width:30px;height:30px}
+  #dock .dk > .lv-time,#dock .dk > em{font-size:10.5px;padding:0 4px;line-height:14px}
+  .actlist .qrow{font-size:13px;flex-wrap:wrap}
+}
