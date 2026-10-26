@@ -16,6 +16,7 @@ openChest = function (id, count) {
   __events.push({ t: 'chest', id, rewards });
 };
 wheelResult = (wheel, idx, reward) => { __events.push({ t: 'wheel', wheel, idx, reward }); };
+levelUpShow = (from, to, rew) => { __events.push({ t: 'levelup', from, to, rew }); };
 // catch up everything that happened since the last visit (production, constructions, research, training, marches, repairs).
 // The time away is replayed event by event: each finished construction, research, training order, march step or boost
 // changes the production, the storage or the upkeep from that moment on, exactly as if the player had stayed online.
