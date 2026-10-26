@@ -793,7 +793,7 @@ function launch(){
 
 // ---------- auto attacks: for 12 hours, each march of the program goes back to its target as soon as it comes home ----------
 // Runs on the server while the player is away (the time away is replayed event by event, so every return relaunches at the right time).
-// The whole program stops at the first defeat or the first troop lost. Each trip goes to a new target of the same kind and level, never one already attacked.
+// The whole program stops at the first defeat or the first troop lost. Each march always goes back to the same target.
 const AUTO_HOURS=12, AUTO_TYPES=['camp','forest','ore','hills','oil','farm'];
 const autoOn = () => !!(state.auto && !state.auto.stopped && state.auto.until>Date.now());
 function autoTarget(tt, lvl, used){ let best=null, bd=1e9; const R=60, px=state.pos.x, py=state.pos.y;
@@ -824,10 +824,7 @@ function autoLaunch(k){ const A=state.auto, p=A && A.plans[k]; if(!p || !p.on) r
   for(const u in p.q) if((state.troops[u]||0)<p.q[u]){ p.on=false; p.why='troops'; return; }
   const ti=p.titan && titanReady();
   if(!Object.keys(p.q).length && !ti){ p.on=false; p.why='troops'; return; }
-  // a new target each trip: never one already attacked by this program, never one another march is heading to
-  if(!p.first){ const used=new Set(A.seen||[]); for(const m of state.marches) used.add(m.x*1024+m.y);
-    const tg=autoTarget(p.tt, p.lvl, used); if(!tg){ p.on=false; p.why='none'; return; } p.x=tg.x; p.y=tg.y; }
-  p.first=false; (A.seen=A.seen||[]).push(p.x*1024+p.y);
+  // always the same target (the nearest one of this kind and level, chosen at the start): shorter trips, more attacks
   const q={...p.q}; for(const u in q) state.troops[u]-=q[u];
   const keep=mapSel; mapSel={x:p.x, y:p.y}; const st=marchStats(q, ti); mapSel=keep;   // travel time to this target
   const now=Date.now(); let id=now*10+k; while(state.marches.some(m=>m.id===id) || state.reports.some(r=>r.id===id)) id++;
@@ -843,7 +840,7 @@ const troopChips = q => Object.keys(q).filter(u=>q[u]>0&&UNITS[u]).map(u=>`<span
 function autoPanel(){
   const A=state.auto, on=autoOn(), now=Date.now();
   let h=`<div class="hd"><div class="big"><img class="bimg" src="${ICS.atk}" alt=""></div><div style="flex:1"><h2>${_t('Auto attacks')}</h2>
-    <div class="sub">${_t('For {h} hours, each march leaves again as soon as it comes home, toward a new target of the same kind and level, even when you are offline.',{h:AUTO_HOURS})}</div>
+    <div class="sub">${_t('For {h} hours, each march goes back to its target as soon as it comes home, even when you are offline.',{h:AUTO_HOURS})}</div>
     <div class="sub">${IC.warn} ${_t('Everything stops at the first failed attack or the first troop lost.')}</div></div></div>`;
   const summary = A ? `<div class="chips"><span class="chip">${IC.atk} ${_t('Attacks: {n}',{n:fmtN(A.n)})}</span><span class="chip" style="color:var(--ok)">${IC.win} ${fmtN(A.win)}</span><span class="chip" style="color:var(--red)">${IC.lose} ${fmtN(A.lose)}</span></div>${resChipsA(A.loot)}` : '';
   if(on){
