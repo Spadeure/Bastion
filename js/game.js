@@ -1564,7 +1564,7 @@ function renderSlots(){
 }
 const slotKey = h => h.replace(/animation-delay:-[\d.]+s/g,'').replace(/(<rect class="lv-sbar"[^>]*?) width="[^"]*"/g,'$1').replace(/(<text class="ptime lv-time"[^>]*>)[^<]*/g,'$1');
 function setView(v){
-  if(v===view){ if(v==='map'){ camCenter(state.pos.x,state.pos.y); mapSel=null; drawMap(); } return; }   // tapping Map again: back to my base
+  if(v===view) return;
   closeSheet(); view=v; document.getElementById('app').classList.toggle('v-map', v==='map');
   if(v==='map'){ resizeMap(); if(!mcam){ mcam={x:0,y:0,z:vsize().w<600?0.55:0.75}; camCenter(state.pos.x,state.pos.y); } drawMap(); updateCoords(); }
   else { buildWorld(); if(v==='city') centerOn(1300,640); else centerOn(1290,600); renderSlots(); }
