@@ -129,7 +129,8 @@ const bldLevel = t => { let m=0; for(const k in state.slots){ const b=state.slot
 function popMax(){ let p=100+ccLvl()*50; for(const k in state.slots){ const b=state.slots[k]; if(b.type==='housing') p+=b.lvl*100; } return p; }
 function queuedUnits(){ const q={}; for(const bl in state.training) for(const j of state.training[bl]) q[j.u]=(q[j.u]||0)+j.n; return q; }
 function marching(){ const o={}; for(const m of (state.marches||[])) for(const u in m.troops) o[u]=(o[u]||0)+m.troops[u]; return o; }
-function popUsed(){ let p=0; const q=queuedUnits(), mm=marching(), D=defenseState(); for(const u in UNITS) p+=((state.troops[u]||0)+(D[u]||0)+(q[u]||0)+(mm[u]||0))*UNITS[u].pop; return p; }
+// like Dragons of Atlantis: population is the workforce used while troops are being trained; it comes back when training is over
+function popUsed(){ let p=0; const q=queuedUnits(); for(const u in q) p+=q[u]*UNITS[u].pop; return p; }
 const goldIncome = () => Math.round(30 + popMax()*0.2);  // taxes paid by your population
 function upkeep(){ let r=0; const mm=marching(), D=defenseState(); for(const u in UNITS) r+=((state.troops[u]||0)+(D[u]||0)+(mm[u]||0))*UNITS[u].up; return Math.round(r*(1-TECH.rationing.q*techLv('rationing'))); }
 function troopPower(){ let p=0; const mm=marching(), D=defenseState(); for(const u in UNITS) p+=((state.troops[u]||0)+(D[u]||0)+(mm[u]||0))*UNITS[u].pw; return p; }
