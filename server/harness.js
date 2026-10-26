@@ -6,6 +6,7 @@ closeSheet = openPanel = openSlot = chestShow = renderTuto = drawClock = () => {
 save = () => {};
 toast = m => { __events.push({ t: 'toast', m: String(m) }); };
 powerGain = n => { if (n > 0) __events.push({ t: 'power', n }); };
+lootFx = got => { __events.push({ t: 'loot', got }); };
 // chests: drawn with the server's secure random generator
 openChest = function (id, count) {
   if (!ITEMS[id] || ITEMS[id].kind !== 'chest' || !invN(id)) return;

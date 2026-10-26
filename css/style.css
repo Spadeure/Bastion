@@ -588,3 +588,9 @@ p{font-size:15px;color:#d6d6ca;line-height:1.35;font-weight:500}
 .chip.shield{border-color:#7fb8ff;color:#bfdcff}
 .alvl{display:flex;flex-direction:column;gap:4px;margin:4px 0 8px;font-size:14px}.alvl div{color:var(--mut)}.alvl div.ok{color:#8fd16a}
 .row.alrt.attack{border-color:#a8382e}.row.alrt.spy{border-color:#b06a1e}
+
+/* loot flying up to the resource bar when troops come home */
+.lootfly{position:fixed;z-index:25;pointer-events:none;display:flex;align-items:center;gap:4px;padding:4px 10px;border-radius:14px;background:#141a12e6;border:2px solid #e0b63e;box-shadow:0 0 14px #ffd54a88;white-space:nowrap}
+.lootfly .ic{width:24px;height:24px}.lootfly b{font:17px var(--disp);color:#ffe08a;text-shadow:0 1px 2px #000}
+.res.gain{animation:resgain .9s ease-out}
+@keyframes resgain{0%{box-shadow:0 0 0 #ffd54a00}30%{box-shadow:0 0 18px #ffd54acc;transform:scale(1.08)}100%{box-shadow:0 0 0 #ffd54a00;transform:none}}

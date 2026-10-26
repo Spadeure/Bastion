@@ -848,9 +848,31 @@ function arrive(m){
   m.st='back'; m.troops=res.left; m.loot=loot; }
 function returnHome(m){
   for(const u in m.troops) state.troops[u]=(state.troops[u]||0)+m.troops[u];
-  const c=cap(); for(const r in (m.loot||{})) state.res[r]= r==='gold' ? state.res[r]+m.loot[r] : Math.max(state.res[r], Math.min(c, state.res[r]+m.loot[r]));
+  const c=cap(), got={}; for(const r in (m.loot||{})){ const b=state.res[r]; state.res[r]= r==='gold' ? state.res[r]+m.loot[r] : Math.max(state.res[r], Math.min(c, state.res[r]+m.loot[r])); if(state.res[r]-b>=1) got[r]=Math.floor(state.res[r]-b); }
   if(m.titan) titanState().away=false;
-  state.marches=state.marches.filter(x=>x!==m); toast(IC.ok+' '+_t('Troops returned with loot')); }
+  state.marches=state.marches.filter(x=>x!==m); toast(IC.ok+' '+_t('Troops returned with loot'));
+  if(Object.keys(got).length) lootFx(got); }
+// ---- loot coming home: the amounts fly from the base up to the resource bar, then the counters climb
+const resAnim={}; let resAnimRaf=0;
+function lootFx(got){
+  const vw=window.innerWidth, vh=window.innerHeight, keys=RES.filter(r=>got[r]>0), t0=performance.now();
+  keys.forEach((r,i)=>{ const pill=document.getElementById('r-'+r); if(!pill) return;
+    const to=pill.closest('.res').getBoundingClientRect(), fly=document.createElement('div');
+    fly.className='lootfly'; fly.innerHTML=`${ICON[r]}<b>+${fmtN(got[r])}</b>`; document.body.appendChild(fly);
+    // each amount starts above its own resource box (a second row of boxes on phones starts a bit lower), so nothing overlaps
+    const x1=to.left+to.width/2, y1=to.top+to.height/2, row=Math.round((to.top-document.getElementById('r-metal').closest('.res').getBoundingClientRect().top)/Math.max(1,to.height));
+    const x0=Math.max(60,Math.min(vw-60,x1)), y0=vh*0.38+row*52, delay=i*120;
+    fly.style.left=x0+'px'; fly.style.top=y0+'px';
+    fly.animate([{transform:'translate(-50%,-50%) scale(.4)',opacity:0},{transform:'translate(-50%,-80%) scale(1.15)',opacity:1,offset:.25},{transform:'translate(-50%,-90%) scale(1)',opacity:1,offset:.45},
+      {transform:`translate(calc(-50% + ${x1-x0}px),calc(-50% + ${y1-y0}px)) scale(.55)`,opacity:.9}],{duration:1300,delay,easing:'cubic-bezier(.4,0,.2,1)',fill:'forwards'})
+      .onfinish=()=>{ fly.remove(); const box=pill.closest('.res'); box.classList.remove('gain'); void box.offsetWidth; box.classList.add('gain'); };
+    resAnim[r]={g:got[r], t0:t0+delay+1250, dur:900}; });   // the counter starts when the amount lands
+  if(!resAnimRaf) resAnimRaf=requestAnimationFrame(stepResAnim); renderRes(); }
+// what the bar shows while a counter climbs: the new total minus what has not "landed" yet
+function resShown(r){ const a=resAnim[r]; if(!a) return state.res[r]; const p=Math.max(0,Math.min(1,(performance.now()-a.t0)/a.dur));
+  if(p>=1){ delete resAnim[r]; return state.res[r]; } return Math.max(0, state.res[r]-a.g*(1-(1-Math.pow(1-p,3)))); }
+function stepResAnim(){ resAnimRaf=0; for(const r in resAnim){ const el=document.getElementById('r-'+r); if(el) el.textContent=fmtN(resShown(r)); }
+  if(Object.keys(resAnim).length) resAnimRaf=requestAnimationFrame(stepResAnim); }
 function processMarches(){ const now=Date.now(); let ch=false;
   for(const m of [...state.marches]){ if(m.st==='out' && now>=m.a){ if(m.pvp) continue; arrive(m); ch=true; } else if(m.st==='back' && now>=m.b){ returnHome(m); ch=true; } }   // attacks on players: resolved by the server
   if(ch){ save(); renderAll(); } }
@@ -1523,7 +1545,7 @@ function renderRes(){ if(hudHold && fxBusy()) return;   // nothing must give the
   renderPower();
   const c=cap(), rt=rates();
   for(const r of RES){ const el=document.getElementById('r-'+r), rr=document.getElementById('rr-'+r);
-    el.textContent=fmtN(state.res[r]); el.classList.toggle('full',r!=='gold' && state.res[r]>=c);
+    el.textContent=fmtN(resShown(r)); el.classList.toggle('full',r!=='gold' && state.res[r]>=c);
     rr.textContent=(rt[r]>=0?'+':'')+fmtN(rt[r])+'/h'; rr.classList.toggle('neg',rt[r]<0); }
   const pk=n=>n>=1000?(Math.floor(n/100)/10)+'k':String(Math.floor(n)); // short form so it fits the same pill size
   document.getElementById('r-pop').textContent=pk(popUsed()); document.getElementById('rr-pop').textContent=`/ ${pk(popMax())} ${_t('max')}`;
@@ -2064,6 +2086,7 @@ function applyServer(j, seq){
     if(e.t==='wheel'){ wheelAnimate(e.wheel, e.idx, e.reward, e.all); continue; }
     if(e.t==='power'){ powerGain(e.n); continue; }
     if(e.t==='levelup'){ levelUpShow(e.from, e.to, e.rew); continue; }
+    if(e.t==='loot'){ lootFx(e.got); continue; }
     if(e.t==='toast'){ setTimeout(()=>toast(e.m), delay); delay+=1100; }
   }
   renderAll(); if(view==='map') requestDraw(); }
