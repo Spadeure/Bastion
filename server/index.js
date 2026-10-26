@@ -21,6 +21,8 @@ fs.mkdirSync(DATA, { recursive: true });
 const STAMP = new Intl.DateTimeFormat('fr-FR', { timeZone: SERVER_TZ, day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' });
 const clean = v => String(v ?? '').replace(/[\u0000-\u001f\u007f]/g, '?').slice(0, 40);   // a name typed by anybody: no line breaks in the log
 function log(tag, msg) { console.log(`[${STAMP.format(new Date())}] [${tag}] ${msg}`); }
+// an error in a background task must never stop the whole server: it is written in the console instead
+process.on('unhandledRejection', e => log('ERREUR', `tâche en arrière-plan : ${e && e.stack ? e.stack.split('\n').slice(0, 3).join(' | ') : e}`));
 
 // ---------- database ----------
 const db = new DatabaseSync(path.join(DATA, 'bastion.db'));
@@ -48,6 +50,7 @@ const Q = {
   addBase: db.prepare('INSERT INTO bases (user_id, x, y, updated) VALUES (?, ?, ?, ?)'),
   saveBase: db.prepare('UPDATE bases SET state = ?, lvl = ?, power = ?, updated = ? WHERE user_id = ?'),
   allPos: db.prepare('SELECT x, y FROM bases'),
+  baseAt: db.prepare('SELECT user_id FROM bases WHERE x = ? AND y = ?'),
   players: db.prepare('SELECT u.name, b.x, b.y, b.lvl, b.power FROM bases b JOIN users u ON u.id = b.user_id WHERE b.user_id != ?'),
   count: db.prepare('SELECT COUNT(*) AS n FROM users'),
   setRole: db.prepare('UPDATE users SET role = ? WHERE id = ?'),
@@ -180,7 +183,12 @@ async function api(req, res, url, ip) {
   }
   if (url === '/api/act' && req.method === 'POST') {             // one order from the player: checked and run by the server
     const { a, args = [], lang } = await readBody(req, 20_000);
-    const b = Q.base.get(me.id), act = clean(a), r = runFor(me, b, String(a || ''), Array.isArray(args) ? args.slice(0, 5) : [], lang);
+    const b = Q.base.get(me.id), act = clean(a);
+    if (a === 'launch' && Array.isArray(args) && args[0]) {      // the engine does not know other players: their bases cannot be attacked yet
+      const o = Q.baseAt.get(Math.floor(Number(args[0].x) || 0), Math.floor(Number(args[0].y) || 0));
+      if (o && o.user_id !== me.id) { refusedOrder(me, ip, act, args, 'bad_order'); const r0 = runFor(me, b, null, [], lang); return send(res, 200, { state: r0.state, events: r0.events, error: 'bad_order', serverTime: Date.now() }); }
+    }
+    const r = runFor(me, b, String(a || ''), Array.isArray(args) ? args.slice(0, 5) : [], lang);
     refusedOrder(me, ip, act, args, r.error);
     return send(res, 200, { state: r.state, events: r.events, error: r.error, serverTime: Date.now() });
   }

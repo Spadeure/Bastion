@@ -14,11 +14,22 @@ function makeDummy() {
   return p;
 }
 
+// The game's own clock: the engine can replay the time a player was away step by step
+// (production until the warehouse upgrade ends, then with the bigger storage, and so on).
+// A separate Date class, so the server's real clock is never touched.
+let fakeNow = null;
+class GameDate extends Date {
+  constructor(...a) { if (!a.length && fakeNow !== null) super(fakeNow); else super(...a); }
+  static now() { return fakeNow !== null ? fakeNow : Date.now(); }
+}
+
 let ctx = null;
 function load() {
   const dummy = makeDummy();
   const sandbox = {
-    console, URL, JSON, Math, Date, Intl, Map, Set, Promise,
+    console, URL, JSON, Math, Date: GameDate, Intl, Map, Set, Promise,
+    __setNow: t => { fakeNow = t; },
+    __SERVER: true,
     document: dummy, window: dummy, navigator: dummy, localStorage: dummy, sessionStorage: dummy, performance: { now: () => Date.now() },
     location: { href: 'http://localhost/', protocol: 'http:', hostname: 'localhost' },
     requestAnimationFrame: () => 0, cancelAnimationFrame: () => {}, alert: () => {}, confirm: () => true,
@@ -35,7 +46,9 @@ function load() {
 // run one request: catch up time, then optionally one order. Returns {state, events, error, lvl, power}
 function run(st, lang, action, args, role) {
   if (!ctx) load();
-  const out = ctx.__run(JSON.stringify(st), lang || 'en', action || null, JSON.stringify(args || []), role || 'player');
+  let out;
+  try { out = ctx.__run(JSON.stringify(st), lang || 'en', action || null, JSON.stringify(args || []), role || 'player'); }
+  finally { fakeNow = null; }   // whatever happens, the clock goes back to real time
   return JSON.parse(out);
 }
 module.exports = { run, load };

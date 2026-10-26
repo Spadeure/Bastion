@@ -501,3 +501,9 @@ p{font-size:15px;color:#d6d6ca;line-height:1.35;font-weight:500}
 .wown{display:flex;align-items:center;gap:6px;font-weight:700}
 .wdaily{display:block;margin:6px auto;text-align:center}
 #wres{display:flex;justify-content:center;margin:8px 0}
+
+/* power label: shortened with … instead of being cut when the number is long */
+.cinfo{min-width:0}.power{min-width:0}.power b{flex:none}.power small{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* window titles never run under the close button */
+#sheetBody > h2:first-child,#sheetBody > .hd:first-child{padding-right:34px}
+#sheetBody .hd h2{hyphens:auto;-webkit-hyphens:auto;overflow-wrap:break-word}

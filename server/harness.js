@@ -16,8 +16,24 @@ openChest = function (id, count) {
   __events.push({ t: 'chest', id, rewards });
 };
 wheelResult = (wheel, idx, reward) => { __events.push({ t: 'wheel', wheel, idx, reward }); };
-// catch up everything that happened since the last visit (production, constructions, research, training, marches, repairs)
-function __catchUp() { tick(); tick(); }
+// catch up everything that happened since the last visit (production, constructions, research, training, marches, repairs).
+// The time away is replayed event by event: each finished construction, research, training order, march step or boost
+// changes the production, the storage or the upkeep from that moment on, exactly as if the player had stayed online.
+function __nextEvent(limit) {
+  const ts = [];
+  if (state.queue) ts.push(state.queue.end);
+  const rc = researchState().cur; if (rc) ts.push(rc.e);
+  for (const bl in state.training) for (const j of state.training[bl]) ts.push(j.e);
+  for (const m of state.marches) ts.push(m.st === 'out' ? m.a : m.b);
+  for (const k in (state.boosts || {})) ts.push(state.boosts[k]);
+  let best = null; for (const t of ts) if (t > state.last && t < limit && (best === null || t < best)) best = t;
+  return best;
+}
+function __catchUp() {
+  const real = Date.now();
+  for (let i = 0; i < 300; i++) { const t = __nextEvent(real); if (t === null) break; __setNow(t); tick(); }
+  __setNow(null); tick(); tick();
+}
 const __int = (v, lo, hi) => Math.max(lo, Math.min(hi, Math.floor(Number(v) || 0)));
 const STAFF_ONLY = new Set(['finish', 'finishTraining', 'finishResearch', 'finishMarch', 'reset']);
 // every order the browser may send, with its checks (the game functions do the rest of the checks themselves)
@@ -49,6 +65,8 @@ const __ACTIONS = {
   claimQuest(id) { return claimQuest(String(id || '')); },
   spin(w) { if (!WHEELS[w]) return 'bad_order'; return doSpin(w); },
   daily() { return claimDailyTicket(); },
+  readReport(id) { const r = state.reports.find(x => x.id === Number(id)); if (!r) return 'bad_order'; r.read = true; },
+  readAllReports() { for (const r of state.reports) r.read = true; },
   equip(id) { equip(id); }, unequip(s) { if (!EQ_SLOTS.includes(s)) return 'bad_order'; unequip(s); }, scrap(id) { scrap(id); },
   // test buttons (admin and test accounts only)
   finish() { if (state.queue) complete(); },
