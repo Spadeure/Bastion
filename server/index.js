@@ -12,6 +12,23 @@ const engine = require('./engine.js');      // the game rules, run by the server
 const SERVER_TZ = process.env.SERVER_TZ || 'Europe/Paris';   // time zone of the server clock shown in the game and of the log
 
 const ROOT = path.join(__dirname, '..');
+// Version of the game files: a fingerprint of the page, scripts and styles. Each update (git pull + restart) gives a new one.
+// The page loads its files with ?v=<version>, so no phone, browser or Cloudflare cache can keep an old copy,
+// and open games compare it every few seconds: a new version means "update installed, reload".
+function gameVersion() {
+  const h = crypto.createHash('sha1');
+  for (const d of ['', 'js', 'css']) for (const f of fs.readdirSync(path.join(ROOT, d)).sort()) if (/\.(html|js|css)$/.test(f)) h.update(f).update(fs.readFileSync(path.join(ROOT, d, f)));
+  return h.digest('base64url').slice(0, 10);
+}
+const VERSION = gameVersion();
+let indexPage = null;   // index.html with the version stamped in, built once
+function buildIndex() {
+  const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8')
+    .replace(/(href|src)="((?:css|js)\/[^"?]+\.(?:css|js))"/g, `$1="$2?v=${VERSION}"`)
+    .replace('</head>', `<script>window.BASTION_VER=${JSON.stringify(VERSION)}</script>\n</head>`);
+  const data = Buffer.from(html);
+  return { data, br: zlib.brotliCompressSync(data), gz: zlib.gzipSync(data) };
+}
 const DATA = path.join(ROOT, 'data');                       // never in git: holds the database
 const PORT = +process.env.SERVER_PORT || +process.env.PORT || 8080;   // Pelican gives the port in SERVER_PORT
 const MAPN = 750;
@@ -153,7 +170,7 @@ function cheat(me, ip, what) { STATS.cheat++; log('TRICHE?', `${me ? me.name : '
 
 // ---------- API ----------
 async function api(req, res, url, ip) {
-  if (url === '/api/ping') return send(res, 200, { t: Date.now(), tz: SERVER_TZ });
+  if (url === '/api/ping') return send(res, 200, { t: Date.now(), tz: SERVER_TZ, v: VERSION });
   if (url === '/api/health') return send(res, 200, { ok: true, game: 'Bastion', players: Q.count.get().n, uptime: Math.round(process.uptime()) });
 
   if (url === '/api/register' && req.method === 'POST') {
@@ -397,12 +414,20 @@ function loadFile(file, cb) {
   });
 }
 function serveFile(req, res, url) {
+  if (url === '/' || url === '/index.html') {   // the page itself: never kept in any cache
+    if (!indexPage) indexPage = buildIndex();
+    const ae = String(req.headers['accept-encoding'] || ''), h = { 'Content-Type': TYPES['.html'], 'Cache-Control': 'no-store', 'Vary': 'Accept-Encoding' };
+    let body = indexPage.data;
+    if (/\bbr\b/.test(ae)) { body = indexPage.br; h['Content-Encoding'] = 'br'; } else if (/\bgzip\b/.test(ae)) { body = indexPage.gz; h['Content-Encoding'] = 'gzip'; }
+    h['Content-Length'] = body.length; res.writeHead(200, h); return res.end(req.method === 'HEAD' ? undefined : body);
+  }
+  const stamped = /[?&]v=/.test(req.url || '');
   const file = path.normalize(path.join(ROOT, url === '/' ? 'index.html' : url));
   const rel = path.relative(ROOT, file).split(path.sep)[0];
   if (file !== ROOT && !file.startsWith(ROOT + path.sep) || ['server', 'data', '.git', 'node_modules', 'package.json'].includes(rel)) { res.writeHead(403); return res.end('Forbidden'); }
   loadFile(file, (err, e) => {
     if (err) { res.writeHead(404); return res.end('Not found'); }
-    const h = { 'Content-Type': e.type, 'ETag': e.etag, 'Vary': 'Accept-Encoding', 'Cache-Control': /\.(webp|jpg|png|woff2)$/.test(file) ? 'public, max-age=86400' : 'no-cache' };
+    const h = { 'Content-Type': e.type, 'ETag': e.etag, 'Vary': 'Accept-Encoding', 'Cache-Control': stamped ? 'public, max-age=31536000, immutable' : /\.(webp|jpg|png|woff2)$/.test(file) ? 'public, max-age=86400' : 'no-cache' };   // a stamped file never changes: a new version has a new address
     if (req.headers['if-none-match'] === e.etag) { res.writeHead(304, h); return res.end(); }
     const ae = String(req.headers['accept-encoding'] || '');
     let body = e.data;
@@ -429,7 +454,7 @@ http.createServer(async (req, res) => {
     return;
   }
   serveFile(req, res, url);
-}).listen(PORT, '0.0.0.0', () => log('DÉMARRAGE', `Serveur Bastion sur le port ${PORT} · ${Q.count.get().n} joueurs inscrits`));
+}).listen(PORT, '0.0.0.0', () => log('DÉMARRAGE', `Serveur Bastion sur le port ${PORT} · version ${VERSION} · ${Q.count.get().n} joueurs inscrits`));
 
 // ---------- hourly summary in the console ----------
 function summary() {
