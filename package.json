@@ -1,0 +1,9 @@
+{
+  "name": "bastion",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Bastion - military browser strategy game",
+  "main": "server/index.js",
+  "engines": { "node": ">=22" },
+  "scripts": { "start": "node server/index.js" }
+}
