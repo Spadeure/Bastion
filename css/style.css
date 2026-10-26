@@ -724,3 +724,24 @@ p{font-size:15px;color:#d6d6ca;line-height:1.35;font-weight:500}
 #srvclock.inbar span{font-size:10.5px;line-height:1.1}
 #dock{position:relative}
 #srvclock.indock{position:absolute;right:0;bottom:22px;top:auto;pointer-events:auto}
+/* ===== auto attacks ===== */
+.aplan{margin-top:10px;padding:8px 10px;border-radius:10px;background:#141917;border:1px solid #3d3a26}
+.aplan.off{opacity:.75}
+.aph{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px}
+.aph b{font:15px var(--disp);color:var(--brass2)}
+.aph .sm{padding:2px 6px}.aph .ic{width:16px;height:16px}
+.arow2{display:flex;gap:6px;margin-bottom:6px}
+.arow2 select{flex:1;min-width:0;padding:7px 8px;border-radius:7px;border:1px solid var(--brass);background:#0c0f10;color:var(--txt);font:15px var(--ui);font-weight:700}
+.aunits{display:flex;flex-direction:column;gap:4px}
+.au{display:flex;align-items:center;gap:8px;padding:4px 6px;border-radius:8px;background:#0f1311}
+.au img{width:44px;height:36px;object-fit:contain;flex:none}
+.au span{flex:1;min-width:0;font-size:14px;line-height:1.15;color:#d8d2b8}
+.au small{display:block;color:var(--mut);font-size:11.5px}
+.au input[type=number]{width:96px;padding:6px 8px;border-radius:7px;border:1px solid var(--brass);background:#0c0f10;color:var(--txt);font:16px var(--disp)}
+.au.ati{margin-top:6px;cursor:pointer}.au.ati input{width:20px;height:20px;accent-color:#d4a72c}
+.autobox{margin:8px 0;padding:8px 10px;border-radius:10px;border:1px solid var(--brass);background:#1a2016}
+.autotime{display:flex;align-items:center;gap:6px;font-size:15px;margin-bottom:6px}.autotime b{color:var(--brass2);font:18px var(--disp)}
+.aok{color:var(--ok);font-size:13px;margin-top:4px;display:flex;align-items:center;gap:5px}
+button.danger{background:linear-gradient(180deg,#b8432f,#7a2416)!important;color:#fff!important;border-color:#4a1209!important;margin-top:10px}
+.dkauto{position:absolute;bottom:-3px;left:50%;transform:translateX(-50%);padding:0 4px;border-radius:5px;background:#3f9b47;color:#fff;font:800 9px/13px var(--ui);letter-spacing:.5px;border:1px solid #0b0d0e}
+.rcoord{white-space:nowrap;flex:none}

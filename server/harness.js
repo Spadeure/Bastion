@@ -32,7 +32,8 @@ function __nextEvent(limit) {
 }
 function __catchUp() {
   const real = Date.now();
-  for (let i = 0; i < 300; i++) { const t = __nextEvent(real); if (t === null) break; __setNow(t); tick(); }
+  for (let i = 0; i < 5000; i++) { const t = __nextEvent(real);   // 12 h of auto attacks can mean a few thousand returns
+     if (t === null) break; __setNow(t); tick(); }
   __setNow(null); tick(); tick();
 }
 const __int = (v, lo, hi) => Math.max(lo, Math.min(hi, Math.floor(Number(v) || 0)));
@@ -68,6 +69,15 @@ const __ACTIONS = {
       m.pvp = pv.uid; m.kind = spy ? 'spy' : 'attack'; m.tname = String(pv.name).slice(0, 16);
       state.truce = 0; state.attackedPlayer = true; }   // attacking or spying ends your own truce and your beginner protection
   },
+  autoStart(plans) {
+    if (!Array.isArray(plans) || !plans.length || plans.length > 5) return 'bad_order';
+    const clean = [];
+    for (const p of plans) { if (!p || !AUTO_TYPES.includes(p.tt)) return 'bad_order'; const q = {};
+      for (const u in (p.q || {})) if (UNITS[u]) q[u] = __int(p.q[u], 0, 1e8);
+      clean.push({ tt: p.tt, lvl: __int(p.lvl, 1, 10), q, titan: !!p.titan }); }
+    return autoStart(clean) || undefined;
+  },
+  autoStop() { if (!state.auto) return 'bad_order'; autoStop(); },
   useItem(id, all) { if (!ITEMS[id] || !invN(id)) return 'bad_order'; useItem(id, !!all); },
   speed(id, tg) { if (!ITEMS[id] || !invN(id) || typeof tg !== 'string' || tg.length > 40) return 'bad_order'; speedTarget = tg; if (!speedJob(tg)) return 'bad_order'; useSpeed(id); },
   defend(u, n) { if (!UNITS[u]) return 'bad_order'; moveDefense(u, __int(n, -1e8, 1e8)); },
