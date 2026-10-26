@@ -3,6 +3,7 @@
 // Next steps: server-checked actions, attacks between players, wheel, alliances.
 const http = require('http'), fs = require('fs'), path = require('path'), crypto = require('crypto');
 const { DatabaseSync } = require('node:sqlite');
+const { LOOT, rollLoot } = require('../js/loot.js');   // the same tables as the game shows
 
 const ROOT = path.join(__dirname, '..');
 const DATA = path.join(ROOT, 'data');                       // never in git: holds the database
@@ -114,6 +115,7 @@ async function api(req, res, url) {
     return send(res, 200, { ok: true, serverTime: Date.now() });
   }
   if (url === '/api/admin' && req.method === 'POST') return admin(req, res, me);
+  if (url === '/api/chest' && req.method === 'POST') return openChest(req, res, me);
   if (url === '/api/players' && req.method === 'GET') return send(res, 200, { players: Q.players.all(me.id) });
   return send(res, 404, { error: 'not_found' });
 }
@@ -170,6 +172,30 @@ async function admin(req, res, me) {
   Q.saveBase.run(JSON.stringify(st), b.lvl, b.power, now, me.id);
   console.log(`Admin action by ${me.name}: ${action} ${action === 'give_all_items' ? '' : JSON.stringify(p)}`);
   return send(res, 200, { ok: true, state: st });
+}
+
+// ---------- mystery chests: the server draws the rewards ----------
+async function openChest(req, res, me) {
+  const { id, count = 1, state } = await readBody(req, 2_000_000);
+  if (!LOOT[id]) return send(res, 400, { error: 'bad_chest' });
+  const b = Q.base.get(me.id);
+  const st = state && typeof state === 'object' ? state : (b.state ? JSON.parse(b.state) : null);
+  if (!st) return send(res, 400, { error: 'no_state' });
+  st.inv = st.inv || {}; st.troops = st.troops || {};
+  const n = Math.min(int(count, 1, 50), st.inv[id] || 0);
+  if (n < 1) return send(res, 400, { error: 'no_chest' });
+  const rewards = [];
+  for (let i = 0; i < n; i++) {
+    st.inv[id]--; const r = rollLoot(id, k => crypto.randomInt(k));
+    if (r.k === 'item') st.inv[r.id] = (st.inv[r.id] || 0) + r.n;
+    else if (r.k === 'troops') st.troops[r.u] = (st.troops[r.u] || 0) + r.n;
+    else { st.titan = st.titan || { lvl: 1, xp: 0, hp: 100, away: false, eq: {}, inv: [] }; st.titan.inv.push({ id: Date.now() + i * 7 + crypto.randomInt(5), s: r.s, t: r.t }); }
+    rewards.push(r);
+  }
+  if (!st.inv[id]) delete st.inv[id];
+  st.pos = { x: b.x, y: b.y };
+  Q.saveBase.run(JSON.stringify(st), b.lvl, b.power, Date.now(), me.id);
+  return send(res, 200, { ok: true, state: st, rewards });
 }
 
 // ---------- static files (the game itself) ----------
