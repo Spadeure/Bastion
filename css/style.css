@@ -464,3 +464,10 @@ p{font-size:15px;color:#d6d6ca;line-height:1.35;font-weight:500}
 @keyframes cfxflash{0%{opacity:0}15%{opacity:1}100%{opacity:0}}
 @keyframes cfxpop{0%{opacity:0;transform:scale(.4) translateY(30px)}100%{opacity:1;transform:none}}
 @keyframes cfxshake{0%,100%{transform:rotate(0)}10%{transform:rotate(-2deg)}20%{transform:rotate(2deg)}30%{transform:rotate(-3deg)}40%{transform:rotate(3deg)}50%{transform:rotate(-4deg) scale(1.02)}60%{transform:rotate(4deg) scale(1.03)}70%{transform:rotate(-6deg) scale(1.04)}80%{transform:rotate(6deg) scale(1.05)}90%{transform:rotate(-3deg) scale(1.06)}}
+/* server clock and latency */
+#srvclock{position:fixed;right:10px;bottom:12px;z-index:4;display:flex;align-items:center;gap:7px;padding:4px 10px;border-radius:8px;background:#0d110bcc;border:1px solid #5a5a3a;color:#e8e2c8;font:600 13px/1.2 system-ui,sans-serif;pointer-events:auto}
+#srvclock b{font-variant-numeric:tabular-nums;letter-spacing:.5px}
+#srvclock span{opacity:.75;font-size:12px;font-variant-numeric:tabular-nums}
+#srvclock i{width:9px;height:9px;border-radius:50%;background:#888;box-shadow:0 0 6px currentColor}
+#srvclock i.good{background:#5fd16a;color:#5fd16a}#srvclock i.mid{background:#f3c534;color:#f3c534}#srvclock i.bad{background:#e0574a;color:#e0574a}#srvclock i.off{background:#777;color:transparent}
+@media (max-width:1100px){#srvclock{bottom:auto;top:38px;right:58px;font-size:11px;padding:2px 7px;gap:5px}}

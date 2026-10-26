@@ -3,7 +3,9 @@
 // Next steps: server-checked actions, attacks between players, wheel, alliances.
 const http = require('http'), fs = require('fs'), path = require('path'), crypto = require('crypto');
 const { DatabaseSync } = require('node:sqlite');
-const { LOOT, rollLoot } = require('../js/loot.js');   // the same tables as the game shows
+const { LOOT } = require('../js/loot.js');   // the same tables as the game shows
+const engine = require('./engine.js');      // the game rules, run by the server
+const SERVER_TZ = process.env.SERVER_TZ || 'Europe/Paris';   // time zone of the server clock shown in the game
 
 const ROOT = path.join(__dirname, '..');
 const DATA = path.join(ROOT, 'data');                       // never in git: holds the database
@@ -75,6 +77,7 @@ async function api(req, res, url) {
   // behind the Cloudflare tunnel every request comes from the tunnel: the real player address is in CF-Connecting-IP
   const local = /^(::ffff:)?(127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)|^::1$/.test(req.socket.remoteAddress || '');
   const ip = (local && req.headers['cf-connecting-ip']) || req.socket.remoteAddress || '?';
+  if (url === '/api/ping') return send(res, 200, { t: Date.now(), tz: SERVER_TZ });
   if (url === '/api/health') return send(res, 200, { ok: true, game: 'Bastion', players: Q.count.get().n, uptime: Math.round(process.uptime()) });
 
   if (url === '/api/register' && req.method === 'POST') {
@@ -104,20 +107,31 @@ async function api(req, res, url) {
   if (!me) return send(res, 401, { error: 'not_logged_in' });
   if (url === '/api/logout' && req.method === 'POST') { Q.delSession.run(me.token); return send(res, 200, { ok: true }); }
   if (url === '/api/state' && req.method === 'GET') {
-    const b = Q.base.get(me.id);
-    return send(res, 200, { name: me.name, role: me.role, pos: { x: b.x, y: b.y }, state: b.state ? JSON.parse(b.state) : null, serverTime: Date.now() });
+    const b = Q.base.get(me.id), r = runFor(me, b, null, [], langOf(req));
+    return send(res, 200, { name: me.name, role: me.role, pos: { x: b.x, y: b.y }, state: r.state, events: r.events, serverTime: Date.now() });
   }
-  if (url === '/api/state' && req.method === 'PUT') {
-    const { state, lvl = 1, power = 0 } = await readBody(req, 2_000_000);
-    if (!state || typeof state !== 'object') return send(res, 400, { error: 'bad_state' });
-    const b = Q.base.get(me.id); state.pos = { x: b.x, y: b.y };          // the position always comes from the server
-    Q.saveBase.run(JSON.stringify(state), Math.max(1, Math.min(99, lvl | 0)), Math.max(0, power | 0), Date.now(), me.id);
-    return send(res, 200, { ok: true, serverTime: Date.now() });
+  if (url === '/api/act' && req.method === 'POST') {             // one order from the player: checked and run by the server
+    const { a, args = [], lang } = await readBody(req, 20_000);
+    const b = Q.base.get(me.id), r = runFor(me, b, String(a || ''), Array.isArray(args) ? args.slice(0, 5) : [], lang);
+    return send(res, 200, { state: r.state, events: r.events, error: r.error, serverTime: Date.now() });
   }
+  if (url === '/api/state' && req.method === 'PUT') return send(res, 403, { error: 'forbidden' });   // the game is never uploaded by the browser any more
   if (url === '/api/admin' && req.method === 'POST') return admin(req, res, me);
   if (url === '/api/chest' && req.method === 'POST') return openChest(req, res, me);
   if (url === '/api/players' && req.method === 'GET') return send(res, 200, { players: Q.players.all(me.id) });
   return send(res, 404, { error: 'not_found' });
+}
+
+// ---------- running the game for one player ----------
+const LANG_OK = ['en', 'fr', 'es', 'de', 'it', 'pt', 'pl', 'tr', 'ru'];
+const langOf = req => { const m = /[?&]lang=([a-z]{2})/.exec(req.url || ''); return m && LANG_OK.includes(m[1]) ? m[1] : 'en'; };
+function runFor(me, b, action, args, lang) {
+  const st = b.state ? JSON.parse(b.state) : { pos: { x: b.x, y: b.y } };
+  st.pos = { x: b.x, y: b.y };                                          // the position always comes from the server
+  const r = engine.run(st, LANG_OK.includes(lang) ? lang : 'en', action, args, me.role);
+  r.state.pos = { x: b.x, y: b.y };
+  Q.saveBase.run(JSON.stringify(r.state), r.lvl, r.power, Date.now(), me.id);
+  return r;
 }
 
 // ---------- administration (admin and test accounts only) ----------
@@ -138,15 +152,14 @@ function createAccount(name, password, role) {
 }
 async function admin(req, res, me) {
   if (!['admin', 'tester'].includes(me.role)) return send(res, 403, { error: 'forbidden' });
-  const { action, p = {}, state } = await readBody(req, 2_000_000);
+  const { action, p = {} } = await readBody(req, 50_000);
   if (action === 'accounts') return me.role === 'admin' ? send(res, 200, { accounts: Q.accounts.all() }) : send(res, 403, { error: 'forbidden' });
   if (action === 'create_account') {
     if (me.role !== 'admin') return send(res, 403, { error: 'forbidden' });
     try { return send(res, 200, { ok: true, name: createAccount(p.name, p.password, p.role) }); } catch (e) { return send(res, e.code || 500, { error: e.message }); }
   }
   const b = Q.base.get(me.id);
-  const st = state && typeof state === 'object' ? state : (b.state ? JSON.parse(b.state) : null);
-  if (!st) return send(res, 400, { error: 'no_state' });
+  const st = runFor(me, b, null, [], 'en').state;                      // up to date server copy
   const now = Date.now();
   st.res = st.res || {}; st.troops = st.troops || {}; st.inv = st.inv || {}; st.slots = st.slots || {}; st.research = st.research || { lv: {}, cur: null };
   switch (action) {
@@ -168,34 +181,18 @@ async function admin(req, res, me) {
       st.titan.inv.push({ id: now + Math.floor(Math.random() * 1000), s: p.s, t: int(p.t, 1, 3) }); break; }
     default: return send(res, 400, { error: 'unknown_action' });
   }
-  st.pos = { x: b.x, y: b.y };
-  Q.saveBase.run(JSON.stringify(st), b.lvl, b.power, now, me.id);
+  b.state = JSON.stringify(st);
+  const r = runFor(me, b, null, [], p.lang || 'en');                    // finishes what the admin action completed
   console.log(`Admin action by ${me.name}: ${action} ${action === 'give_all_items' ? '' : JSON.stringify(p)}`);
-  return send(res, 200, { ok: true, state: st });
+  return send(res, 200, { ok: true, state: r.state, events: r.events });
 }
 
-// ---------- mystery chests: the server draws the rewards ----------
+// ---------- mystery chests: opened by the game engine on the server (secure random draw) ----------
 async function openChest(req, res, me) {
-  const { id, count = 1, state } = await readBody(req, 2_000_000);
+  const { id, count = 1, lang } = await readBody(req, 10_000);
   if (!LOOT[id]) return send(res, 400, { error: 'bad_chest' });
-  const b = Q.base.get(me.id);
-  const st = state && typeof state === 'object' ? state : (b.state ? JSON.parse(b.state) : null);
-  if (!st) return send(res, 400, { error: 'no_state' });
-  st.inv = st.inv || {}; st.troops = st.troops || {};
-  const n = Math.min(int(count, 1, 50), st.inv[id] || 0);
-  if (n < 1) return send(res, 400, { error: 'no_chest' });
-  const rewards = [];
-  for (let i = 0; i < n; i++) {
-    st.inv[id]--; const r = rollLoot(id, k => crypto.randomInt(k));
-    if (r.k === 'item') st.inv[r.id] = (st.inv[r.id] || 0) + r.n;
-    else if (r.k === 'troops') st.troops[r.u] = (st.troops[r.u] || 0) + r.n;
-    else { st.titan = st.titan || { lvl: 1, xp: 0, hp: 100, away: false, eq: {}, inv: [] }; st.titan.inv.push({ id: Date.now() + i * 7 + crypto.randomInt(5), s: r.s, t: r.t }); }
-    rewards.push(r);
-  }
-  if (!st.inv[id]) delete st.inv[id];
-  st.pos = { x: b.x, y: b.y };
-  Q.saveBase.run(JSON.stringify(st), b.lvl, b.power, Date.now(), me.id);
-  return send(res, 200, { ok: true, state: st, rewards });
+  const r = runFor(me, Q.base.get(me.id), 'useItem', [id, count > 1], lang);
+  return send(res, 200, { ok: !r.error, error: r.error, state: r.state, events: r.events });
 }
 
 // ---------- static files (the game itself) ----------
