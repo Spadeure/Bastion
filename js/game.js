@@ -1339,7 +1339,9 @@ function setView(v){
 }
 function renderPower(){
   const p=totalPower(), l=playerLevel(p), a=levelReq(l), b=levelReq(l+1);
-  document.getElementById('pPow').textContent=fmtI(p);
+  { const pp=document.getElementById('pPow'); pp.textContent=fmtI(p);   // full number; shortened (120M) only if the screen is too narrow for it
+    if(pp.parentElement && pp.parentElement.scrollWidth>pp.parentElement.clientWidth+1) pp.textContent=fmtN(p); pp.title=fmtI(p); }
+  { const nm=document.getElementById('pName'), v=ONLINE&&NET.name ? NET.name : _t('COMMANDER'); if(nm.textContent!==v){ nm.textContent=v; nm.title=v; } }   // the player's own name
   document.getElementById('pLvl').textContent=l;
   document.getElementById('pXp').style.width=Math.min(100,(p-a)/(b-a)*100)+'%';
   const hb=state.slots.hangar, tp=document.getElementById('tPortrait');
