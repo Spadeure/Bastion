@@ -29,7 +29,7 @@ function load() {
   ctx = vm.createContext(sandbox);
   for (const f of ['js/loot.js', 'js/game.js']) vm.runInContext(fs.readFileSync(path.join(ROOT, f), 'utf8'), ctx, { filename: f });
   vm.runInContext(fs.readFileSync(path.join(__dirname, 'harness.js'), 'utf8'), ctx, { filename: 'harness.js' });
-  console.log('Game engine loaded on the server');
+  console.log('[moteur] Règles du jeu chargées sur le serveur');
 }
 
 // run one request: catch up time, then optionally one order. Returns {state, events, error, lvl, power}
