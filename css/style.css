@@ -471,3 +471,18 @@ p{font-size:15px;color:#d6d6ca;line-height:1.35;font-weight:500}
 #srvclock i{width:9px;height:9px;border-radius:50%;background:#888;box-shadow:0 0 6px currentColor}
 #srvclock i.good{background:#5fd16a;color:#5fd16a}#srvclock i.mid{background:#f3c534;color:#f3c534}#srvclock i.bad{background:#e0574a;color:#e0574a}#srvclock i.off{background:#777;color:transparent}
 @media (max-width:1100px){#srvclock{bottom:auto;top:38px;right:58px;font-size:11px;padding:2px 7px;gap:5px}}
+/* quests and tutorial */
+.quest.done{border-color:#5fd16a!important;box-shadow:0 0 12px #5fd16a55}
+.qprog{margin:5px 0 2px}.qprog i{background:linear-gradient(90deg,#5fd16a,#a6e36b)!important}
+.qdot{background:#e0574a;color:#fff;border-radius:9px;padding:0 5px;opacity:1!important}
+#tuto{position:fixed;left:50%;transform:translateX(-50%);bottom:150px;z-index:4;display:flex;align-items:center;gap:10px;max-width:min(560px,94vw);padding:7px 10px 7px 7px;border-radius:12px;
+  background:linear-gradient(#2a3220f2,#151a12f2);border:2px solid #d4a72c;box-shadow:0 6px 20px #000a;color:#f0ead0}
+#tuto img{width:44px;height:44px;object-fit:contain;flex:none}
+#tuto .tt{flex:1;min-width:0;display:flex;flex-direction:column}
+#tuto small{color:#e0b63e;font-weight:800;letter-spacing:.5px;text-transform:uppercase;font-size:11px}
+#tuto b{font-size:14px;line-height:1.25}
+#tuto .glow{animation:qglow 1.2s ease-in-out infinite}
+@keyframes qglow{0%,100%{box-shadow:0 0 0 #5fd16a}50%{box-shadow:0 0 16px #5fd16a}}
+.qarrow{animation:qbounce 1s ease-in-out infinite}
+@keyframes qbounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-22px)}}
+@media (max-width:760px){#tuto{bottom:172px}}

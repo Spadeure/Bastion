@@ -2,7 +2,7 @@
 // Turns every display function off, collects the messages, and exposes __run() for the server.
 let __events = [];
 renderAll = renderRes = renderQueue = renderSlots = renderSheet = liveSheet = updateRepBadge = requestDraw = drawMap = buildWorld = () => {};
-closeSheet = openPanel = openSlot = chestShow = () => {};
+closeSheet = openPanel = openSlot = chestShow = renderTuto = drawClock = () => {};
 save = () => {};
 toast = m => { __events.push({ t: 'toast', m: String(m) }); };
 powerGain = n => { if (n > 0) __events.push({ t: 'power', n }); };
@@ -45,6 +45,7 @@ const __ACTIONS = {
   useItem(id, all) { if (!ITEMS[id] || !invN(id)) return 'bad_order'; useItem(id, !!all); },
   speed(id, tg) { if (!ITEMS[id] || !invN(id) || typeof tg !== 'string' || tg.length > 40) return 'bad_order'; speedTarget = tg; if (!speedJob(tg)) return 'bad_order'; useSpeed(id); },
   defend(u, n) { if (!UNITS[u]) return 'bad_order'; moveDefense(u, __int(n, -1e8, 1e8)); },
+  claimQuest(id) { return claimQuest(String(id || '')); },
   equip(id) { equip(id); }, unequip(s) { if (!EQ_SLOTS.includes(s)) return 'bad_order'; unequip(s); }, scrap(id) { scrap(id); },
   // test buttons (admin and test accounts only)
   finish() { if (state.queue) complete(); },
