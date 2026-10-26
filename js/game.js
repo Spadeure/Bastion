@@ -1256,13 +1256,19 @@ function fieldScene(){
   <rect width="${FW}" height="${FH}" fill="url(#vig)" pointer-events="none"/>`;
   return fieldCache;
 }
+// Ultra-wide screens (21:9): wider versions of the backgrounds, with more scenery on the left and right.
+// The base keeps its coordinates: everything is shifted by OX inside the wider picture.
+const WIDE = {city:null, fields:null};   // e.g. {w:3360, img:{1:'assets/img/bg_wall1_w.jpg', ...}} · {w:3360, img:'assets/img/fbg_w.jpg'}
+let OX = 0;
 function buildWorld(){
   let inner;
   if(view==='city'){
-    W=2576; H=1438;
-    if(!cityCache){ const sc0=BG ? {sceneBack:`<image href="${bgNow()}" x="0" y="0" width="${W}" height="${H}"/>`, sceneFront:'', sceneFore:''} : buildScene(); cityCache=sc0; }
-    inner=`${cityCache.sceneBack}<g id="slots"></g>${cityCache.sceneFront}<g id="gate"></g>${cityCache.sceneFore}`;
-  } else { W=FW; H=FH; inner=`${fieldScene()}<g id="slots"></g><g id="gate"></g>`; }
+    const wd=WIDE.city; W=wd?wd.w:2576; H=1438; OX=(W-2576)/2;
+    if(!cityCache){ const sc0=BG ? {sceneBack:`<image href="${bgNow()}" x="0" y="0" width="2576" height="1438"/>`, sceneFront:'', sceneFore:''} : buildScene(); cityCache=sc0; }
+    const back = wd ? `<image href="${wd.img[wallStage()]||wd.img[2]}" x="0" y="0" width="${W}" height="${H}"/>` : cityCache.sceneBack;
+    inner=`${back}<g transform="translate(${OX},0)"><g id="slots"></g>${cityCache.sceneFront}<g id="gate"></g>${cityCache.sceneFore}</g>`;
+  } else { const wd=WIDE.fields; W=wd?wd.w:FW; H=FH; OX=(W-FW)/2;
+    inner=`${wd?`<image href="${wd.img}" x="0" y="0" width="${W}" height="${H}"/>`:''}<g transform="translate(${OX},0)">${fieldScene()}<g id="slots"></g><g id="gate"></g></g>`; }
   world.innerHTML=`<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">${inner}</svg>`;
   slotsLayer=document.getElementById('slots'); gateLayer=document.getElementById('gate');
   vp.style.setProperty('--vbg', `url(${new URL(view==='city'?bgNow():FBG, location.href).href})`);   // absolute: CSS would read it relative to the css folder
@@ -1451,7 +1457,11 @@ document.querySelectorAll('#hud [data-view]').forEach(a=>a.addEventListener('cli
 const vp=document.getElementById('viewport');
 let sc=1, tx=0, ty=0, downT=null, moved=0, pinch=null; const ptrs=new Map();
 const vsize=()=>({w:vp.clientWidth,h:vp.clientHeight});
-const minS=()=>{ const v=vsize(); return Math.min(v.w/W,v.h/H); }; // zoom out until the whole picture is visible (the sides show a blurred copy of it)
+// responsive zoom limit: the picture fills the screen; only a screen much wider than the picture (21:9 without wide art)
+// or a phone held upright may zoom out further, the empty sides then show a blurred copy of the picture
+const minS=()=>{ const v=vsize(), contain=Math.min(v.w/W,v.h/H), cover=Math.max(v.w/W,v.h/H);
+  if(v.h>v.w) return Math.max(contain, cover*0.5);
+  return v.w/v.h > (W/H)*1.15 ? contain : cover; };
 function apply(){ const v=vsize(); sc=Math.min(1.6,Math.max(minS(),sc));
   tx = W*sc<=v.w ? (v.w-W*sc)/2 : Math.min(0,Math.max(v.w-W*sc,tx));   /* smaller than the screen: centred over the blurred backdrop */
   ty = H*sc<=v.h ? (v.h-H*sc)/2 : Math.min(0,Math.max(v.h-H*sc,ty));
@@ -1498,7 +1508,7 @@ function tick(){
     if(ae && ae.tagName==='INPUT' && document.getElementById('sheet').contains(ae)) liveSheet(); else renderSheet(); }
   save();
 }
-function centerOn(x,y){ const v=vsize(); sc=Math.max(minS(), v.w<600?0.5:0.7); tx=v.w/2-x*sc; ty=v.h/2-y*sc; apply(); }
+function centerOn(x,y){ const v=vsize(); sc=Math.max(minS(), v.w<600?0.5:0.7); tx=v.w/2-(x+OX)*sc; ty=v.h/2-y*sc; apply(); }
 (function(){ const av=document.getElementById('avatar'); av.style.backgroundImage=`url(${PORTRAIT}), radial-gradient(circle at 50% 35%,#55663f,#1c2318)`; av.style.backgroundSize='135%, cover'; av.style.backgroundPosition='45% 8%, center'; })();
 document.querySelectorAll('img[data-ic]').forEach(i=>{ i.src=ICS[i.dataset.ic]; });
 (function(){ const F={"fr_btn": "assets/img/fr_btn.webp", "fr_bar": "assets/img/fr_bar.webp", "fr_win": "assets/img/fr_win.webp", "fr_slot": "assets/img/fr_slot.webp"};
