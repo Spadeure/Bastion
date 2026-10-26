@@ -345,7 +345,7 @@ p{font-size:15px;color:#d6d6ca;line-height:1.35;font-weight:500}
 #mapc{position:absolute;left:0;top:0;display:none;touch-action:none}
 .v-map #mapc{display:block}.v-map #world{display:none}
 .coordbox{display:none!important;position:absolute;left:50%;top:150px;transform:translateX(-50%);align-items:center;gap:6px;padding:2px 6px!important;font:15px var(--disp);color:var(--brass2)}
-.v-map .coordbox{display:flex!important}
+/* coordinate box removed from the map (not useful); tapping the Map tab again centers on your base */
 .coordbox input{width:70px;padding:4px 6px;border-radius:6px;border:1px solid var(--brass);background:#0c0f10;color:var(--txt);font:16px var(--disp);text-align:center}
 .coordbox button{padding:5px 10px}
 .rbadge{position:absolute;top:-8px;right:-10px;min-width:16px;height:16px;padding:0 3px;border-radius:8px;background:#e0574a;color:#fff;font:11px/16px var(--ui);font-weight:700;text-align:center}
