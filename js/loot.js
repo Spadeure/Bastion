@@ -48,15 +48,47 @@ const LOOT = {
     [4,  'legendary', {k:'item', id:'speed_96h', n:[1,1]}]
   ]
 };
+// Wheels of fortune: 12 segments each, same line format. Spun with a ticket (wheel_ticket) or a medal (wheel_medal).
+const WHEELS = {
+  wheel_ticket: [
+    [14, 'common',    {k:'item', id:'crate_*_s', n:[2,2]}],
+    [14, 'common',    {k:'item', id:'speed_5m', n:[3,3]}],
+    [12, 'common',    {k:'troops', u:'recruit', n:[200,400]}],
+    [10, 'uncommon',  {k:'item', id:'crate_*_m', n:[1,1]}],
+    [12, 'common',    {k:'item', id:'speed_15m', n:[2,2]}],
+    [8,  'uncommon',  {k:'item', id:'boost_prod_*', n:[1,1]}],
+    [8,  'uncommon',  {k:'item', id:'speed_1h', n:[1,1]}],
+    [7,  'uncommon',  {k:'troops', u:'rifleman', n:[100,200]}],
+    [6,  'rare',      {k:'item', id:'chest_bronze', n:[1,1]}],
+    [4,  'rare',      {k:'item', id:'speed_8h', n:[1,1]}],
+    [4,  'epic',      {k:'item', id:'chest_silver', n:[1,1]}],
+    [1,  'legendary', {k:'item', id:'chest_gold', n:[1,1]}]
+  ],
+  wheel_medal: [
+    [14, 'rare',      {k:'item', id:'crate_*_l', n:[2,2]}],
+    [12, 'rare',      {k:'item', id:'speed_8h', n:[2,2]}],
+    [9,  'epic',      {k:'troops', u:'tank', n:[20,50]}],
+    [10, 'rare',      {k:'item', id:'boost_atk|boost_def', n:[1,1]}],
+    [9,  'epic',      {k:'item', id:'speed_24h', n:[1,1]}],
+    [10, 'rare',      {k:'item', id:'chest_bronze', n:[3,3]}],
+    [8,  'epic',      {k:'item', id:'chest_silver', n:[1,1]}],
+    [7,  'epic',      {k:'troops', u:'gunship', n:[15,40]}],
+    [7,  'epic',      {k:'part', s:'*', t:2}],
+    [5,  'legendary', {k:'item', id:'speed_96h', n:[1,1]}],
+    [4,  'legendary', {k:'part', s:'*', t:3}],
+    [5,  'legendary', {k:'item', id:'chest_gold', n:[1,1]}]
+  ]
+};
 const LOOT_RES = ['metal','wood','stone','fuel','rations'], LOOT_PARTS = ['armor','weapon','reactor','legs'];
 // one draw; rnd(n) must return an integer in [0, n)
-function rollLoot(chest, rnd){
-  const pool = LOOT[chest]; if(!pool) return null;
-  let r = rnd(pool.reduce((s,l)=>s+l[0],0)), line = pool[0];
-  for(const l of pool){ if(r < l[0]){ line = l; break; } r -= l[0]; }
+function pickLine(pool, rnd){ let r = rnd(pool.reduce((s,l)=>s+l[0],0)); for(let i=0;i<pool.length;i++){ if(r < pool[i][0]) return i; r -= pool[i][0]; } return 0; }
+function rollLoot(chest, rnd){ const pool = LOOT[chest]; return pool ? makeReward(pool[pickLine(pool, rnd)], rnd) : null; }
+// a wheel spin: which segment, and the reward it gives
+function spinWheel(wheel, rnd){ const pool = WHEELS[wheel]; if(!pool) return null; const idx = pickLine(pool, rnd); return {idx, reward: makeReward(pool[idx], rnd)}; }
+function makeReward(line, rnd){
   const [ , rarity, rw] = line, n = rw.n ? rw.n[0] + rnd(rw.n[1]-rw.n[0]+1) : 1;
   if(rw.k === 'item'){ let id = rw.id; if(id.includes('|')){ const o = id.split('|'); id = o[rnd(o.length)]; } id = id.replace('*', LOOT_RES[rnd(LOOT_RES.length)]); return {rarity, k:'item', id, n}; }
   if(rw.k === 'troops') return {rarity, k:'troops', u:rw.u, n};
   return {rarity, k:'part', s: rw.s === '*' ? LOOT_PARTS[rnd(4)] : rw.s, t: rw.t};
 }
-if(typeof module !== 'undefined') module.exports = { LOOT, rollLoot };
+if(typeof module !== 'undefined') module.exports = { LOOT, WHEELS, rollLoot, spinWheel };

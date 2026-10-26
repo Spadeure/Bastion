@@ -486,3 +486,18 @@ p{font-size:15px;color:#d6d6ca;line-height:1.35;font-weight:500}
 .qarrow{animation:qbounce 1s ease-in-out infinite}
 @keyframes qbounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-22px)}}
 @media (max-width:760px){#tuto{bottom:172px}}
+/* wheel of fortune */
+.wheel{position:relative;width:min(340px,78vw);aspect-ratio:1;margin:12px auto 4px}
+.wspin{position:absolute;inset:0;border-radius:50%;border:10px solid #b8892c;box-shadow:0 0 0 3px #5a3d05,inset 0 0 0 3px #5a3d05,0 10px 30px #000b;background:#1c2418}
+.wface{position:absolute;inset:0;border-radius:50%}
+.wseg{position:absolute;left:50%;top:50%;width:0;height:0}
+.wseg i{position:absolute;left:-3px;top:calc(-1 * min(155px,35.5vw));width:6px;height:6px;border-radius:50%}
+.wseg img{position:absolute;left:-21px;top:calc(-1 * min(140px,32vw));width:42px;height:42px;object-fit:contain;filter:drop-shadow(0 2px 3px #000)}
+.wseg small{position:absolute;left:-30px;width:60px;text-align:center;top:calc(-1 * min(96px,22vw));font-size:11px;font-weight:800;color:#f3ecd2;text-shadow:0 1px 2px #000}
+.whub{position:absolute;left:50%;top:50%;width:22%;height:22%;transform:translate(-50%,-50%);border-radius:50%;background:radial-gradient(#3a3020,#15120a);border:4px solid #b8892c;display:flex;align-items:center;justify-content:center}
+.whub img{width:80%;height:80%;object-fit:contain}
+.wpointer{position:absolute;left:50%;top:-14px;transform:translateX(-50%);z-index:2;width:0;height:0;border-left:16px solid transparent;border-right:16px solid transparent;border-top:30px solid #f3c534;filter:drop-shadow(0 2px 2px #000)}
+.wctl{display:flex;align-items:center;justify-content:center;gap:12px;margin:10px 0 6px;flex-wrap:wrap}
+.wown{display:flex;align-items:center;gap:6px;font-weight:700}
+.wdaily{display:block;margin:6px auto;text-align:center}
+#wres{display:flex;justify-content:center;margin:8px 0}

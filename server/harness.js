@@ -15,6 +15,7 @@ openChest = function (id, count) {
     else titanState().inv.push({ id: Date.now() * 10 + i, s: r.s, t: r.t }); }
   __events.push({ t: 'chest', id, rewards });
 };
+wheelResult = (wheel, idx, reward) => { __events.push({ t: 'wheel', wheel, idx, reward }); };
 // catch up everything that happened since the last visit (production, constructions, research, training, marches, repairs)
 function __catchUp() { tick(); tick(); }
 const __int = (v, lo, hi) => Math.max(lo, Math.min(hi, Math.floor(Number(v) || 0)));
@@ -46,6 +47,8 @@ const __ACTIONS = {
   speed(id, tg) { if (!ITEMS[id] || !invN(id) || typeof tg !== 'string' || tg.length > 40) return 'bad_order'; speedTarget = tg; if (!speedJob(tg)) return 'bad_order'; useSpeed(id); },
   defend(u, n) { if (!UNITS[u]) return 'bad_order'; moveDefense(u, __int(n, -1e8, 1e8)); },
   claimQuest(id) { return claimQuest(String(id || '')); },
+  spin(w) { if (!WHEELS[w]) return 'bad_order'; return doSpin(w); },
+  daily() { return claimDailyTicket(); },
   equip(id) { equip(id); }, unequip(s) { if (!EQ_SLOTS.includes(s)) return 'bad_order'; unequip(s); }, scrap(id) { scrap(id); },
   // test buttons (admin and test accounts only)
   finish() { if (state.queue) complete(); },
