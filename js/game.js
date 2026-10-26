@@ -706,12 +706,7 @@ function drawMap(){
   if(missing) requestDraw();
   if(mapSel){ const [sx,sy]=cellW(mapSel.x,mapSel.y); c.fillStyle='#ffd54a22'; c.strokeStyle='#ffd54a'; c.lineWidth=3/z;
     c.beginPath(); c.moveTo(sx-TW/2,sy); c.lineTo(sx,sy-TH/2); c.lineTo(sx+TW/2,sy); c.lineTo(sx,sy+TH/2); c.closePath(); c.fill(); c.stroke(); }
-  // marches: dashed line base -> target with a moving dot
-  const [hx,hy]=cellW(state.pos.x,state.pos.y);
-  for(const m of state.marches){ const [tx2,ty2]=cellW(m.x,m.y);
-    const p = m.st==='out' ? pct(m.s,m.a)/100 : 1-pct(m.a,m.b)/100;
-    c.setLineDash([14/z,10/z]); c.strokeStyle=m.st==='out'?'#ff6a3d':'#7fd06a'; c.lineWidth=4/z; c.beginPath(); c.moveTo(hx,hy); c.lineTo(tx2,ty2); c.stroke(); c.setLineDash([]);
-    c.fillStyle=c.strokeStyle; c.beginPath(); c.arc(hx+(tx2-hx)*p, hy+(ty2-hy)*p, 9/z, 0, 7); c.fill(); }
+  // marches are not drawn on the map (no line toward the target): they are followed with the Attacks / Spying buttons
 }
 
 // ---------- tile panel ----------
