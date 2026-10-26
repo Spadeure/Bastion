@@ -88,6 +88,9 @@ const B = {
 // Building images (Gemini art, background removed)
 const IMGS={"barracks": {"img": "assets/img/barracks.webp", "imgR": 0.6534, "imgAY": 0.6028, "imgW": 175}, "command": {"img": "assets/img/command.webp", "imgR": 0.8289, "imgAY": 0.6688, "imgW": 262}, "housing": {"img": "assets/img/housing.webp", "imgR": 0.8006, "imgAY": 0.6542, "imgW": 175}, "warehouse": {"img": "assets/img/warehouse.webp", "imgR": 0.7133, "imgAY": 0.6151, "imgW": 175}, "factory": {"img": "assets/img/factory.webp", "imgR": 0.763, "imgAY": 0.6412, "imgW": 175}, "rally": {"img": "assets/img/rally.webp", "imgR": 0.7061, "imgAY": 0.6109, "imgW": 175}, "radar": {"img": "assets/img/radar.webp", "imgR": 0.9741, "imgAY": 0.717, "imgW": 175}, "garrison": {"img": "assets/img/garrison.webp", "imgR": 0.7484, "imgAY": 0.6332, "imgW": 175}, "lab": {"img": "assets/img/lab.webp", "imgR": 0.701, "imgAY": 0.6079, "imgW": 175}, "mine": {"img": "assets/img/mine.webp", "imgR": 0.9699, "imgAY": 0.6691, "imgW": 175}, "sawmill": {"img": "assets/img/sawmill.webp", "imgR": 0.7142, "imgAY": 0.5483, "imgW": 175}, "quarry": {"img": "assets/img/quarry.webp", "imgR": 0.7238, "imgAY": 0.5516, "imgW": 175}, "pump": {"img": "assets/img/pump.webp", "imgR": 0.6975, "imgAY": 0.5397, "imgW": 175}, "hangar": {"img": "assets/img/hangar.webp", "imgR": 0.784, "imgAY": 0.5862, "imgW": 250}, "titan": {"img": "assets/img/titan.webp", "imgR": 0.9423, "imgAY": 0.5306, "imgW": 210}};
 for(const t in IMGS) if(B[t]) Object.assign(B[t],IMGS[t]);
+// pictures that change with the building level: [from level, picture]
+const LVL_IMGS = {command:[[4,{img:'assets/img/command_2.webp', imgW:262, imgR:0.8686, imgAY:0.6834}],[8,{img:'assets/img/command_3.webp', imgW:262, imgR:0.91, imgAY:0.697}]]};
+function bImgAt(t,l){ let v=B[t]; for(const [from,o] of (LVL_IMGS[t]||[])) if(l>=from) v=o; return v; }
 // ===== Images for troops, Helipad, Mess Hall and the Commander portrait (Gemini art) =====
 const UIMG = {"recruit": {"img": "assets/img/recruit.webp", "imgR": 2.247}, "rifleman": {"img": "assets/img/rifleman.webp", "imgR": 1.7725}, "drone": {"img": "assets/img/drone.webp", "imgR": 0.6181}, "sniper": {"img": "assets/img/sniper.webp", "imgR": 0.7602}, "truck": {"img": "assets/img/truck.webp", "imgR": 0.8066}, "apc": {"img": "assets/img/apc.webp", "imgR": 0.8057}, "tank": {"img": "assets/img/tank.webp", "imgR": 0.7266}, "heli": {"img": "assets/img/heli.webp", "imgR": 0.7251}, "assault": {"img": "assets/img/assault.webp", "imgR": 1.0909}, "artillery": {"img": "assets/img/artillery.webp", "imgR": 0.7594}, "gunship": {"img": "assets/img/gunship.webp", "imgR": 0.7042}, "helipad": {"img": "assets/img/helipad.webp", "imgR": 0.7444, "imgAY": 0.5459, "imgW": 175}, "mess": {"img": "assets/img/mess.webp", "imgR": 0.6661, "imgAY": 0.4939, "imgW": 175}, "portrait": {"img": "assets/img/portrait.webp", "imgR": 1.022}};
 Object.assign(B.helipad, UIMG.helipad); Object.assign(B.mess, UIMG.mess);
@@ -446,7 +449,7 @@ const speedBtn = tg => `<button class="sec sm" data-act="speed" data-tg="${tg}" 
 // ===== TROOPS UI =====
 const pct = (a,b) => Math.max(0,Math.min(100,(Date.now()-a)/(b-a)*100));
 function unitStats(d){ return `<div class="ust"><span>${IC.atk} ${d.at}</span><span>${IC.def} ${d.df}</span><span>${IC.hp} ${d.hp}</span><span>${IC.spd} ${d.sp}</span>${d.rg?`<span>${IC.rng} ${d.rg}</span>`:''}<span>${IC.load} ${d.ld}</span><span>${IC.rations} ${d.up}/h</span><span>${IC.pop} ${d.pop}</span><span class="pwc">${IC.power} ${d.pw}</span></div>`; }
-const bigIcon = d => d===B.wall ? `<img class="bimg" src="assets/img/wall_${wallStage()}.webp" alt="" style="object-fit:cover;width:100%;height:100%;border-radius:8px">` : d.img ? `<img class="bimg" src="${d.img}" alt="">` : d.icon;
+const bigIcon = (d,l) => d===B.wall ? `<img class="bimg" src="assets/img/wall_${wallStage()}.webp" alt="" style="object-fit:cover;width:100%;height:100%;border-radius:8px">` : d.img ? `<img class="bimg" src="${(l&&LVL_IMGS[Object.keys(B).find(k=>B[k]===d)])?bImgAt(Object.keys(B).find(k=>B[k]===d),l).img:d.img}" alt="">` : d.icon;
 function costInline(c){ return RES.filter(r=>c[r]).map(r=>`${ICON[r]}${fmtN(c[r])}`).join(' '); }
 function trainCost(u,n){ if(!(n>0)) return ''; const c=unitCost(u,n), d=UNITS[u];
   return `<div class="chips">${RES.filter(r=>c[r]>0).map(r=>`<span class="chip${state.res[r]<c[r]?' no':''}">${ICON[r]} ${fmtN(c[r])}</span>`).join('')}<span class="chip">${IC.time} ${fmtT(unitTime(u,n))}</span><span class="chip">${IC.pop} ${fmtN(n*d.pop)}</span><span class="chip pw">${IC.power} +${fmtN(n*d.pw)} ${_t('Power')}</span></div>`; }
@@ -1230,10 +1233,10 @@ function slotSVG(s){
     const ar=art(t,b?b.lvl:1); top=-ar.h-20;
     const d=B[t];
     if(!isWall && !(b && d.img)) g+=`<ellipse cx="14" cy="8" rx="${ar.a*1.1}" ry="${ar.a*.5}" fill="#000" opacity=".25"/>`;
-    if(b && d.img){ const w=d.imgW, ih=w*d.imgR;
-      g+=`<image href="${d.img}" x="${-w/2}" y="${-ih*d.imgAY}" width="${w}" height="${ih}"/>`;
-      g+=animOverlay(t, -w/2, -ih*d.imgAY, w, ih, s.id);
-      ar.by=ih*(1-d.imgAY)*0.35; }
+    if(b && d.img){ const v=bImgAt(t,b.lvl), w=v.imgW, ih=w*v.imgR;
+      g+=`<image href="${v.img}" x="${-w/2}" y="${-ih*v.imgAY}" width="${w}" height="${ih}"/>`;
+      if(v===d) g+=animOverlay(t, -w/2, -ih*d.imgAY, w, ih, s.id);
+      ar.by=ih*(1-v.imgAY)*0.35; }
     else if(b && isWall && BG){ ar.by=-60; top=-100; } // the gate is part of the painted background
     else if(b) g+=ar.s;
     else g+=`<g opacity=".45">${ar.s}</g><g stroke="#e0b830" stroke-width="3"><line x1="${-ar.a*.8}" y1="0" x2="${-ar.a*.8}" y2="${-ar.h}"/><line x1="${ar.a*.8}" y1="0" x2="${ar.a*.8}" y2="${-ar.h}"/><line x1="0" y1="${ar.a*.4}" x2="0" y2="${-ar.h*.6}"/><line x1="${-ar.a*.8}" y1="${-ar.h*.5}" x2="${ar.a*.8}" y2="${-ar.h*.5}"/></g>`;
@@ -1397,7 +1400,7 @@ function renderSheet(){
         <div style="display:flex;gap:8px;margin-top:10px"><button data-act="speed" data-tg="build">${IC.time} ${_t('Speed up')}</button><button data-act="finish">${_t('Finish now (test)')}</button><button class="sec" data-act="cancel">${_t('Cancel')}</button></div>`;
   } else if(b){
     const d=B[b.type];
-    h+=`<div class="hd"><div class="big" style="background:${d.color}">${bigIcon(d)}</div><div><h2>${_t(d.name)}</h2><div class="sub">${_t('Level {l} / {m}',{l:b.lvl,m:MAX})} · ${IC.power} ${bPower(b.type,b.lvl).toLocaleString('en-US')} ${_t('power')}</div></div></div>
+    h+=`<div class="hd"><div class="big" style="background:${d.color}">${bigIcon(d,b.lvl)}</div><div><h2>${_t(d.name)}</h2><div class="sub">${_t('Level {l} / {m}',{l:b.lvl,m:MAX})} · ${IC.power} ${bPower(b.type,b.lvl).toLocaleString('en-US')} ${_t('power')}</div></div></div>
         <p>${_t(d.desc)}</p><div class="eff">${_t('Current:')} ${effect(b.type,b.lvl)}</div>`;
     if(TRAINERS.includes(b.type)) h+=trainSection(b.type);
     if(b.type==='garrison') h+=`<h3>${IC.def} ${_t('Defense')}</h3><div class="sub">${_t('Garrison places: {a} / {b}',{a:fmtN(defUsed()),b:fmtN(defCap())})}</div><button data-act="opendef" style="margin-top:6px">${IC.def} ${_t('Manage defense')}</button>`;
