@@ -507,3 +507,11 @@ p{font-size:15px;color:#d6d6ca;line-height:1.35;font-weight:500}
 /* window titles never run under the close button */
 #sheetBody > h2:first-child,#sheetBody > .hd:first-child{padding-right:34px}
 #sheetBody .hd h2{hyphens:auto;-webkit-hyphens:auto;overflow-wrap:break-word}
+
+/* commander card of a base on the map */
+.pcard{background:#0f1314;border:1px solid #4a3c1c;border-radius:8px;padding:4px 12px;margin:4px 0 12px}
+.pcrow{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:6px 0;font-size:15px}
+.pcrow + .pcrow{border-top:1px solid #2a2a20}
+.pcrow span{color:var(--mut);display:flex;align-items:center;gap:6px}
+.pcrow b{font-size:16px;text-align:right;overflow-wrap:anywhere}
+.pcrow b.pw{color:#ffd54a}.pcrow b.none{color:var(--mut);font-weight:600;font-style:italic}

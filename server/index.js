@@ -51,7 +51,8 @@ const Q = {
   saveBase: db.prepare('UPDATE bases SET state = ?, lvl = ?, power = ?, updated = ? WHERE user_id = ?'),
   allPos: db.prepare('SELECT x, y FROM bases'),
   baseAt: db.prepare('SELECT user_id FROM bases WHERE x = ? AND y = ?'),
-  players: db.prepare('SELECT u.name, b.x, b.y, b.lvl, b.power FROM bases b JOIN users u ON u.id = b.user_id WHERE b.user_id != ?'),
+  // alliance: always empty until alliances exist (the map already shows it, so nothing changes on the player side then)
+  players: db.prepare('SELECT u.name, b.x, b.y, b.lvl, b.power, NULL AS alliance FROM bases b JOIN users u ON u.id = b.user_id WHERE b.user_id != ?'),
   count: db.prepare('SELECT COUNT(*) AS n FROM users'),
   setRole: db.prepare('UPDATE users SET role = ? WHERE id = ?'),
   accounts: db.prepare('SELECT u.name, u.role, u.created, b.lvl, b.power, b.updated FROM users u LEFT JOIN bases b ON b.user_id = u.id ORDER BY u.id'),
