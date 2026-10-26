@@ -71,7 +71,9 @@ const NAME_OK = /^[\p{L}\p{N}_\- ]{3,16}$/u;
 
 // ---------- API ----------
 async function api(req, res, url) {
-  const ip = req.socket.remoteAddress || '?';
+  // behind the Cloudflare tunnel every request comes from the tunnel: the real player address is in CF-Connecting-IP
+  const local = /^(::ffff:)?(127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)|^::1$/.test(req.socket.remoteAddress || '');
+  const ip = (local && req.headers['cf-connecting-ip']) || req.socket.remoteAddress || '?';
   if (url === '/api/health') return send(res, 200, { ok: true, game: 'Bastion', players: Q.count.get().n, uptime: Math.round(process.uptime()) });
 
   if (url === '/api/register' && req.method === 'POST') {
