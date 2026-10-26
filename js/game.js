@@ -1772,6 +1772,14 @@ function up(e){
 }
 vp.addEventListener('pointerup',up); vp.addEventListener('pointercancel',up);
 const zoomAny=(f,x,y)=>view==='map'?mapZoomAt(f,x,y):zoomAt(f,x,y);
+// ---- the page must never be zoomed by the phone browser (some browsers ignore "no zoom"): block it, and undo it if it happens anyway
+document.addEventListener('gesturestart', e=>e.preventDefault(), {passive:false});            // iPhone pinch
+document.addEventListener('touchmove', e=>{ if(e.touches.length>1 && !e.target.closest('#viewport')) e.preventDefault(); }, {passive:false});
+function unzoomPage(){ const vv=window.visualViewport; if(!vv || vv.scale<=1.01) return;
+  const m=document.querySelector('meta[name=viewport]'); if(!m) return; const c='width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no';
+  m.setAttribute('content', c+',minimum-scale=1'); setTimeout(()=>{ m.setAttribute('content', c); window.scrollTo(0,0); }, 50); }
+if(window.visualViewport){ window.visualViewport.addEventListener('resize', unzoomPage); window.visualViewport.addEventListener('scroll', ()=>{ if(window.visualViewport.scale<=1.01 && (window.visualViewport.offsetLeft||window.visualViewport.offsetTop)) window.scrollTo(0,0); }); }
+setInterval(unzoomPage, 2000);
 vp.addEventListener('wheel',e=>{ e.preventDefault(); const r=vp.getBoundingClientRect(); zoomAny(e.deltaY<0?1.12:1/1.12,e.clientX-r.left,e.clientY-r.top); },{passive:false});
 document.getElementById('zin').onclick=()=>{ const v=vsize(); zoomAny(1.2,v.w/2,v.h/2); };
 document.getElementById('zout').onclick=()=>{ const v=vsize(); zoomAny(1/1.2,v.w/2,v.h/2); };
