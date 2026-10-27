@@ -175,6 +175,7 @@ function popMax(){ let p=100+ccLvl()*50; for(const k in state.slots){ const b=st
 function queuedUnits(){ const q={}; for(const bl in state.training) for(const j of state.training[bl]) q[j.u]=(q[j.u]||0)+j.n; return q; }
 function marching(){ const o={}; for(const m of (state.marches||[])) for(const u in m.troops) o[u]=(o[u]||0)+m.troops[u]; return o; }
 // like Dragons of Atlantis: population is the workforce used while troops are being trained; it comes back when training is over
+const popFree = () => Math.max(0, popMax()-popUsed());   // what the bar shows: the workforce still available
 function popUsed(){ let p=0; const q=queuedUnits(); for(const u in q) p+=q[u]*UNITS[u].pop; return p; }
 const goldIncome = () => Math.round(30 + popMax()*0.2);  // taxes paid by your population
 function troopPower(){ let p=0; const mm=marching(), D=defenseState(); for(const u in UNITS) p+=((state.troops[u]||0)+(D[u]||0)+(mm[u]||0))*UNITS[u].power; return p; }
@@ -512,7 +513,7 @@ function unitCard(u){ const d=UNITS[u], lv=bldLevel(d.bld), mt=missingTech(UNIT_
    <div id="tc-${u}">${trainCost(u,n)}</div><div id="ta-${u}">${trainBtn(u,n)}</div>`}</div>`; }
 function trainSection(bl){
   const q=state.training[bl]||[];
-  let h=`<h3>${IC.troops} ${_t('Train troops')}</h3><div class="sub">${_t('Population {a} / {b} · Training speed +{p}%',{a:fmtN(popUsed()),b:fmtN(popMax()),p:Math.round((trainSpeed(bl)-1)*100)})}</div><div class="sub">${_t('Each Garrison level speeds up all training by 3%. The Intensive Training research adds more.')}</div>`;
+  let h=`<h3>${IC.troops} ${_t('Train troops')}</h3><div class="sub">${_t('Population {a} / {b} · Training speed +{p}%',{a:fmtN(popFree()),b:fmtN(popMax()),p:Math.round((trainSpeed(bl)-1)*100)})}</div><div class="sub">${_t('Each Garrison level speeds up all training by 3%. The Intensive Training research adds more.')}</div>`;
   if(q.length){ h+=`<div class="row">`;
     q.forEach((j,i)=>{ const d=UNITS[j.u];
       h+=`<div class="tq"><img src="${d.img}" alt=""><div class="tqi"><b>${fmtI(j.n)} × ${_t(d.name)}</b>${i===0
@@ -524,7 +525,7 @@ function trainSection(bl){
 function troopsPanel(){
   const total=Object.values(state.troops).reduce((a,b)=>a+b,0), q=queuedUnits();
   let h=`<div class="hd"><div class="big" style="background:#4b5a3a">${IC.troops}</div><div><h2>${_t('Your Army')}</h2><div class="sub">${_t('{n} troops',{n:fmtN(total)})} · ${IC.power} ${fmtN(troopPower())} ${_t('power')}</div></div></div>
-  <div class="chips"><span class="chip">${IC.pop} ${_t('Population')} ${fmtN(popUsed())} / ${fmtN(popMax())}</span></div>`;
+  <div class="chips"><span class="chip">${IC.pop} ${_t('Population')} ${fmtN(popFree())} / ${fmtN(popMax())}</span></div>`;
   for(const [bl,label] of [['barracks','Infantry · Barracks'],['factory','Vehicles · Vehicle Factory'],['helipad','Air · Helipad']]){
     h+=`<h3>${_t(label)}</h3><div class="armyg">`;
     for(const u of UNIT_ORDER.filter(u=>UNITS[u].bld===bl)){ const d=UNITS[u], n=state.troops[u]||0;
@@ -1678,7 +1679,7 @@ function renderRes(){ if(hudHold && fxBusy()) return;   // nothing must give the
     el.textContent=fmtN(resShown(r)); el.classList.remove('full');   // always white, whatever the amount (production still stops when the Warehouse is full)
     rr.textContent=(rt[r]>=0?'+':'')+fmtN(rt[r])+'/h'; rr.classList.toggle('neg',rt[r]<0); }
   const pk=n=>n>=1000?(Math.floor(n/100)/10)+'k':String(Math.floor(n)); // short form so it fits the same pill size
-  document.getElementById('r-pop').textContent=pk(popUsed()); document.getElementById('rr-pop').textContent=`/ ${pk(popMax())} ${_t('max')}`;
+  document.getElementById('r-pop').textContent=pk(popFree()); document.getElementById('rr-pop').textContent=`/ ${pk(popMax())} ${_t('max')}`;
 }
 // ===== ACTIVITY PANEL: everything that runs in the base, opened or closed with its header (remembered) =====
 let actOpen = (()=>{ try{ const v=localStorage.getItem('bastion_actopen'); if(v!==null) return v==='1'; }catch(e){} return window.innerWidth>760; })();
