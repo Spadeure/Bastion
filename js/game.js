@@ -75,40 +75,40 @@ function rates(){ const r={...BASE_RATE}; for(const k in state.slots){ const b=s
 
 // Later, each building gets "img": "images/xxx.png" (AI art) to replace the drawn version.
 const B = {
-  command:  {name:'Command Center', icon:IC.build, color:'#5d6d7c', fixed:true, cost:{metal:400,wood:400,stone:400,fuel:100}, time:20,
+  command:  {name:'Command Center', icon:IC.build, color:'#5d6d7c', fixed:true, cost:{metal:290,wood:325,stone:330,fuel:145,rations:205}, time:20,
              desc:'Heart of your base. Its level sets the maximum level of every other building.'},
-  wall:     {name:'Defense Wall', icon:IC.def, color:'#555a5f', fixed:true, cost:{metal:300,wood:100,stone:500,fuel:0}, time:15,
+  wall:     {name:'Defense Wall', icon:IC.def, color:'#555a5f', fixed:true, cost:{metal:210,wood:150,stone:335,fuel:60,rations:145}, time:15,
              desc:'Protects your base and gives a defense bonus to your troops.'},
-  barracks: {name:'Barracks', icon:IC.troops, color:'#6b7442', unique:true, cost:{metal:250,wood:250,stone:150,fuel:50}, time:12,
+  barracks: {name:'Barracks', icon:IC.troops, color:'#6b7442', unique:true, cost:{metal:170,wood:190,stone:150,fuel:75,rations:110}, time:12,
              desc:'Trains infantry units.'},
-  garrison: {name:'Garrison', icon:IC.def, color:'#4f6a5a', cost:{metal:200,wood:200,stone:200,fuel:0}, time:10,
+  garrison: {name:'Garrison', icon:IC.def, color:'#4f6a5a', cost:{metal:140,wood:160,stone:165,fuel:40,rations:95}, time:10,
              desc:'Houses and trains defensive troops. You can build several.'},
-  housing:  {name:'Housing Block', icon:IC.base, color:'#7d6a52', cost:{metal:100,wood:250,stone:150,fuel:0}, time:8,
+  housing:  {name:'Housing Block', icon:IC.base, color:'#7d6a52', cost:{metal:90,wood:170,stone:125,fuel:30,rations:80}, time:8,
              desc:'Raises population, which supplies workers and recruits. You can build several.'},
-  warehouse:{name:'Warehouse', icon:IC.load, color:'#7a5a3c', unique:true, cost:{metal:150,wood:300,stone:200,fuel:0}, time:10,
+  warehouse:{name:'Warehouse', icon:IC.load, color:'#7a5a3c', unique:true, cost:{metal:125,wood:210,stone:170,fuel:40,rations:105}, time:10,
              desc:'Sets how much your fields can store, and protects part of it from looting by other players.'},
-  lab:      {name:'Research Lab', icon:IC.research, color:'#4c6488', unique:true, req:2, cost:{metal:400,wood:200,stone:300,fuel:150}, time:18,
+  lab:      {name:'Research Lab', icon:IC.research, color:'#4c6488', unique:true, req:2, cost:{metal:260,wood:205,stone:255,fuel:160,rations:165}, time:18,
              desc:'Unlocks technologies that improve your whole base.'},
-  factory:  {name:'Vehicle Factory', icon:IC.build, color:'#6c5f72', unique:true, req:3, cost:{metal:600,wood:200,stone:300,fuel:250}, time:25,
+  factory:  {name:'Vehicle Factory', icon:IC.build, color:'#6c5f72', unique:true, req:3, cost:{metal:370,wood:240,stone:290,fuel:240,rations:210}, time:25,
              desc:'Builds armored vehicles.'},
-  rally:    {name:'Rally Point', icon:IC.troops, color:'#8a4b3c', unique:true, cost:{metal:150,wood:150,stone:100,fuel:50}, time:8,
+  rally:    {name:'Rally Point', icon:IC.troops, color:'#8a4b3c', unique:true, cost:{metal:105,wood:120,stone:95,fuel:60,rations:70}, time:8,
              desc:'Organizes marches. Sets how many troops can leave the base at once.'},
-  radar:    {name:'Radar Station', icon:IC.def, color:'#4d7a80', unique:true, req:2, cost:{metal:350,wood:100,stone:200,fuel:150}, time:15,
+  radar:    {name:'Radar Station', icon:IC.def, color:'#4d7a80', unique:true, req:2, cost:{metal:215,wood:135,stone:180,fuel:145,rations:125}, time:15,
              desc:'Detects incoming attacks.'},
-  hangar:   {name:'Titan Hangar', icon:IC.titan_ic, color:'#5a6470', fixed:true, req:2, cost:{metal:800,wood:300,stone:600,fuel:300}, time:30,
+  hangar:   {name:'Titan Hangar', icon:IC.titan_ic, color:'#5a6470', fixed:true, req:2, cost:{metal:515,wood:360,stone:500,fuel:315,rations:315}, time:30,
              desc:'Houses and repairs your Titan, the giant combat mech that leads your attacks and defends the base. Its level sets the Titan maximum level.'},
   // ---- Fields (resource production) ----
-  mine:     {name:'Metal Mine', icon:IC.metal, color:'#6d6a66', field:true, res:'metal', cost:{metal:50,wood:150,stone:100,fuel:0}, time:6,
+  mine:     {name:'Metal Mine', icon:IC.metal, color:'#6d6a66', field:true, res:'metal', cost:{metal:50,wood:100,stone:80,fuel:20,rations:50}, time:6,
              desc:'Extracts metal ore from the ground. Each level produces more metal per hour.'},
-  sawmill:  {name:'Sawmill', icon:IC.wood, color:'#7a5a36', field:true, res:'wood', cost:{metal:100,wood:50,stone:120,fuel:0}, time:6,
+  sawmill:  {name:'Sawmill', icon:IC.wood, color:'#7a5a36', field:true, res:'wood', cost:{metal:70,wood:55,stone:85,fuel:15,rations:45}, time:6,
              desc:'Cuts timber from the surrounding forest. Each level produces more wood per hour.'},
-  quarry:   {name:'Stone Quarry', icon:IC.stone, color:'#8d8a80', field:true, res:'stone', cost:{metal:120,wood:120,stone:30,fuel:0}, time:6,
+  quarry:   {name:'Stone Quarry', icon:IC.stone, color:'#8d8a80', field:true, res:'stone', cost:{metal:75,wood:85,stone:45,fuel:15,rations:45}, time:6,
              desc:'Digs and cuts stone blocks. Each level produces more stone per hour.'},
-  pump:     {name:'Fuel Pump', icon:IC.fuel, color:'#5b5f52', field:true, res:'fuel', cost:{metal:200,wood:100,stone:100,fuel:0}, time:8,
+  pump:     {name:'Fuel Pump', icon:IC.fuel, color:'#5b5f52', field:true, res:'fuel', cost:{metal:125,wood:90,stone:95,fuel:25,rations:65}, time:8,
              desc:'Pumps crude oil and refines it into fuel. Each level produces more fuel per hour.'},
-  mess:     {name:'Mess Hall', icon:IC.rations, color:'#7d6a4a', field:true, res:'rations', cost:{metal:80,wood:150,stone:80,fuel:0}, time:6,
+  mess:     {name:'Mess Hall', icon:IC.rations, color:'#7d6a4a', field:true, res:'rations', cost:{metal:65,wood:105,stone:75,fuel:20,rations:50}, time:6,
              desc:'Cooks and stores rations to feed your troops. Each level produces more rations per hour.'},
-  helipad:  {name:'Helipad', icon:IC.troops, color:'#55606a', unique:true, req:3, cost:{metal:700,wood:200,stone:500,fuel:400}, time:28,
+  helipad:  {name:'Helipad', icon:IC.troops, color:'#55606a', unique:true, req:3, cost:{metal:450,wood:285,stone:425,fuel:360,rations:280}, time:28,
              desc:'Trains and maintains your air units: attack helicopters and gunships.'}
 };
 // Building images (Gemini art, background removed)
@@ -130,27 +130,27 @@ const PORTRAIT = UIMG.portrait.img;
 // - cl = how the unit fights, tg = what it is as a target. VS below gives the counters.
 const UNITS = {
   recruit:  {name:'Recruit', bld:'barracks', req:1, power:1, cl:'inf', tg:'inf', at:15, df:10, hp:100, sp:200, rg:0, ld:40, up:2, pop:1, pw:1, time:3,
-             cost:{metal:35, wood:20, rations:45}, desc:'Cheap basic infantry. Weak alone, useful in large numbers.'},
+             cost:{metal:20,wood:20,stone:5,fuel:5,rations:50}, desc:'Cheap basic infantry. Weak alone, useful in large numbers.'},
   rifleman: {name:'Rifleman', bld:'barracks', req:2, power:2, cl:'inf', tg:'inf', at:40, df:40, hp:150, sp:300, rg:0, ld:80, up:3, pop:1, pw:2, time:6,
-             cost:{metal:75, wood:35, stone:20, rations:55, gold:5}, desc:'Solid defensive infantry protected by a heavy riot shield.'},
+             cost:{metal:35,wood:35,stone:25,fuel:15,rations:75,gold:5}, desc:'Solid defensive infantry protected by a heavy riot shield.'},
   sniper:   {name:'Sniper', bld:'barracks', req:3, power:4, cl:'snp', tg:'inf', at:160, df:15, hp:120, sp:250, rg:1200, ld:40, up:5, pop:1, pw:4, time:11,
-             cost:{metal:145, wood:115, rations:85, gold:15}, desc:'Long-range marksman who strikes before the enemy can reach him.'},
+             cost:{metal:70,wood:95,stone:25,fuel:25,rations:130,gold:15}, desc:'Long-range marksman who strikes before the enemy can reach him.'},
   assault:  {name:'Assault Trooper', bld:'barracks', req:5, power:3, cl:'shk', tg:'inf', at:100, df:15, hp:160, sp:275, rg:0, ld:20, up:4, pop:2, pw:3, time:8,
-             cost:{metal:120, stone:45, fuel:15, rations:75, gold:15}, desc:'Exoskeleton heavy trooper with a rotary machine gun. Deadly in attack.'},
+             cost:{metal:55,wood:25,stone:50,fuel:25,rations:100,gold:15}, desc:'Exoskeleton heavy trooper with a rotary machine gun. Deadly in attack.'},
   truck:    {name:'Supply Truck', bld:'factory', req:1, power:1, cl:'veh', tg:'veh', at:1, df:10, hp:45, sp:100, rg:0, ld:300, up:1, pop:1, pw:1, time:4,
-             cost:{metal:40, wood:60, fuel:30, rations:30}, desc:'Carries large amounts of loot back to your base.'},
+             cost:{metal:25,wood:50,stone:10,fuel:25,rations:55}, desc:'Carries large amounts of loot back to your base.'},
   drone:    {name:'Scout Drone', bld:'factory', req:2, power:2, cl:'drn', tg:'air', at:5, df:5, hp:10, sp:3000, rg:0, ld:0, up:1, pop:1, pw:2, time:6,
-             cost:{metal:60, fuel:40, rations:10, gold:10}, desc:'Very fast scout. Spies on enemy bases and camps.'},
+             cost:{metal:30,wood:10,stone:10,fuel:30,rations:35,gold:10}, desc:'Very fast scout. Spies on enemy bases and camps.'},
   apc:      {name:'Armored Carrier', bld:'factory', req:4, power:6, cl:'trp', tg:'veh', at:20, df:25, hp:1000, sp:150, rg:0, ld:1200, up:6, pop:4, pw:5, time:13,
-             cost:{metal:200, wood:70, stone:35, fuel:100, rations:35, gold:10}, desc:'Heavily armored transport with a huge carrying capacity.'},
+             cost:{metal:100,wood:85,stone:60,fuel:80,rations:120,gold:10}, desc:'Heavily armored transport with a huge carrying capacity.'},
   tank:     {name:'Battle Tank', bld:'factory', req:7, power:12, cl:'veh', tg:'veh', at:500, df:25, hp:1300, sp:120, rg:0, ld:400, up:24, pop:10, pw:20, time:48,
-             cost:{metal:715, stone:240, fuel:355, rations:120, gold:70}, desc:'Massive armored tank. Extremely tough and powerful.'},
+             cost:{metal:345,wood:135,stone:280,fuel:270,rations:400,gold:70}, desc:'Massive armored tank. Extremely tough and powerful.'},
   artillery:{name:'Rocket Artillery', bld:'factory', req:8, power:10, cl:'art', tg:'veh', at:900, df:10, hp:560, sp:50, rg:1500, ld:75, up:24, pop:8, pw:20, time:48,
-             cost:{metal:690, wood:220, fuel:410, rations:110, gold:70}, desc:'Rocket launcher truck that devastates enemies from very long range.'},
+             cost:{metal:340,wood:270,stone:120,fuel:300,rations:400,gold:70}, desc:'Rocket launcher truck that devastates enemies from very long range.'},
   heli:     {name:'Attack Helicopter', bld:'helipad', req:2, power:5, cl:'heli', tg:'air', at:180, df:18, hp:340, sp:1000, rg:0, ld:100, up:8, pop:3, pw:6, time:16,
-             cost:{metal:230, fuel:185, rations:70, gold:25}, desc:'Fast air unit that strikes with rockets and a nose cannon.'},
+             cost:{metal:115,wood:45,stone:40,fuel:125,rations:160,gold:25}, desc:'Fast air unit that strikes with rockets and a nose cannon.'},
   gunship:  {name:'Gunship', bld:'helipad', req:6, power:8, cl:'gsh', tg:'air', at:360, df:20, hp:670, sp:750, rg:0, ld:80, up:15, pop:6, pw:12, time:30,
-             cost:{metal:455, stone:60, fuel:305, rations:90, gold:50}, desc:'Heavy tiltrotor gunship with huge firepower and armor.'}
+             cost:{metal:225,wood:90,stone:115,fuel:210,rations:270,gold:50}, desc:'Heavy tiltrotor gunship with huge firepower and armor.'}
 };
 // Counters: damage multiplier of an attacker type (cl) against a target type (tg: inf, veh, air). Not listed = x1.
 // - snipers pick off infantry; the Assault Trooper's rotary machine gun shreds infantry; tanks roll over infantry
@@ -243,21 +243,21 @@ function checkTraining(){
 const TECH = {
   // m = cost multiplier (how valuable the technology is) · g = cost growth per level · tm = time multiplier
   // basic economy: cheap
-  extraction: {name:'Extraction', br:'eco', ic:'metal', p:0.05, eff:'Metal and stone production +{p}%', lab:1, req:{}, m:1, g:1.8, tm:1, cost:{metal:200,wood:300,stone:200,fuel:50}, time:40},
-  forestry:   {name:'Forestry', br:'eco', ic:'wood', p:0.05, eff:'Wood production +{p}%', lab:1, req:{}, m:1, g:1.8, tm:1, cost:{metal:300,wood:150,stone:250,fuel:50}, time:40},
-  rationing:  {name:'Military Rations', br:'eco', ic:'rations', p:0.05, q:0.02, eff:'Rations production +{p}%', lab:1, req:{}, m:1.3, g:1.85, tm:1.2, cost:{metal:200,wood:300,stone:150,fuel:50}, time:45},
-  refining:   {name:'Refining', br:'eco', ic:'fuel', p:0.05, eff:'Fuel production +{p}%', lab:2, req:{extraction:1}, m:1.6, g:1.85, tm:1.3, cost:{metal:400,wood:200,stone:300,fuel:100}, time:60},
+  extraction: {name:'Extraction', br:'eco', ic:'metal', p:0.05, eff:'Metal and stone production +{p}%', lab:1, req:{}, m:1, g:1.8, tm:1, cost:{metal:140,wood:240,stone:170,fuel:70,rations:130}, time:40},
+  forestry:   {name:'Forestry', br:'eco', ic:'wood', p:0.05, eff:'Wood production +{p}%', lab:1, req:{}, m:1, g:1.8, tm:1, cost:{metal:180,wood:165,stone:200,fuel:70,rations:135}, time:40},
+  rationing:  {name:'Military Rations', br:'eco', ic:'rations', p:0.05, q:0.02, eff:'Rations production +{p}%', lab:1, req:{}, m:1.3, g:1.85, tm:1.2, cost:{metal:135,wood:235,stone:145,fuel:65,rations:125}, time:45},
+  refining:   {name:'Refining', br:'eco', ic:'fuel', p:0.05, eff:'Fuel production +{p}%', lab:2, req:{extraction:1}, m:1.6, g:1.85, tm:1.3, cost:{metal:240,wood:220,stone:250,fuel:110,rations:180}, time:60},
   // construction speed speeds up the whole game: expensive
-  engineering:{name:'Engineering', br:'eco', ic:'build', p:0.05, eff:'Construction speed +{p}%', lab:3, req:{forestry:2,extraction:2}, m:3, g:1.95, tm:2, cost:{metal:400,wood:400,stone:400,fuel:100}, time:70},
-  drill:      {name:'Intensive Training', br:'mil', ic:'troops', p:0.05, eff:'Troop training speed +{p}%', lab:1, req:{}, m:1.5, g:1.9, tm:1.3, cost:{metal:250,wood:250,stone:150,fuel:50}, time:45},
+  engineering:{name:'Engineering', br:'eco', ic:'build', p:0.05, eff:'Construction speed +{p}%', lab:3, req:{forestry:2,extraction:2}, m:3, g:1.95, tm:2, cost:{metal:265,wood:355,stone:325,fuel:125,rations:230}, time:70},
+  drill:      {name:'Intensive Training', br:'mil', ic:'troops', p:0.05, eff:'Troop training speed +{p}%', lab:1, req:{}, m:1.5, g:1.9, tm:1.3, cost:{metal:155,wood:210,stone:145,fuel:65,rations:125}, time:45},
   // combat technologies are the most powerful: very expensive, slow and with prerequisites that grow
-  ballistics: {name:'Ballistics', br:'mil', ic:'atk', p:0.03, eff:'Troop attack +{p}%', lab:2, req:{drill:2}, m:4, g:2, tm:2.5, cost:{metal:400,wood:200,stone:100,fuel:150}, time:60},
-  armor:      {name:'Armor Plating', br:'mil', ic:'def', p:0.03, eff:'Troop defense +{p}%', lab:2, req:{drill:2}, m:4, g:2, tm:2.5, cost:{metal:450,wood:100,stone:300,fuel:100}, time:60},
-  medicine:   {name:'Field Medicine', br:'mil', ic:'hp', p:0.03, eff:'Troop health +{p}%', lab:4, req:{armor:3,rationing:2}, m:4.5, g:2, tm:2.8, cost:{metal:300,wood:300,stone:200,fuel:150}, time:80},
-  logistics:  {name:'Logistics', br:'log', ic:'load', p:0.05, eff:'Carry capacity +{p}%', lab:1, req:{}, m:1, g:1.8, tm:1, cost:{metal:250,wood:350,stone:150,fuel:100}, time:45},
-  engines:    {name:'Engines', br:'log', ic:'spd', p:0.05, eff:'March speed +{p}%', lab:2, req:{refining:1,logistics:1}, m:2, g:1.9, tm:1.6, cost:{metal:500,wood:100,stone:200,fuel:300}, time:70},
-  intel:      {name:'Intelligence', br:'mil', ic:'reports', p:0.05, eff:'Incoming attack alerts: more details (with the Radar Station)', lab:2, req:{}, m:1.5, g:1.9, tm:1.4, cost:{metal:300,wood:300,stone:200,fuel:150}, time:50},
-  robotics:   {name:'Robotics', br:'log', ic:'titan_ic', p:0.05, eff:'Titan attack, defense and health +{p}%', lab:5, req:{engines:3,armor:2}, m:6, g:2, tm:3, cost:{metal:900,wood:200,stone:500,fuel:500,gold:50}, time:120}
+  ballistics: {name:'Ballistics', br:'mil', ic:'atk', p:0.03, eff:'Troop attack +{p}%', lab:2, req:{drill:2}, m:4, g:2, tm:2.5, cost:{metal:230,wood:205,stone:140,fuel:125,rations:155}, time:60},
+  armor:      {name:'Armor Plating', br:'mil', ic:'def', p:0.03, eff:'Troop defense +{p}%', lab:2, req:{drill:2}, m:4, g:2, tm:2.5, cost:{metal:260,wood:165,stone:250,fuel:105,rations:175}, time:60},
+  medicine:   {name:'Field Medicine', br:'mil', ic:'hp', p:0.03, eff:'Troop health +{p}%', lab:4, req:{armor:3,rationing:2}, m:4.5, g:2, tm:2.8, cost:{metal:195,wood:265,stone:195,fuel:125,rations:170}, time:80},
+  logistics:  {name:'Logistics', br:'log', ic:'load', p:0.05, eff:'Carry capacity +{p}%', lab:1, req:{}, m:1, g:1.8, tm:1, cost:{metal:170,wood:275,stone:160,fuel:95,rations:150}, time:45},
+  engines:    {name:'Engines', br:'log', ic:'spd', p:0.05, eff:'March speed +{p}%', lab:2, req:{refining:1,logistics:1}, m:2, g:1.9, tm:1.6, cost:{metal:290,wood:180,stone:215,fuel:210,rations:200}, time:70},
+  intel:      {name:'Intelligence', br:'mil', ic:'reports', p:0.05, eff:'Incoming attack alerts: more details (with the Radar Station)', lab:2, req:{}, m:1.5, g:1.9, tm:1.4, cost:{metal:195,wood:265,stone:195,fuel:125,rations:170}, time:50},
+  robotics:   {name:'Robotics', br:'log', ic:'titan_ic', p:0.05, eff:'Titan attack, defense and health +{p}%', lab:5, req:{engines:3,armor:2}, m:6, g:2, tm:3, cost:{metal:535,wood:350,stone:470,fuel:365,rations:380,gold:50}, time:120}
 };
 const TECH_BR = [['eco','Economy'],['mil','Military'],['log','Logistics & Titan']];
 // research needed before a unit can be trained (on top of its building level)
@@ -637,7 +637,7 @@ function lootOf(tl){
   const L=tl.lvl, o={};
   // farming pays: a level 10 camp carries about 1 million of each resource
   // gold: a quarter of each resource (level 10: about 270,000)
-  if(tl.t==='camp'){ for(const r of ['metal','wood','stone','fuel']) o[r]=Math.round(600*Math.pow(2.3,L-1)); o.gold=Math.round(150*Math.pow(2.3,L-1)); }
+  if(tl.t==='camp'){ for(const r of ['metal','wood','stone','fuel','rations']) o[r]=Math.round(600*Math.pow(2.3,L-1)); o.gold=Math.round(150*Math.pow(2.3,L-1)); }
   else if(TILE[tl.t].res) o[TILE[tl.t].res]=Math.round(600*Math.pow(2.2,L-1));
   return o;
 }
