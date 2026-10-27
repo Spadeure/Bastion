@@ -2076,10 +2076,28 @@ async function loadPlayers(){
   if(!ONLINE || !NET.token) return;
   try{ const j=await apiCall('GET','api/players'); const m=new Map(); for(const p of j.players) m.set(p.x*1024+p.y, p); NET.others=m; resetTiles(); if(view==='map') requestDraw(); }catch(e){} }
 function logout(expired){
+  if(streamCtl){ streamCtl.abort(); streamCtl=null; }
   if(NET.token) apiCall('POST','api/logout').catch(()=>{});
   try{ localStorage.removeItem(TOKEN_KEY); }catch(e){}
   NET.token=null; if(expired) alertLogin(_t('Your session has expired, please log in again.')); else location.reload(); }
 let alertLogin=()=>location.reload();
+// ---- live line with the server: an attack launched against us shows at once (banner + siren), results arrive at once
+let streamCtl=null, streamOn=false;
+async function openStream(){
+  if(!ONLINE || !NET.token || streamCtl) return;
+  const ctl=new AbortController(); streamCtl=ctl;
+  try{ const r=await fetch('api/stream',{headers:{Authorization:'Bearer '+NET.token}, signal:ctl.signal, cache:'no-store'});
+    if(!r.ok || !r.body) throw new Error('stream');
+    streamOn=true; const rd=r.body.getReader(), dec=new TextDecoder(); let buf='';
+    for(;;){ const {value,done}=await rd.read(); if(done) break; buf+=dec.decode(value,{stream:true});
+      let i; while((i=buf.indexOf('\n\n'))>=0){ const blk=buf.slice(0,i); buf=buf.slice(i+2); onStream(blk); } } }
+  catch(e){}
+  streamOn=false; if(streamCtl===ctl) streamCtl=null;
+  if(ONLINE && NET.token && !ctl.signal.aborted) setTimeout(openStream, 3000); }   // cut (server restart, network): reconnects by itself
+function onStream(blk){ let ev='message', data='';
+  for(const l of blk.split('\n')){ if(l.startsWith('event:')) ev=l.slice(6).trim(); else if(l.startsWith('data:')) data+=l.slice(5).trim(); }
+  if(!data) return; let j; try{ j=JSON.parse(data); }catch(e){ return; }
+  if(ev==='incoming') setIncoming(j.incoming); else if(ev==='sync') syncState(true); }
 const LOGIN_ERR = {bad_name:'The name must have 3 to 16 letters, numbers, spaces, - or _.', bad_password:'The password must have at least 6 characters.', name_taken:'This name is already taken.',
   bad_login:'Wrong name or password.', too_many:'Too many tries. Wait a few minutes.', bad_request:'Server error. Try again later.', server_error:'Server error. Try again later.'};
 function showLogin(msg){
@@ -2112,7 +2130,8 @@ async function enterOnline(){
   NET.name=j.name; NET.role=j.role||'player'; document.body.classList.toggle('notest', !isStaff());
   const st=j.state; st.pos=j.pos; state=st; normalizeState(); resetTiles(); mcam=null;
   goOnlineOrders(); await pingBurst(); startGame(); loadPlayers(); lastSync=Date.now();
-  setInterval(()=>syncState(true), 30000); setInterval(ping, 10000); setInterval(loadPlayers, 60000); setInterval(pollIncoming, 8000);
+  setInterval(()=>syncState(true), 30000); setInterval(ping, 10000); setInterval(loadPlayers, 60000); setInterval(pollIncoming, 8000);   // the checks stay as a safety net
+  openStream();   // live line: alerts arrive instantly
   if(j.incoming) setIncoming(j.incoming); NET.beginner=j.beginner||0;
   document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible') syncState(true); });
   toast(IC.ok+' '+_t('Welcome, commander {n}!',{n:NET.name})); }
@@ -2453,7 +2472,7 @@ function showUpdate(){ if(updating) return; updating=true; clearTimeout(maintTim
   maintBox(_t('Update installed'), _t('Loading the new version...'));
   setTimeout(()=>location.reload(), 1500); }
 // a phone coming back to the game after a while checks right away
-if(typeof __SERVER==='undefined') document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible' && ONLINE) ping(); });
+if(typeof __SERVER==='undefined') document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible' && ONLINE){ ping(); if(!streamCtl) openStream(); pollIncoming(); syncState(true); } });
 // at start: three quick measures, so the first value shown is already reliable
 async function pingBurst(){ for(let i=0;i<3;i++){ await ping(); if(CLOCK.rtt<0) break; } }
 function drawClock(){

@@ -109,10 +109,10 @@ const Q = {
   // alliance: always empty until alliances exist (the map already shows it, so nothing changes on the player side then)
   players: db.prepare('SELECT u.name, b.x, b.y, b.lvl, b.power, b.shield, NULL AS alliance FROM bases b JOIN users u ON u.id = b.user_id WHERE b.user_id != ?'),
   target: db.prepare('SELECT b.user_id, b.lvl, b.shield, u.name FROM bases b JOIN users u ON u.id = b.user_id WHERE b.x = ? AND b.y = ?'),
-  atkByMarch: db.prepare('SELECT id, status FROM attacks WHERE att = ? AND mid = ?'),
+  atkByMarch: db.prepare('SELECT id, status, arrive FROM attacks WHERE att = ? AND mid = ?'),
   atkAdd: db.prepare('INSERT INTO attacks (att, def, kind, mid, launched, eta0, arrive, troops, titan) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'),
   atkArrive: db.prepare("UPDATE attacks SET arrive = ? WHERE id = ? AND status = 'out'"),
-  atkOutOf: db.prepare("SELECT id, mid FROM attacks WHERE att = ? AND status = 'out'"),
+  atkOutOf: db.prepare("SELECT id, mid, def FROM attacks WHERE att = ? AND status = 'out'"),
   atkStatus: db.prepare('UPDATE attacks SET status = ?, result = ? WHERE id = ?'),
   atkDue: db.prepare("SELECT * FROM attacks WHERE status = 'out' AND arrive <= ? ORDER BY arrive LIMIT 50"),
   atkIncoming: db.prepare("SELECT a.*, u.name AS aname FROM attacks a JOIN users u ON u.id = a.att WHERE a.def = ? AND a.status = 'out' ORDER BY a.arrive"),
@@ -240,6 +240,15 @@ async function api(req, res, url, ip) {
   const me = auth(req);
   if (!me) return send(res, 401, { error: 'not_logged_in' });
   STATS.players.add(me.name);
+  if (url === '/api/stream' && req.method === 'GET') {   // the live line (kept open)
+    res.writeHead(200, { 'Content-Type': 'text/event-stream; charset=utf-8', 'Cache-Control': 'no-cache, no-transform', 'Connection': 'keep-alive', 'X-Accel-Buffering': 'no' });
+    let set = streams.get(me.id); if (!set) streams.set(me.id, set = new Set());
+    if (set.size >= 5) { const old = set.values().next().value; set.delete(old); try { old.end(); } catch (e) {} }   // 5 open games max per player
+    set.add(res);
+    const b = Q.base.get(me.id); res.write(`retry: 3000\nevent: incoming\ndata: ${JSON.stringify({ incoming: incomingFor(me.id, b && b.state ? JSON.parse(b.state) : {}) })}\n\n`);
+    req.on('close', () => { set.delete(res); if (!set.size) streams.delete(me.id); });
+    return;
+  }
   if (url === '/api/logout' && req.method === 'POST') { Q.delSession.run(me.token); seenAt.delete(me.token); log('DÉCONNEXION', `${me.name} · ${ip}`); return send(res, 200, { ok: true }); }
   if (url === '/api/state' && req.method === 'GET') {
     const b = Q.base.get(me.id), r = runFor(me, b, null, [], langOf(req));
@@ -298,16 +307,21 @@ const PVP = { beginnerMs: 3 * 86400_000, beginnerCC: 5, levelGap: 10 };
 const beginnerEnd = (st, created) => (st && !st.attackedPlayer && ((st.slots || {}).cc || {}).lvl < PVP.beginnerCC) ? created + PVP.beginnerMs : 0;
 const shieldOf = (st, created) => Math.max(beginnerEnd(st, created), (st && st.truce) || 0);
 // the attacks table follows the marches of the attacker (speed-ups change the arrival time, a cancelled game removes them)
+// ---------- live line to the open games: alerts and results are pushed at once (no waiting for the next check) ----------
+const streams = new Map();   // user id -> open connections
+function push(uid, ev, data) { const set = streams.get(uid); if (!set) return; const msg = `event: ${ev}\ndata: ${JSON.stringify(data)}\n\n`; for (const r of set) { try { r.write(msg); } catch (e) {} } }
+function pushIncoming(uid) { if (!streams.has(uid)) return; const b = Q.base.get(uid); push(uid, 'incoming', { incoming: incomingFor(uid, b && b.state ? JSON.parse(b.state) : {}) }); }
+setInterval(() => { for (const set of streams.values()) for (const r of set) { try { r.write(': ping\n\n'); } catch (e) {} } }, 20000);   // keeps the line open through Cloudflare
 function syncAttacks(uid, st) {
   const seen = new Set();
   for (const m of (st.marches || [])) {
     if (!m.pvp || m.st !== 'out') continue;
     seen.add(m.id);
     const row = Q.atkByMarch.get(uid, m.id);
-    if (!row) Q.atkAdd.run(uid, m.pvp, m.kind === 'spy' ? 'spy' : 'attack', m.id, m.s, m.a, m.a, JSON.stringify(m.troops || {}), m.titan ? 1 : 0);
-    else if (row.status === 'out') Q.atkArrive.run(m.a, row.id);
+    if (!row) { Q.atkAdd.run(uid, m.pvp, m.kind === 'spy' ? 'spy' : 'attack', m.id, m.s, m.a, m.a, JSON.stringify(m.troops || {}), m.titan ? 1 : 0); pushIncoming(m.pvp); }   // the target is warned at once
+    else if (row.status === 'out' && row.arrive !== m.a) { Q.atkArrive.run(m.a, row.id); pushIncoming(m.pvp); }
   }
-  for (const r of Q.atkOutOf.all(uid)) if (!seen.has(r.mid)) Q.atkStatus.run('gone', null, r.id);
+  for (const r of Q.atkOutOf.all(uid)) if (!seen.has(r.mid)) { Q.atkStatus.run('gone', null, r.id); pushIncoming(r.def); }
 }
 function saveState(uid, created, r) {
   Q.saveBase.run(JSON.stringify(r.state), r.lvl, r.power, Date.now(), shieldOf(r.state, created), uid); STATS.saved++;
@@ -335,6 +349,7 @@ function resolveAttack(row) {
   Q.atkStatus.run('done', JSON.stringify(r.r).slice(0, 2000), row.id);
   saveState(row.att, au.created, { state: r.att, lvl: r.a.lvl, power: r.a.power });
   saveState(row.def, du.created, { state: r.def, lvl: r.d.lvl, power: r.d.power });
+  push(row.att, 'sync', {}); push(row.def, 'sync', {}); pushIncoming(row.def);   // both games show the result and the report right away
   const loot = Object.entries((r.r && r.r.loot) || {}).map(([k, v]) => `${k} ${v}`).join(', ');
   if (r.kind === 'spy') log('ESPIONNAGE', `${au.name} → ${du.name} : ${r.r.ok ? 'réussi' : 'échoué'} (${r.r.killed} drone(s) abattu(s))`);
   else log('ATTAQUE', `${au.name} → ${du.name} : ${r.r.win ? 'victoire' : 'défaite'} · pertes attaquant ${r.r.attLost}, défenseur ${r.r.defLost} (puissance de combat)${loot ? ' · pillage ' + loot : ''}`);
@@ -489,7 +504,7 @@ http.createServer(async (req, res) => {
       if (e.bad) { cheat(null, ip, `requête illisible ou trop grosse sur ${clean(url)}`); if (!res.headersSent) send(res, 400, { error: 'bad_request' }); }
       else { log('ERREUR', `${clean(url)} · ${e.message}`); if (!res.headersSent) send(res, 500, { error: 'server_error' }); }
     }
-    if (url !== '/api/ping' && url !== '/api/health') {
+    if (url !== '/api/ping' && url !== '/api/health' && url !== '/api/stream') {
       const ms = Number(process.hrtime.bigint() - res.t0) / 1e6;
       STATS.apiN++; STATS.apiMs += ms; if (ms > STATS.apiMax) { STATS.apiMax = ms; STATS.apiMaxUrl = url; }
     }
