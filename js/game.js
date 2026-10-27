@@ -2384,14 +2384,21 @@ function playSiren(kind){ if(!alertSound || !audioCtx) return;
     g.gain.setValueAtTime(0,t0+(kind==='attack'?1.4:.5)); o.start(t0); o.stop(t0+(kind==='attack'?1.45:.55)); }catch(e){} }
 function setIncoming(list){ NET.incoming=Array.isArray(list)?list:[];
   let fresh=null; for(const a of NET.incoming) if(!alertSeen.has(a.id)){ alertSeen.add(a.id); if(!fresh || a.kind==='attack') fresh=a.kind; }
-  if(fresh) playSiren(fresh);
+  if(fresh){ playSiren(fresh); alertShowUntil=Date.now()+ALERT_SHOW; clearTimeout(alertTimer); alertTimer=setTimeout(renderAlert, ALERT_SHOW+50); }
   renderAlert(); if(cur==='__alerts') renderSheet(); }
 async function pollIncoming(){ if(!ONLINE || !NET.token) return; try{ const j=await apiCall('GET','api/incoming'); setIncoming(j.incoming); }catch(e){} }
+// the big banner shows for a few seconds when a new alert arrives (with the siren), then only a small red button stays while it is coming
+const ALERT_SHOW=6000; let alertShowUntil=0, alertTimer=0;
 function renderAlert(){
   const list=NET.incoming||[], atk=list.filter(a=>a.kind==='attack'), spy=list.filter(a=>a.kind==='spy');
-  let el=document.getElementById('alertbar');
-  if(!list.length){ if(el) el.remove(); return; }
-  if(!el){ el=document.createElement('div'); el.id='alertbar'; el.dataset.act='openalerts'; el.addEventListener('click',onAct); document.body.appendChild(el); }
+  let el=document.getElementById('alertbar'), mini=document.getElementById('alertmini');
+  if(!list.length){ if(el) el.remove(); if(mini) mini.remove(); return; }
+  if(!mini){ mini=document.createElement('button'); mini.id='alertmini'; mini.dataset.act='openalerts'; mini.addEventListener('click',onAct); document.body.appendChild(mini); }
+  const mk=`<img src="${ICS.warn}" alt=""><b>${list.length}</b>`; if(mini.dataset.h!==mk){ mini.innerHTML=mk; mini.dataset.h=mk; }
+  mini.className=atk.length?'attack':'spy';
+  if(Date.now()>=alertShowUntil){ if(el){ el.classList.add('out'); setTimeout(()=>{ if(Date.now()>=alertShowUntil && el.parentNode) el.remove(); }, 400); } return; }
+  if(!el){ el=document.createElement('div'); el.id='alertbar'; el.dataset.act='openalerts'; el.addEventListener('click',e=>{ alertShowUntil=0; onAct(e); renderAlert(); }); document.body.appendChild(el); }
+  el.classList.remove('out');
   const kind=atk.length?'attack':'spy', names=[...new Set(list.map(a=>a.name).filter(Boolean))];
   const sub=[atk.length?_t('{n} attack(s)',{n:atk.length}):'', spy.length?_t('{n} spy mission(s)',{n:spy.length}):''].filter(Boolean).join(' · ')+(names.length?' · '+names.map(esc).join(', '):'');
   const html=`<div class="abar ${kind}"><div class="atxt"><b>${_t(kind==='attack'?'ATTACK INCOMING!':'SPY MISSION INCOMING!')}</b><small>${sub}</small></div></div>`;

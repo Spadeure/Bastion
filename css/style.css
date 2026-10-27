@@ -777,3 +777,12 @@ button.danger{background:linear-gradient(180deg,#b8432f,#7a2416)!important;color
 .apl{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:7px 10px!important;border-radius:8px;background:#141917!important;border:1px solid #3d3a26!important;color:var(--txt)!important;text-align:left;box-shadow:none!important}
 .apl.on{border-color:var(--brass2)!important;background:#2a2a14!important}
 .apl b{font-size:15px}.apl span{font-size:12px;color:var(--mut);display:flex;align-items:center;gap:4px;white-space:nowrap}.apl .ic{width:14px;height:14px}
+/* alert banner: fades away after a few seconds; a small red button stays while the attack is coming */
+#alertbar{transition:opacity .35s,transform .35s}
+#alertbar.out{opacity:0;transform:translate(-50%,-14px)}
+#alertmini{position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 64px);transform:translateX(-50%);z-index:5;display:flex;align-items:center;gap:6px;padding:4px 12px 4px 8px!important;border-radius:16px!important;
+  background:linear-gradient(180deg,#c0392b,#7a1a10)!important;border:1.5px solid #ffb4a8!important;color:#fff!important;font:800 14px var(--ui);box-shadow:0 0 12px #e0574a99!important;animation:amini 1.4s ease-in-out infinite;min-width:0!important}
+#alertmini.spy{background:linear-gradient(180deg,#e08a2e,#8a4a10)!important;border-color:#ffd49a!important;box-shadow:0 0 12px #ff9a2e99!important}
+#alertmini img{width:18px;height:18px}
+@keyframes amini{50%{box-shadow:0 0 22px #ff6a5acc}}
+@media (min-width:761px){ #alertmini{top:104px} }
