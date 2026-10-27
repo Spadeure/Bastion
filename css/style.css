@@ -751,3 +751,13 @@ button.danger{background:linear-gradient(180deg,#b8432f,#7a2416)!important;color
   .cmd .nicon{width:40px!important;height:40px!important}
 }
 @media (max-width:380px){ .cmd .nicon{width:36px!important;height:36px!important} .cmd .navicons{gap:2px} }
+/* ===== "install the app" card ===== */
+#instcard{position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 72px);transform:translateX(-50%);z-index:60;width:min(440px,calc(100% - 24px));display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;
+  background:linear-gradient(180deg,#232b20f5,#121611f5);border:2px solid var(--brass);box-shadow:0 8px 30px #000c;animation:instin .35s ease-out}
+@keyframes instin{from{transform:translate(-50%,-20px);opacity:0}}
+#instcard img{width:48px;height:48px;border-radius:11px;flex:none}
+#instcard .it{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+#instcard .it b{font:16px var(--disp);color:var(--brass2)}
+#instcard .it span{font-size:13px;color:#d8d2b8;line-height:1.25}
+#instcard .ib{display:flex;flex-direction:column;gap:5px;flex:none}
+#instcard .ib button{padding:6px 12px;font-size:14px}
