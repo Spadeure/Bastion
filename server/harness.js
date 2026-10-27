@@ -50,6 +50,7 @@ const __ACTIONS = {
     startBuild(slot, t, l);
   },
   cancel() { if (!state.queue) return 'bad_order'; cancel(); },
+  cancelTrain(bl, i) { i = __int(i, 0, 10); if (!TRAINERS.includes(bl) || !(state.training[bl] || [])[i]) return 'bad_order'; cancelTrain(bl, i); },
   train(u, n) { n = __int(n, 0, 1e7); if (!UNITS[u]) return 'bad_order'; const why = whyNotTrain(u, n); if (why) return why; train(u, n); },
   research(t) { if (!TECH[t]) return 'bad_order'; const why = whyNotResearch(t, techLv(t) + 1); if (why) return why; startResearch(t); },
   cancelResearch() { if (!researchState().cur) return 'bad_order'; cancelResearch(); },

@@ -761,3 +761,13 @@ button.danger{background:linear-gradient(180deg,#b8432f,#7a2416)!important;color
 #instcard .it span{font-size:13px;color:#d8d2b8;line-height:1.25}
 #instcard .ib{display:flex;flex-direction:column;gap:5px;flex:none}
 #instcard .ib button{padding:6px 12px;font-size:14px}
+.tq .tcx{min-width:0;padding:4px 7px}.tq .tcx .ic{width:14px;height:14px}.tq .tcx.danger{margin-top:0;font-size:12px;white-space:nowrap}
+/* ===== attack forecast ===== */
+.fcast{margin:8px 0;padding:8px 10px;border-radius:10px;background:#141917;border:1px solid #3d3a26}
+.fch{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:5px}
+.fch b{font:15px var(--disp);color:var(--brass2)}.fch span{font-size:12px;color:var(--mut)}
+.fcbar{position:relative;height:16px;border-radius:8px;background:linear-gradient(90deg,#7a2416,#b8432f);border:1px solid #000;overflow:hidden}
+.fcbar i{display:block;height:100%;background:linear-gradient(90deg,#c9972a,#ffe08a);transition:width .25s}
+.fcbar span{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font:800 12px var(--ui);color:#fff;text-shadow:0 1px 2px #000}
+.fcv{margin-top:6px;font-weight:700;font-size:14px}.fcv.ok{color:var(--ok)}.fcv.bad{color:var(--red)}.fcv.warn{color:#ff9a2e}
+.fctip{margin-top:5px;font-size:12px;line-height:1.3}
