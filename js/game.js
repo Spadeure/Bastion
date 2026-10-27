@@ -1999,7 +1999,11 @@ const minS=()=>{ const v=vsize(), contain=Math.min(v.w/W,v.h/H), cover=Math.max(
 function apply(){ const v=vsize(); sc=Math.min(1.6,Math.max(minS(),sc));
   tx = W*sc<=v.w ? (v.w-W*sc)/2 : Math.min(0,Math.max(v.w-W*sc,tx));   /* smaller than the screen: centred over the blurred backdrop */
   ty = H*sc<=v.h ? (v.h-H*sc)/2 : Math.min(0,Math.max(v.h-H*sc,ty));
-  world.style.transform=`translate(${tx}px,${ty}px) scale(${sc})`; }
+  world.style.transform=`translate(${tx}px,${ty}px) scale(${sc})`;
+  // smooth while moving (the base is moved as one picture), then drawn again sharp at the new zoom once it stops
+  if(world.style.willChange!=='transform') world.style.willChange='transform';
+  clearTimeout(sharpT); sharpT=setTimeout(()=>{ world.style.willChange='auto'; }, 220); }
+let sharpT=0;
 function zoomAt(f,cx,cy){ const ns=Math.min(1.6,Math.max(minS(),sc*f)), k=ns/sc; tx=cx-(cx-tx)*k; ty=cy-(cy-ty)*k; sc=ns; apply(); }
 vp.addEventListener('pointerdown',e=>{
   if(e.target.closest('#zoom,#reset,.coordbox')) return;
