@@ -57,7 +57,17 @@ db.exec(`PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL;
 if (!db.prepare("SELECT 1 FROM pragma_table_info('bases') WHERE name = 'shield'").get()) db.exec("ALTER TABLE bases ADD COLUMN shield INTEGER NOT NULL DEFAULT 0");
 // roles: player · tester (test account with every power) · admin (can also create accounts)
 if (!db.prepare("SELECT 1 FROM pragma_table_info('users') WHERE name = 'role'").get()) db.exec("ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'player'");
-if (!db.prepare("SELECT 1 FROM users WHERE role = 'admin'").get()) {   // the very first account becomes the administrator
+// Public test phase: the account named ADMIN_NAME (Spadeure) is always the administrator, the only one with every power.
+// Once (remembered in the database): every other account becomes a normal player, test accounts included.
+const ADMIN_NAME = process.env.ADMIN_NAME || 'Spadeure';
+db.exec('CREATE TABLE IF NOT EXISTS meta (k TEXT PRIMARY KEY, v TEXT)');
+{ const adm = db.prepare('SELECT id, name, role FROM users WHERE name = ? COLLATE NOCASE').get(ADMIN_NAME);
+  if (adm && adm.role !== 'admin') { db.prepare("UPDATE users SET role = 'admin' WHERE id = ?").run(adm.id); log('ADMIN', `Administrateur : ${adm.name}`); }
+  if (adm && !db.prepare("SELECT 1 FROM meta WHERE k = 'public_test'").get()) {
+    const n = db.prepare("UPDATE users SET role = 'player' WHERE id != ? AND role != 'player'").run(adm.id).changes;
+    db.prepare("INSERT INTO meta (k, v) VALUES ('public_test', ?)").run(String(Date.now()));
+    log('ADMIN', `Phase de test publique : ${n} compte(s) de test ou admin repassé(s) en joueur normal, seul ${adm.name} garde les pouvoirs`); } }
+if (!db.prepare("SELECT 1 FROM users WHERE role = 'admin'").get()) {   // no admin yet (empty server): the very first account becomes the administrator
   const first = db.prepare('SELECT id, name FROM users ORDER BY id LIMIT 1').get();
   if (first) { db.prepare("UPDATE users SET role = 'admin' WHERE id = ?").run(first.id); log('ADMIN', `Administrateur : ${first.name}`); }
 }
@@ -338,7 +348,7 @@ function createAccount(name, password, role) {
   if (Q.userByName.get(n)) throw Object.assign(new Error('name_taken'), { code: 409 });
   const salt = crypto.randomBytes(16).toString('hex'), now = Date.now();
   const id = Number(Q.addUser.run(n, salt, hashPass(String(password), salt), now).lastInsertRowid);
-  const rl = ['player', 'tester', 'admin'].includes(role) ? role : 'tester';
+  const rl = ['player', 'tester', 'admin'].includes(role) ? role : 'player';
   Q.setRole.run(rl, id);
   const p = freeSpot(); Q.addBase.run(id, p.x, p.y, now);
   return { n, rl };

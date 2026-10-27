@@ -1248,7 +1248,10 @@ const capAt = l => Math.round(50000*Math.pow(2200,l/10)/1000)*1000;   // storage
 function cap(){ return capAt(bldLevel('warehouse')); }
 // Dragons of Atlantis scale: cost doubles every level (millions at the top), time x2.03 per level (Command Center: 30 min at level 2, about 6 days at level 10)
 const costOf = (t,l) => { const o={}; for(const r of RES) o[r]=Math.round((B[t].cost[r]||0)*6*growth(l,2,0.25)); return o; };   // x2, x2.25, x2.5 ... x4: the Titan Hangar level 10 asks about 76 million metal
-const timeOf = (t,l) => Math.max(1, Math.round(B[t].time*45*Math.pow(2.03,l-1)/(1+techB('engineering'))));
+// Build time: the usual curve (x2.03 per level), cut down a lot on the first levels so a new player moves fast:
+// level 1 takes 15 s to about 50 s depending on the building, level 2 one to a few minutes, then it grows; level 6 and up are unchanged.
+const timeRamp = l => Math.min(1, Math.pow(l/6, 1.81));
+const timeOf = (t,l) => Math.max(1, Math.round(Math.max(15, B[t].time*45*Math.pow(2.03,l-1)*timeRamp(l))/(1+techB('engineering'))));
 function exists(t){ for(const k in state.slots) if(state.slots[k].type===t) return true; return state.queue && state.queue.type===t; }
 
 function whyNot(t,l){
@@ -2510,7 +2513,7 @@ function adminPanel(){
   <div class="arow">${sel('a_part',EQ_SLOTS.map(s=>[s,_t(EQ_NAME[s])]))}<button class="sm" data-act="admpart">${_t('Give')}</button></div>`;
   if(NET.role==='admin'){
     h+=`<h3>${_t('Test accounts')}</h3><div class="arow"><input id="a_nname" class="atxt" maxlength="16" placeholder="${_t('Commander name')}"><input id="a_npass" class="atxt" maxlength="100" placeholder="${_t('Password')}">
-      ${sel('a_nrole',[['tester',_t('Test account')],['admin',_t('Administrator account')],['player',_t('Normal player')]])}<button class="sm" data-act="admcreate">${_t('Create')}</button></div>
+      ${sel('a_nrole',[['player',_t('Normal player')],['tester',_t('Test account')],['admin',_t('Administrator account')]])}<button class="sm" data-act="admcreate">${_t('Create')}</button></div>
       <div class="arow"><button class="sec sm" data-act="admlist">${_t('Show all accounts')}</button></div>`;
     if(adminAccounts) h+=`<div class="alist">${adminAccounts.map(a=>`<div><b>${a.name}</b> · ${_t({admin:'Administrator account',tester:'Test account',player:'Normal player'}[a.role]||a.role)} · ${_t('Lv')} ${a.lvl||1} · ${IC.power} ${fmtN(a.power||0)}</div>`).join('')}</div>`;
   }
