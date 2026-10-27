@@ -2155,6 +2155,7 @@ function openQuests(){ openPanel('__quests'); }
 // tutorial bar: the current step, always visible until the tutorial is over
 let hintSlot=null;
 function renderTuto(){ if(hudHold && fxBusy()) return;
+  { const qb=document.getElementById('questBadge'), n=claimable(); if(qb){ qb.textContent=n; qb.style.display=n?'':'none'; } }   // quest badge: always up to date, tutorial finished or not
   let el=document.getElementById('tuto'); const q=tutoQuest();
   if(!q){ if(el) el.remove(); hintSlot=null; return; }
   if(!el){ el=document.createElement('div'); el.id='tuto'; document.body.appendChild(el); el.addEventListener('click',onAct); }
@@ -2163,8 +2164,7 @@ function renderTuto(){ if(hudHold && fxBusy()) return;
   if(el.dataset.h!==html){ el.innerHTML=html; el.dataset.h=html; }
   { const bt=document.querySelector('#hud .bottom'), r=bt&&bt.getBoundingClientRect();   // always just above the activity bar, whatever its height
     if(r && r.height){ const v=Math.round(window.innerHeight-r.top+8)+'px'; if(el.style.bottom!==v) el.style.bottom=v; } }
-  if(done) hintSlot=null;
-  const qb=document.getElementById('questBadge'), n=claimable(); if(qb){ qb.textContent=n; qb.style.display=n?'':'none'; } }
+  if(done) hintSlot=null; }
 
 // =====================================================================
 // ===== WHEEL OF FORTUNE: ticket wheel and medal wheel (the server spins) =====
