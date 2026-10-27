@@ -1675,7 +1675,7 @@ function renderRes(){ if(hudHold && fxBusy()) return;   // nothing must give the
   renderPower();
   const c=cap(), rt=rates();
   for(const r of RES){ const el=document.getElementById('r-'+r), rr=document.getElementById('rr-'+r);
-    el.textContent=fmtN(resShown(r)); el.classList.toggle('full',r!=='gold' && state.res[r]>=c);   // red: full, production stopped
+    el.textContent=fmtN(resShown(r)); el.classList.remove('full');   // always white, whatever the amount (production still stops when the Warehouse is full)
     rr.textContent=(rt[r]>=0?'+':'')+fmtN(rt[r])+'/h'; rr.classList.toggle('neg',rt[r]<0); }
   const pk=n=>n>=1000?(Math.floor(n/100)/10)+'k':String(Math.floor(n)); // short form so it fits the same pill size
   document.getElementById('r-pop').textContent=pk(popUsed()); document.getElementById('rr-pop').textContent=`/ ${pk(popMax())} ${_t('max')}`;
