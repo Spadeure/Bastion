@@ -383,8 +383,18 @@ async function admin(req, res, me, ip) {
     try { const c = createAccount(p.name, p.password, p.role); log('ADMIN', `${me.name} a créé le compte ${c.n} (${c.rl})`); return send(res, 200, { ok: true, name: c.n }); }
     catch (e) { return send(res, e.code || 500, { error: e.message }); }
   }
-  const b = Q.base.get(me.id);
-  const st = runFor(me, b, null, [], 'en').state;                      // up to date server copy
+  // the administrator can give to any player (p.target = player name); test accounts only to themselves
+  let who = me;
+  if (p.target !== undefined && p.target !== null && p.target !== '') {
+    if (me.role !== 'admin') { cheat(me, ip, 'compte test : tentative de donner à un autre joueur'); return send(res, 403, { error: 'forbidden' }); }
+    if (!['give_res', 'give_item', 'give_troops', 'titan_part'].includes(action)) return send(res, 400, { error: 'unknown_action' });
+    const tu = Q.userByName.get(String(p.target).trim());
+    if (!tu) return send(res, 404, { error: 'unknown_player' });
+    who = tu;
+  }
+  const b = Q.base.get(who.id);
+  if (!b) return send(res, 404, { error: 'unknown_player' });
+  const st = runFor(who, b, null, [], 'en').state;                     // up to date server copy
   const now = Date.now();
   st.res = st.res || {}; st.troops = st.troops || {}; st.inv = st.inv || {}; st.slots = st.slots || {}; st.research = st.research || { lv: {}, cur: null };
   switch (action) {
@@ -407,9 +417,10 @@ async function admin(req, res, me, ip) {
     default: return send(res, 400, { error: 'unknown_action' });
   }
   b.state = JSON.stringify(st);
-  const r = runFor(me, b, null, [], p.lang || 'en', true);              // finishes what the admin action completed
-  const { lang, ...shown } = p || {};
-  log('ADMIN', `${me.name} (${me.role}) · ${action}${action === 'give_all_items' ? '' : ' ' + JSON.stringify(shown).slice(0, 160)}`);
+  const r = runFor(who, b, null, [], p.lang || 'en', true);             // finishes what the admin action completed
+  const { lang, target, ...shown } = p || {};
+  log('ADMIN', `${me.name} (${me.role})${who !== me ? ' → ' + who.name : ''} · ${action}${action === 'give_all_items' ? '' : ' ' + JSON.stringify(shown).slice(0, 160)}`);
+  if (who !== me) return send(res, 200, { ok: true, target: who.name, lvl: r.lvl, power: r.power });   // another player: his game is not sent back
   return send(res, 200, { ok: true, state: r.state, events: r.events });
 }
 
