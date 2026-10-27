@@ -529,3 +529,34 @@ if (+process.env.BASTION_SUMMARY_MS) setInterval(summary, +process.env.BASTION_S
 
 // forget sessions unused for 30 days
 setInterval(() => Q.oldSessions.run(Date.now() - 30 * 86400_000), 3600_000).unref();
+
+// ---------- commands typed in the Pelican console (only the server owner has access to it) ----------
+// aide · roles · joueurs · admin <pseudo> · testeur <pseudo> · joueur <pseudo>
+const ROLE_FR = { admin: 'administrateur', tester: 'compte de test', player: 'joueur normal' };
+function consoleCommand(line) {
+  const txt = String(line || '').trim(); if (!txt) return;
+  const sp = txt.indexOf(' '), cmd = (sp < 0 ? txt : txt.slice(0, sp)).toLowerCase(), arg = sp < 0 ? '' : txt.slice(sp + 1).trim();
+  const out = m => log('CONSOLE', m);
+  if (cmd === 'aide' || cmd === 'help') {
+    out('Commandes : roles (qui a des droits) · joueurs (liste des joueurs) · admin <pseudo> · testeur <pseudo> · joueur <pseudo> (repasse en joueur normal)'); return; }
+  if (cmd === 'roles') {
+    const list = db.prepare("SELECT name, role FROM users WHERE role != 'player' ORDER BY role, name").all();
+    out(list.length ? list.map(u => `${u.name} (${ROLE_FR[u.role] || u.role})`).join(' · ') : 'aucun compte avec des droits'); return; }
+  if (cmd === 'joueurs') {
+    const list = db.prepare('SELECT u.name, u.role, b.lvl, b.power FROM users u LEFT JOIN bases b ON b.user_id = u.id ORDER BY b.power DESC').all();
+    out(`${list.length} joueur(s) : ` + list.slice(0, 60).map(u => `${u.name} niv. ${u.lvl || 1}${u.role !== 'player' ? ' [' + (ROLE_FR[u.role] || u.role) + ']' : ''}`).join(' · ') + (list.length > 60 ? ' …' : '')); return; }
+  const ROLES = { admin: 'admin', testeur: 'tester', joueur: 'player' };
+  if (ROLES[cmd]) {
+    if (!arg) { out(`Il manque le pseudo : ${cmd} <pseudo>`); return; }
+    const u = Q.userByName.get(arg);
+    if (!u) { out(`Joueur introuvable : ${arg} (tape « joueurs » pour voir la liste)`); return; }
+    if (u.name.toLowerCase() === ADMIN_NAME.toLowerCase() && ROLES[cmd] !== 'admin') { out(`${u.name} est le compte principal : il reste toujours administrateur`); return; }
+    if (u.role === ROLES[cmd]) { out(`${u.name} est déjà ${ROLE_FR[u.role]}`); return; }
+    Q.setRole.run(ROLES[cmd], u.id);
+    log('ADMIN', `Console : ${u.name} passe ${ROLE_FR[ROLES[cmd]]} (avant : ${ROLE_FR[u.role] || u.role})`);
+    push(u.id, 'reload', {});   // his open game reloads with the new rights
+    return; }
+  out(`Commande inconnue : ${cmd} · tape « aide »`);
+}
+try { require('readline').createInterface({ input: process.stdin, terminal: false }).on('line', l => { try { consoleCommand(l); } catch (e) { log('ERREUR', 'commande console : ' + e.message); } }); }
+catch (e) { log('ERREUR', 'console indisponible : ' + e.message); }

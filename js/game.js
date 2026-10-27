@@ -2105,7 +2105,7 @@ async function openStream(){
 function onStream(blk){ let ev='message', data='';
   for(const l of blk.split('\n')){ if(l.startsWith('event:')) ev=l.slice(6).trim(); else if(l.startsWith('data:')) data+=l.slice(5).trim(); }
   if(!data) return; let j; try{ j=JSON.parse(data); }catch(e){ return; }
-  if(ev==='incoming') setIncoming(j.incoming); else if(ev==='sync') syncState(true); }
+  if(ev==='incoming') setIncoming(j.incoming); else if(ev==='sync') syncState(true); else if(ev==='reload') location.reload(); }   // reload: new rights given from the server console
 const LOGIN_ERR = {bad_name:'The name must have 3 to 16 letters, numbers, spaces, - or _.', bad_password:'The password must have at least 6 characters.', name_taken:'This name is already taken.',
   bad_login:'Wrong name or password.', too_many:'Too many tries. Wait a few minutes.', bad_request:'Server error. Try again later.', server_error:'Server error. Try again later.'};
 function showLogin(msg){
