@@ -67,6 +67,27 @@ db.exec('CREATE TABLE IF NOT EXISTS meta (k TEXT PRIMARY KEY, v TEXT)');
     const n = db.prepare("UPDATE users SET role = 'player' WHERE id != ? AND role != 'player'").run(adm.id).changes;
     db.prepare("INSERT INTO meta (k, v) VALUES ('public_test', ?)").run(String(Date.now()));
     log('ADMIN', `Phase de test publique : ${n} compte(s) de test ou admin repassé(s) en joueur normal, seul ${adm.name} garde les pouvoirs`); } }
+// One-time full reset before the public test (27/10/2026): every account is deleted except ADMIN_NAME, whose base starts again from zero.
+// A copy of the whole database is saved first in data/ (backup-before-reset-….db), just in case.
+{ const KEY = 'reset_2026_10_27', adm = db.prepare('SELECT id, name FROM users WHERE name = ? COLLATE NOCASE').get(ADMIN_NAME);
+  if (!db.prepare('SELECT 1 FROM meta WHERE k = ?').get(KEY)) {
+    if (!db.prepare('SELECT 1 FROM users LIMIT 1').get()) db.prepare('INSERT INTO meta (k, v) VALUES (?, ?)').run(KEY, 'empty');   // brand new server: nothing to reset, ever
+    else if (!adm) log('ADMIN', `Remise à zéro annulée : le compte ${ADMIN_NAME} n'existe pas sur ce serveur`);
+    else {
+      const backup = path.join(DATA, `backup-before-reset-${new Date().toISOString().slice(0, 10)}.db`);
+      try { if (!fs.existsSync(backup)) db.exec(`VACUUM INTO '${backup.replace(/'/g, "''")}'`); } catch (e) { log('ERREUR', 'sauvegarde avant remise à zéro : ' + e.message); }
+      const before = db.prepare('SELECT COUNT(*) n FROM users').get().n;
+      db.exec('BEGIN');
+      db.prepare('DELETE FROM attacks').run();
+      db.prepare('DELETE FROM sessions WHERE user_id != ?').run(adm.id);
+      db.prepare('DELETE FROM bases WHERE user_id != ?').run(adm.id);
+      db.prepare('DELETE FROM users WHERE id != ?').run(adm.id);
+      db.prepare('UPDATE bases SET state = NULL, lvl = 1, power = 0, shield = 0, updated = ? WHERE user_id = ?').run(Date.now(), adm.id);   // a brand new base
+      db.prepare("UPDATE users SET role = 'admin', created = ? WHERE id = ?").run(Date.now(), adm.id);
+      db.prepare('INSERT INTO meta (k, v) VALUES (?, ?)').run(KEY, String(Date.now()));
+      db.exec('COMMIT');
+      log('ADMIN', `REMISE À ZÉRO : ${before - 1} compte(s) supprimé(s), base de ${adm.name} repartie de zéro · sauvegarde : ${path.basename(backup)}`);
+    } } }
 if (!db.prepare("SELECT 1 FROM users WHERE role = 'admin'").get()) {   // no admin yet (empty server): the very first account becomes the administrator
   const first = db.prepare('SELECT id, name FROM users ORDER BY id LIMIT 1').get();
   if (first) { db.prepare("UPDATE users SET role = 'admin' WHERE id = ?").run(first.id); log('ADMIN', `Administrateur : ${first.name}`); }
