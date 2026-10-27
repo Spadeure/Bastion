@@ -1867,7 +1867,11 @@ let openedAt=0; // ignore the "ghost" click that phones send right after the tap
 function openSlot(id){ cur=id; openedAt=Date.now(); renderSheet(); renderSlots(); document.getElementById('sheet').classList.add('open'); document.getElementById('back').classList.add('open'); }
 function sheetTop(){ const sh=document.getElementById('sheet'), b=document.getElementById('sheetBody'); if(sh) sh.scrollTop=0; if(b) b.scrollTop=0; }
 function closeSheet(){ cur=null; document.getElementById('sheet').classList.remove('open'); document.getElementById('back').classList.remove('open'); renderSlots(); }
-let tt; function toast(m){ const el=document.getElementById('toast'); el.innerHTML=m; el.classList.add('on'); clearTimeout(tt); tt=setTimeout(()=>el.classList.remove('on'),2200); }
+let tt; function toast(m){ const el=document.getElementById('toast'); el.innerHTML=m; el.classList.add('on');
+  { // never over the tutorial card or the activity buttons: just above the highest of them
+    const tu=document.getElementById('tuto'), bt=document.querySelector('#hud .bottom'); let top=window.innerHeight-170;
+    for(const x of [tu,bt]) if(x){ const r=x.getBoundingClientRect(); if(r.height && r.top>window.innerHeight*0.3) top=Math.min(top, r.top); }
+    el.style.top='auto'; el.style.bottom=Math.max(60, Math.round(window.innerHeight-top+10))+'px'; } clearTimeout(tt); tt=setTimeout(()=>el.classList.remove('on'),2200); }
 
 // ===== EVENTS =====
 function onAct(e){
