@@ -745,3 +745,9 @@ p{font-size:15px;color:#d6d6ca;line-height:1.35;font-weight:500}
 button.danger{background:linear-gradient(180deg,#b8432f,#7a2416)!important;color:#fff!important;border-color:#4a1209!important;margin-top:10px}
 .dkauto{position:absolute;bottom:-3px;left:50%;transform:translateX(-50%);padding:0 4px;border-radius:5px;background:#3f9b47;color:#fff;font:800 9px/13px var(--ui);letter-spacing:.5px;border:1px solid #0b0d0e}
 .rcoord{white-space:nowrap;flex:none}
+/* phone: the 4 view buttons (Titan, Fields, Map, Base) sit inside the player bar, no longer over the base */
+@media (max-width:760px){
+  .cmd .navicons{position:static!important;transform:none!important;display:flex;gap:4px;flex:none;align-self:center}
+  .cmd .nicon{width:40px!important;height:40px!important}
+}
+@media (max-width:380px){ .cmd .nicon{width:36px!important;height:36px!important} .cmd .navicons{gap:2px} }
