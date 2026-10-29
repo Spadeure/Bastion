@@ -833,3 +833,13 @@ button.danger{background:linear-gradient(180deg,#b8432f,#7a2416)!important;color
 .ubtns>button,.ubtns>div{flex:1}.ubtns>button.danger{margin-top:0}
 .ubtns #ta-recruit button,.ubtns div>button{width:100%}
 @media (max-width:420px){ .uart{width:96px;height:96px} .ustats{grid-template-columns:repeat(4,1fr);gap:6px} .ust2 .ic{width:18px;height:18px} .ust2 b{font-size:14px} }
+/* ===== What's new (patch notes) ===== */
+.pnote{margin-top:12px;padding:10px 12px;border-radius:10px;background:#0b0e0f99;border:1px solid #3a3220}
+.pnote.last{border-color:var(--brass);box-shadow:inset 0 0 18px #b8913a22}
+.pnh{display:flex;align-items:center;gap:8px;font:16px var(--disp);color:var(--brass2)}
+.pnew{font:700 11px var(--ui);letter-spacing:1px;text-transform:uppercase;color:#0d1012;background:var(--ok);border-radius:5px;padding:1px 6px}
+.pnote ul{margin:8px 0 0;padding-left:18px}
+.pnote li{margin:6px 0;line-height:1.4;font-size:14px}
+.pnote li::marker{color:var(--brass)}
+.pnote:not(.last) li{color:var(--mut)}
+.pok{display:block;width:100%;margin-top:14px}
