@@ -600,7 +600,6 @@ function tileAt(x,y){
 }
 function tileGen(x,y){
   if(x%2 || y%2) return null;                       // tiles sit on every other square: always grass around them
-  if(hash(x,y,1)<0.08) return null;                 // a few empty spots
   const t=mixType(x,y);
   return t==='plain' ? {t} : {t, lvl:1+Math.min(9,Math.floor(10*Math.pow(hash(x,y,2),1.9)))};
 }
@@ -662,7 +661,7 @@ function resizeMap(){ const v=vsize(), d=mapDpr(); mapc.width=Math.round(v.w*d);
 let mapRaf=0; function requestDraw(){ if(mapRaf) return; mapRaf=requestAnimationFrame(()=>{ mapRaf=0; drawMap(); }); }
 function mapZoomAt(f,sx,sy){ const v=vsize(), z0=mcam.z; const wx=(sx-v.w/2)/z0+mcam.x, wy=(sy-v.h/2)/z0+mcam.y;
   mcam.z*=f; clampCam(); mcam.x=wx-(sx-v.w/2)/mcam.z; mcam.y=wy-(sy-v.h/2)/mcam.z; clampCam(); requestDraw(); updateCoords(); }
-function mapPan(dx,dy){ mcam.x-=dx/mcam.z; mcam.y-=dy/mcam.z; clampCam(); requestDraw(); updateCoords(); }
+function mapPan(dx,dy){ if(dx||dy) panDir={x:-dx, y:-dy}; mcam.x-=dx/mcam.z; mcam.y-=dy/mcam.z; clampCam(); requestDraw(); updateCoords(); }
 function updateCoords(){ const v=vsize(), [x,y]=screenToCell(v.w/2,v.h/2), ix=document.getElementById('cxi'), iy=document.getElementById('cyi');
   if(document.activeElement!==ix) ix.value=Math.max(1,Math.min(MAPN,x)); if(document.activeElement!==iy) iy.value=Math.max(1,Math.min(MAPN,y)); }
 
@@ -686,10 +685,21 @@ function badge(c,x,y,txt,col){ c.font='700 15px "Black Ops One", Impact, sans-se
   c.fillStyle=col; c.strokeStyle='#3a2604'; c.lineWidth=2.5; c.beginPath(); c.roundRect(x-w/2,y-12,w,24,5); c.fill(); c.stroke();
   c.fillStyle='#241803'; c.textAlign='center'; c.textBaseline='middle'; c.fillText(txt,x,y+1); }
 // ---------- map chunks: squares of 512 world pixels drawn once per zoom step, then reused ----------
-const CHUNK=512, chunkCache=new Map(); let lastHomeLvl=-1;
+// The squares around the screen are drawn in advance (more of them in the direction the map is moving),
+// so sliding the map only copies ready pictures. Only a limited number is kept, to spare the phone's memory.
+const CHUNK=512, chunkCache=new Map(); let lastHomeLvl=-1, chunkMax=48;
 const chunkW = zb => CHUNK/Math.min(zb,1);   // zoomed out: bigger squares, so there are always few of them on screen (about 512 pixels each)
 const zBucket = z => Math.pow(2, Math.round(Math.log2(z)*3)/3);     // zoom steps of about 26%
 function resetTiles(){ tileCache.clear(); chunkCache.clear(); }
+// size of a tile's picture: smaller than the grid, so grass shows between the tiles; the selected tile grows a little
+const tileW = tl => TW*(tl.t==='home'||tl.t==='player' ? 1.05 : tl.t==='camp' ? 0.97 : 0.9);
+function tileBadge(tl,wx,wy,w,zb){
+  if(tl.t==='home') return [wx, wy+TH*0.34, '* '+tl.lvl, '#7fd06a'];
+  if(tl.t==='player') return [wx, wy+TH*0.34, tl.name+' · '+tl.lvl, tl.shield>Date.now() ? '#7fb8ff' : '#e0574a'];   // blue: protected
+  if(tl.lvl && tl.t!=='plain' && zb>0.42) return [wx+w*0.3, wy+TH*0.16, String(tl.lvl), tl.t==='camp'?'#e0574a':'#f3c534'];
+  return null; }
+function drawBadges(g,list,zb){ const bs=Math.min(1.25,Math.max(0.8,1/zb));
+  for(const [bx2,by2,t,col] of list){ const b=badgeSprite(t,col), bw=b.width/2*bs, bh=b.height/2*bs; g.drawImage(b, bx2-bw/2, by2-bh/4-6*bs, bw, bh); } }
 function renderChunk(cx,cy,zb,d){
   const CW=chunkW(zb), zr=Math.min(zb,1)*d, size=Math.ceil(CW*zr), cv=document.createElement('canvas'); cv.width=cv.height=size;
   const g=cv.getContext('2d'), X0=cx*CW, Y0=cy*CW; g.setTransform(zr,0,0,zr,-X0*zr,-Y0*zr);
@@ -703,23 +713,41 @@ function renderChunk(cx,cy,zb,d){
     for(let x=Math.max(gx0,s-gy1); x<=Math.min(gx1,s-gy0); x++){
       const y=s-x, tl=tileAt(x,y); if(!tl) continue;
       const [wx,wy]=cellW(x,y); if(wx<X0-TW||wx>X0+CW+TW||wy<Y0-TH||wy>Y0+CW+TH*3.5) continue;
-      const key=sprKey(tl), sp=MSPR[key], im=MIMG[key];
-      const w=TW*(tl.t==='home'||tl.t==='player'?1.3: tl.t==='camp'?1.2:1.12), h=w*sp.r;
+      const key=sprKey(tl), sp=MSPR[key], im=MIMG[key], w=tileW(tl), h=w*sp.r;
       if(im.complete && im.naturalWidth) g.drawImage(sprite(key,im,w,h,zr,1), wx-w/2, wy-sp.cy*h, w, h); else ok=false;
-      if(tl.t==='home') badges.push([wx, wy+TH*0.42, '* '+tl.lvl, '#7fd06a']);
-      else if(tl.t==='player') badges.push([wx, wy+TH*0.42, tl.name+' · '+tl.lvl, tl.shield>Date.now() ? '#7fb8ff' : '#e0574a']);   // blue: protected
-      else if(tl.lvl && tl.t!=='plain' && zb>0.42) badges.push([wx+w*0.3, wy+TH*0.2, String(tl.lvl), tl.t==='camp'?'#e0574a':'#f3c534']);
+      const bd=tileBadge(tl,wx,wy,w,zb); if(bd) badges.push(bd);
     }
   }
-  const bs=Math.min(1.25,Math.max(0.8,1/zb));
-  for(const [bx2,by2,t,col] of badges){ const b=badgeSprite(t,col), bw=b.width/2*bs, bh=b.height/2*bs; g.drawImage(b, bx2-bw/2, by2-bh/4-6*bs, bw, bh); }
-  return {cv, ok}; }
+  drawBadges(g,badges,zb);
+  return {cv, ok, zb, d, X:X0, Y:Y0, W:CW}; }
+function putChunk(k,ch){ chunkCache.set(k,ch); while(chunkCache.size>chunkMax) chunkCache.delete(chunkCache.keys().next().value); }   // the oldest goes first
+// a few tiles changed (another player's base appeared, moved or changed level): only the squares that show them are redrawn
+function invalidateCells(cells){ if(!cells.length) return;
+  for(const [x,y] of cells) tileCache.delete(x*1024+y);
+  for(const [k,ch] of [...chunkCache]) for(const [x,y] of cells){ const [wx,wy]=cellW(x,y);
+    if(wx>=ch.X-TW && wx<=ch.X+ch.W+TW && wy>=ch.Y-TH && wy<=ch.Y+ch.W+TH*3.5){ chunkCache.delete(k); break; } } }
+// what is visible, in squares
+function viewChunks(pad){ const v=vsize(), z=mcam.z, zb=zBucket(z), CW=chunkW(zb);
+  const x0=mcam.x-v.w/2/z, y0=mcam.y-v.h/2/z, x1=mcam.x+v.w/2/z, y1=mcam.y+v.h/2/z;
+  return {zb, CW, x0, y0, x1, y1, cx0:Math.floor(x0/CW)-pad, cx1:Math.floor(x1/CW)+pad, cy0:Math.floor(y0/CW)-pad, cy1:Math.floor(y1/CW)+pad}; }
+// drawing ahead: the ring of squares around the screen, plus one more row in the direction the map is moving
+let pfTimer=0, panDir={x:0,y:0};
+function schedulePrefetch(){ if(!pfTimer) pfTimer=setTimeout(prefetch, 50); }
+function prefetch(){ pfTimer=0; if(view!=='map' || !mcam) return;
+  const d=mapDpr(), V=viewChunks(0), ex=Math.sign(panDir.x), ey=Math.sign(panDir.y), t0=performance.now();
+  const mx=(V.x0+V.x1)/2+ex*V.CW, my=(V.y0+V.y1)/2+ey*V.CW, todo=[];
+  for(let cy=V.cy0-1-(ey<0); cy<=V.cy1+1+(ey>0); cy++) for(let cx=V.cx0-1-(ex<0); cx<=V.cx1+1+(ex>0); cx++){
+    const k=cx+','+cy+','+V.zb+','+d; if(!chunkCache.has(k)) todo.push([Math.hypot((cx+.5)*V.CW-mx,(cy+.5)*V.CW-my), cx, cy, k]); }
+  todo.sort((a,b)=>a[0]-b[0]);
+  let n=0; for(const [,cx,cy,k] of todo){ if(performance.now()-t0>8) break; const ch=renderChunk(cx,cy,V.zb,d); if(!ch.ok) break; putChunk(k,ch); n++; }
+  if(n && n<todo.length) schedulePrefetch(); }
+let selKey=-1, selT=0;
 function drawMap(){
   if(view!=='map' || !mcam) return;
   const v=vsize(), d=mapDpr(), c=mctx, z=mcam.z;
   c.setTransform(1,0,0,1,0,0); c.fillStyle='#22281c'; c.fillRect(0,0,mapc.width,mapc.height);
   c.setTransform(z*d,0,0,z*d,(v.w/2-mcam.x*z)*d,(v.h/2-mcam.y*z)*d);
-  const x0=mcam.x-v.w/2/z, y0=mcam.y-v.h/2/z, x1=mcam.x+v.w/2/z, y1=mcam.y+v.h/2/z;
+  const V=viewChunks(0), {x0,y0,x1,y1,zb,CW}=V;
   // ground inside the map diamond, dark outside
   const [ax,ay]=cellW(0.5,0.5), [bx,by]=cellW(MAPN+.5,0.5), [cx,cy]=cellW(MAPN+.5,MAPN+.5), [dx,dy]=cellW(0.5,MAPN+.5);
   c.save(); c.beginPath(); c.moveTo(ax,ay); c.lineTo(bx,by); c.lineTo(cx,cy); c.lineTo(dx,dy); c.closePath(); c.clip();
@@ -727,19 +755,27 @@ function drawMap(){
   c.fillRect(x0,y0,x1-x0,y1-y0); c.restore();
   c.strokeStyle='#e0b63e88'; c.lineWidth=4/z; c.beginPath(); c.moveTo(ax,ay); c.lineTo(bx,by); c.lineTo(cx,cy); c.lineTo(dx,dy); c.closePath(); c.stroke();
   // tiles come from pre-drawn pieces of the map (chunks): moving the map only copies a few pictures
-  const hl=playerLevel(totalPower()); if(hl!==lastHomeLvl){ lastHomeLvl=hl; chunkCache.clear(); }
-  const zb=zBucket(z), CW=chunkW(zb), cx0=Math.floor(x0/CW), cx1=Math.floor(x1/CW), cy0=Math.floor(y0/CW), cy1=Math.floor(y1/CW);
-  let budget=6, missing=false;
-  for(let cy=cy0; cy<=cy1; cy++) for(let cx=cx0; cx<=cx1; cx++){
-    const k=cx+','+cy+','+zb+','+d; let ch=chunkCache.get(k);
-    if(ch){ chunkCache.delete(k); chunkCache.set(k,ch); }                 // most recently used goes last
-    else if(budget>0){ budget--; ch=renderChunk(cx,cy,zb,d); if(ch.ok){ chunkCache.set(k,ch); if(chunkCache.size>160) chunkCache.delete(chunkCache.keys().next().value); } else missing=true; }
-    else { missing=true; continue; }
-    c.drawImage(ch.cv, cx*CW, cy*CW, CW, CW);
-  }
-  if(missing) requestDraw();
-  if(mapSel){ const [sx,sy]=cellW(mapSel.x,mapSel.y), hw=TW*0.62, hh=TH*0.62; c.fillStyle='#ffd54a22'; c.strokeStyle='#ffd54a'; c.lineWidth=3/z;   // the size of the tile's top
-    c.beginPath(); c.moveTo(sx-hw,sy); c.lineTo(sx,sy-hh); c.lineTo(sx+hw,sy); c.lineTo(sx,sy+hh); c.closePath(); c.fill(); c.stroke(); }
+  const hl=playerLevel(totalPower()); if(hl!==lastHomeLvl){ lastHomeLvl=hl; invalidateCells([[state.pos.x,state.pos.y]]); }
+  chunkMax=Math.max(40, (V.cx1-V.cx0+5)*(V.cy1-V.cy0+5));
+  const vis=[], tmp=new Map(), t0=performance.now(); let missing=false;
+  for(let cy=V.cy0; cy<=V.cy1; cy++) for(let cx=V.cx0; cx<=V.cx1; cx++){ const k=cx+','+cy+','+zb+','+d, ch=chunkCache.get(k);
+    if(ch){ chunkCache.delete(k); chunkCache.set(k,ch); } vis.push([cx,cy,k]); }        // most recently used goes last
+  for(const [cx,cy,k] of vis){ if(chunkCache.has(k)) continue;
+    if(performance.now()-t0>12){ missing=true; continue; }                                // never block the slide: the rest comes next frame
+    const ch=renderChunk(cx,cy,zb,d); if(ch.ok) putChunk(k,ch); else { tmp.set(k,ch); missing=true; } }
+  // a square not ready yet: show the same place from another zoom step meanwhile, never an empty hole
+  if(missing) for(const ch of chunkCache.values()) if(ch.zb!==zb && ch.d===d && ch.X<x1 && ch.X+ch.W>x0 && ch.Y<y1 && ch.Y+ch.W>y0) c.drawImage(ch.cv, ch.X, ch.Y, ch.W, ch.W);
+  for(const [cx,cy,k] of vis){ const ch=chunkCache.get(k)||tmp.get(k); if(ch) c.drawImage(ch.cv, cx*CW, cy*CW, CW, CW); }
+  if(missing) requestDraw(); else schedulePrefetch();
+  // the selected tile grows a little (no frame around it)
+  const tl=mapSel && tileAt(mapSel.x,mapSel.y);
+  if(tl){ const sk=mapSel.x*1024+mapSel.y; if(sk!==selKey){ selKey=sk; selT=performance.now(); }
+    const p=Math.min(1,(performance.now()-selT)/160), s=1+0.14*(1-Math.pow(1-p,3));
+    const key=sprKey(tl), sp=MSPR[key], im=MIMG[key], [wx,wy]=cellW(mapSel.x,mapSel.y), w0=tileW(tl), w=w0*s, h=w*sp.r;
+    if(im.complete && im.naturalWidth){ c.drawImage(sprite(key,im,w0*1.14,w0*1.14*sp.r,z,d), wx-w/2, wy-sp.cy*h, w, h);
+      const bd=tileBadge(tl,wx,wy,w,zb); if(bd) drawBadges(c,[bd],zb); }
+    if(p<1) requestDraw(); }
+  else selKey=-1;
   // marches are not drawn on the map (no line toward the target): they are followed with the Attacks / Spying buttons
 }
 
@@ -2088,7 +2124,11 @@ function pushSave(force){
     .finally(()=>{ NET.pushing=false; }); }
 async function loadPlayers(){
   if(!ONLINE || !NET.token) return;
-  try{ const j=await apiCall('GET','api/players'); const m=new Map(); for(const p of j.players) m.set(p.x*1024+p.y, p); NET.others=m; resetTiles(); if(view==='map') requestDraw(); }catch(e){} }
+  try{ const j=await apiCall('GET','api/players'); const m=new Map(); for(const p of j.players) m.set(p.x*1024+p.y, p);
+    // only the bases that changed are redrawn (no full refresh of the map every minute)
+    const now=Date.now(), sig=p=>p ? [p.lvl,p.name,(p.shield||0)>now,p.alliance||''].join('|') : '', old=NET.others||new Map(), cells=[];
+    for(const k of new Set([...old.keys(), ...m.keys()])) if(sig(old.get(k))!==sig(m.get(k))) cells.push([Math.floor(k/1024), k%1024]);
+    NET.others=m; invalidateCells(cells); if(view==='map' && cells.length) requestDraw(); }catch(e){} }
 function logout(expired){
   if(streamCtl){ streamCtl.abort(); streamCtl=null; }
   if(NET.token) apiCall('POST','api/logout').catch(()=>{});
