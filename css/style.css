@@ -793,3 +793,43 @@ button.danger{background:linear-gradient(180deg,#b8432f,#7a2416)!important;color
 .plinfo>div{flex:1 1 170px;min-width:0}
 .plinfo button{margin-left:auto}
 .plinfo .sub{font-size:12px}
+/* ===== troops: picture tiles with the amount, tap = troop sheet ===== */
+.ugrid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:6px}
+@media (min-width:761px){ .ugrid{grid-template-columns:repeat(auto-fill,minmax(104px,1fr))} }
+.utile{position:relative;aspect-ratio:1;padding:0!important;border-radius:10px!important;overflow:hidden;background:radial-gradient(circle at 50% 38%,#4a5636,#1a2016 75%)!important;
+  border:2px solid #5a4620!important;box-shadow:inset 0 0 14px #000a!important;display:block;min-width:0;letter-spacing:0}
+.utile:hover,.utile:focus-visible{border-color:var(--brass2)!important}
+.utile>img{position:absolute;inset:6% 6% 22% 6%;width:88%;height:72%;object-fit:contain;filter:drop-shadow(0 3px 3px #000c)}
+.utile b{position:absolute;left:0;right:0;bottom:0;padding:3px 2px 2px;background:linear-gradient(transparent,#000d 40%);color:#fff;font:15px var(--disp);text-align:center;text-shadow:0 1px 2px #000}
+.utile em{position:absolute;left:4px;right:4px;top:3px;font:600 10px var(--ui);font-style:normal;color:#ece8dacc;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 1px 2px #000}
+.utile.zero b{color:#bbb}
+.utile.lock>img{filter:grayscale(1) brightness(.5)}
+.utile .ulk{position:absolute;right:4px;top:16px;font-style:normal}.utile .ulk .ic{width:20px;height:20px}
+.utile .uq{position:absolute;left:4px;top:16px;font:700 11px var(--ui);font-style:normal;color:#0d1012;background:var(--ok);border-radius:5px;padding:0 4px}
+.uhd{display:flex;gap:12px;align-items:flex-start;margin-right:34px}
+.uart{width:120px;height:120px;flex:none;border-radius:10px;border:2px solid var(--brass);background:radial-gradient(circle at 50% 38%,#4a5636,#1a2016 75%);display:flex;align-items:center;justify-content:center}
+.uart img{width:92%;height:92%;object-fit:contain;filter:drop-shadow(0 3px 4px #000c)}
+.uhd h2{margin:0 0 2px}
+.uown{margin-top:6px;font:600 16px var(--ui);color:var(--brass2)}
+.ustats{display:grid;grid-template-columns:repeat(4,1fr);gap:6px 10px;margin:12px 0 6px;padding:8px 10px;border-radius:10px;background:#0b0e0f99;border:1px solid #3a3220}
+.ust2{display:flex;align-items:center;gap:6px}.ust2 .ic{width:22px;height:22px}.ust2 b{font:16px var(--disp);color:var(--ok)}
+.uh3{text-align:center;letter-spacing:2px;margin-top:14px}
+.usub{font:700 12px var(--ui);letter-spacing:1.5px;text-transform:uppercase;color:var(--mut);border-bottom:1px solid #3a3220;padding:8px 0 4px;margin-bottom:4px}
+.ureq{display:flex;align-items:center;gap:10px;padding:4px 2px;font-size:15px}.ureq>span{flex:1}
+.ureq .ic{width:26px;height:26px;object-fit:contain}.ureq.ok{color:var(--txt)}.ureq.no{color:var(--red)}
+.ucost{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;padding:4px 2px}
+.ucost span{display:flex;align-items:center;gap:6px;font:600 15px var(--ui)}.ucost span.no{color:var(--red)}.ucost .ic{width:24px;height:24px}
+.uinfo{text-align:center;margin:4px 0;font-size:14px}
+.utog{display:flex;align-items:center;gap:10px;margin:10px 0;cursor:pointer}.utog span{flex:1}
+.utog input{position:absolute;opacity:0;pointer-events:none}
+.utog i{width:46px;height:26px;border-radius:13px;background:#2a2f30;border:1px solid #555;position:relative;flex:none;transition:.2s}
+.utog i::after{content:'';position:absolute;left:3px;top:3px;width:18px;height:18px;border-radius:50%;background:#ddd;transition:.2s}
+.utog input:checked+i{background:var(--brass)}.utog input:checked+i::after{left:23px;background:#fff}
+.uqty{display:flex;align-items:center;gap:8px;margin:6px 0}
+.uqty input[type=number]{flex:1;min-width:0;text-align:center;font:18px var(--disp)}
+.uqty input[type=range]{flex:1;min-width:0;accent-color:var(--brass2);height:28px}
+.uqty button{min-width:52px}
+.ubtns{display:flex;gap:10px;align-items:flex-start;margin-top:10px}
+.ubtns>button,.ubtns>div{flex:1}.ubtns>button.danger{margin-top:0}
+.ubtns #ta-recruit button,.ubtns div>button{width:100%}
+@media (max-width:420px){ .uart{width:96px;height:96px} .ustats{grid-template-columns:repeat(4,1fr);gap:6px} .ust2 .ic{width:18px;height:18px} .ust2 b{font-size:14px} }
