@@ -37,12 +37,18 @@ function __catchUp() {
   __setNow(null); tick(); tick();
 }
 const __int = (v, lo, hi) => Math.max(lo, Math.min(hi, Math.floor(Number(v) || 0)));
+// an order may only use real game names: a name every object answers to (constructor, toString...) is refused at once
+function __safeArgs(v, depth){ if(depth>6) return false;
+  if(typeof v==='string') return !PROTO_KEYS.has(v);
+  if(Array.isArray(v)) return v.every(x=>__safeArgs(x, depth+1));
+  if(v && typeof v==='object') return Object.keys(v).every(k=>!PROTO_KEYS.has(k) && __safeArgs(v[k], depth+1));
+  return true; }
 const STAFF_ONLY = new Set(['finish', 'finishTraining', 'finishResearch', 'finishMarch', 'reset']);
 // every order the browser may send, with its checks (the game functions do the rest of the checks themselves)
 const __ACTIONS = {
   build(slot, t, l) {
     const s = SLOTS.find(x => x.id === slot), d = B[t]; l = __int(l, 1, MAX);
-    if (!s || s.deco || !d) return 'bad_order';
+    if (!s || s.deco || !own(B, t)) return 'bad_order';
     const cur = state.slots[slot];
     if (cur) { if (cur.type !== t || l !== cur.lvl + 1) return 'bad_order'; }
     else if (l !== 1 || (s.fixed ? t !== s.fixed : (d.fixed || !!d.field !== (s.view === 'fields') || (d.unique && exists(t))))) return 'bad_order';
@@ -51,15 +57,15 @@ const __ACTIONS = {
   },
   cancel() { if (!state.queue) return 'bad_order'; cancel(); },
   cancelTrain(bl, i) { i = __int(i, 0, 10); if (!TRAINERS.includes(bl) || !(state.training[bl] || [])[i]) return 'bad_order'; cancelTrain(bl, i); },
-  train(u, n) { n = __int(n, 0, 1e7); if (!UNITS[u]) return 'bad_order'; const why = whyNotTrain(u, n); if (why) return why; train(u, n); },
-  research(t) { if (!TECH[t]) return 'bad_order'; const why = whyNotResearch(t, techLv(t) + 1); if (why) return why; startResearch(t); },
+  train(u, n) { n = __int(n, 0, 1e7); if (!own(UNITS, u)) return 'bad_order'; const why = whyNotTrain(u, n); if (why) return why; train(u, n); },
+  research(t) { if (!own(TECH, t)) return 'bad_order'; const why = whyNotResearch(t, techLv(t) + 1); if (why) return why; startResearch(t); },
   cancelResearch() { if (!researchState().cur) return 'bad_order'; cancelResearch(); },
   // o.pvp is added by the server only (after its own checks) when the target is another player's base
   launch(o) {
     o = o || {}; const x = __int(o.x, 1, MAPN), y = __int(o.y, 1, MAPN); mapSel = { x, y };
     for (const k in atkQty) delete atkQty[k];
     const pv = o.pvp, spy = pv && pv.kind === 'spy';
-    for (const u in (o.q || {})) if (UNITS[u] && (!spy || u === 'drone')) atkQty[u] = __int(o.q[u], 0, 1e8);
+    for (const u in (o.q || {})) if (own(UNITS, u) && (!spy || u === 'drone')) atkQty[u] = __int(o.q[u], 0, 1e8);
     atkTitan = !spy && !!o.titan;
     if (spy && !atkQty.drone) return 'bad_order';
     if (!pv) { const tl = tileAt(x, y); if (!tl || tl.t === 'home' || tl.t === 'plain' || tl.t === 'player') return 'bad_order'; }
@@ -74,16 +80,16 @@ const __ACTIONS = {
     if (!Array.isArray(plans) || !plans.length || plans.length > 5) return 'bad_order';
     const clean = [];
     for (const p of plans) { if (!p || !AUTO_TYPES.includes(p.tt)) return 'bad_order'; const q = {};
-      for (const u in (p.q || {})) if (UNITS[u]) q[u] = __int(p.q[u], 0, 1e8);
+      for (const u in (p.q || {})) if (own(UNITS, u)) q[u] = __int(p.q[u], 0, 1e8);
       clean.push({ tt: p.tt, lvl: __int(p.lvl, 1, 10), q, titan: !!p.titan }); }
     return autoStart(clean) || undefined;
   },
   autoStop() { if (!state.auto) return 'bad_order'; autoStop(); },
-  useItem(id, all) { if (!ITEMS[id] || !invN(id)) return 'bad_order'; useItem(id, !!all); },
-  speed(id, tg) { if (!ITEMS[id] || !invN(id) || typeof tg !== 'string' || tg.length > 40) return 'bad_order'; speedTarget = tg; if (!speedJob(tg)) return 'bad_order'; useSpeed(id); },
-  defend(u, n) { if (!UNITS[u]) return 'bad_order'; moveDefense(u, __int(n, -1e8, 1e8)); },
+  useItem(id, all) { if (!own(ITEMS, id) || !invN(id)) return 'bad_order'; useItem(id, !!all); },
+  speed(id, tg) { if (!own(ITEMS, id) || !invN(id) || typeof tg !== 'string' || tg.length > 40) return 'bad_order'; speedTarget = tg; if (!speedJob(tg)) return 'bad_order'; useSpeed(id); },
+  defend(u, n) { if (!own(UNITS, u)) return 'bad_order'; moveDefense(u, __int(n, -1e8, 1e8)); },
   claimQuest(id) { return claimQuest(String(id || '')); },
-  spin(w, n) { if (!WHEELS[w]) return 'bad_order'; return doSpin(w, __int(n, 1, SPIN_MAX)); },
+  spin(w, n) { if (!own(WHEELS, w)) return 'bad_order'; return doSpin(w, __int(n, 1, SPIN_MAX)); },
   daily() { return claimDailyTicket(); },
   readReport(id) { const r = state.reports.find(x => x.id === Number(id)); if (!r) return 'bad_order'; r.read = true; },
   readAllReports() { for (const r of state.reports) r.read = true; },
@@ -112,10 +118,10 @@ function __run(stJson, lang, action, argsJson, role) {
   normalizeState(); __catchUp();
   let error = null;
   if (action) {
-    const f = __ACTIONS[action];
-    if (!f) error = 'bad_order';
+    const args = JSON.parse(argsJson), f = own(__ACTIONS, action) ? __ACTIONS[action] : null;
+    if (!f || !Array.isArray(args) || !__safeArgs(args, 0)) error = 'bad_order';
     else if (STAFF_ONLY.has(action) && !['admin', 'tester'].includes(role)) error = 'forbidden';
-    else { try { const r = f(...JSON.parse(argsJson)); if (r) error = r; } catch (e) { error = 'bad_order'; } }
+    else { try { const r = f(...args); if (r) error = r; } catch (e) { error = 'bad_order'; } }
     __catchUp();
   }
   return JSON.stringify({ state, events: __events, error, lvl: playerLevel(totalPower()), power: totalPower() });

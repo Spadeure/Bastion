@@ -180,7 +180,36 @@ setInterval(() => {   // forget old tries so the lists never grow
   for (const [ip, t] of strikes) if (!t.some(x => now - x < STRIKE_WINDOW)) strikes.delete(ip);
   for (const [ip, u] of blocked) if (now >= u) blocked.delete(ip);
   for (const [tk, s] of seenAt) if (now - s > 3600_000) seenAt.delete(tk);
+  for (const [id, b] of orderBucket) if (!b.waiting && now - b.at > 600_000) orderBucket.delete(id);
+  for (const [id, t] of tooFastLog) if (now - t > 600_000) tooFastLog.delete(id);
+  for (const ip of [...newAccounts.keys()]) accountsToday(ip);
 }, 5 * 60_000).unref();
+// new accounts: at most 5 per day from the same address (a family or friends sharing a connection still fit)
+const ACCOUNTS_PER_DAY = +process.env.ACCOUNTS_PER_DAY || 5, newAccounts = new Map();   // address -> creation times
+function accountsToday(ip) { const now = Date.now(), t = (newAccounts.get(ip) || []).filter(x => now - x < 86400_000); if (t.length) newAccounts.set(ip, t); else newAccounts.delete(ip); return t.length; }
+// orders: a player clicking even very fast never notices anything; a script firing hundreds of orders is slowed down,
+// then refused, so it can never slow the server down for the others. Each player has a reserve of 40 orders
+// that refills at 12 per second; when it is empty, the next orders simply wait their turn (a fraction of a second).
+const ORDER_BURST = 40, ORDER_RATE = 12, ORDER_WAIT_MAX = 60;   // more than 60 orders waiting at once: refused
+const orderBucket = new Map();   // user id -> {tokens, at, waiting}
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+async function orderTurn(me) {
+  if (me.role === 'admin') return true;
+  let b = orderBucket.get(me.id); const now = Date.now();
+  if (!b) orderBucket.set(me.id, b = { tokens: ORDER_BURST, at: now, waiting: 0 });
+  b.tokens = Math.min(ORDER_BURST, b.tokens + (now - b.at) / 1000 * ORDER_RATE); b.at = now;
+  if (b.tokens >= 1) { b.tokens--; return true; }
+  if (b.waiting >= ORDER_WAIT_MAX) return false;
+  b.waiting++; b.tokens--;   // takes its place in the line: the wait grows with the line
+  try { await sleep(Math.ceil(-b.tokens / ORDER_RATE * 1000)); } finally { b.waiting--; }
+  return true;
+}
+const tooFastLog = new Map();   // one line per player and per minute in the console
+function tooFast(me, ip, res) {
+  STATS.refused++; const now = Date.now();
+  if (now - (tooFastLog.get(me.id) || 0) > 60_000) { tooFastLog.set(me.id, now); cheat(me, ip, 'beaucoup trop d\'ordres à la fois (script ?) : ordres refusés pendant un moment'); }
+  return send(res, 429, { error: 'too_fast' });
+}
 // a free spot for a new base: on the tile grid, away from the map edges and from other players
 function freeSpot() {
   const used = Q.allPos.all();
@@ -208,6 +237,7 @@ async function api(req, res, url, ip) {
     if (isBlocked(ip)) return send(res, 429, { error: 'too_many' });
     blockIfTooMany(ip, strike(ip), 'créations de compte');          // every new account counts: no flood of accounts
     const { name = '', password = '' } = await readBody(req, 10_000);
+    if (accountsToday(ip) >= ACCOUNTS_PER_DAY) { log('INSCRIPTION REFUSÉE', `${clean(String(name).trim())} · ${ip} · déjà ${ACCOUNTS_PER_DAY} comptes créés aujourd'hui depuis cette adresse`); return send(res, 429, { error: 'too_many_accounts' }); }
     const n = String(name).trim();
     if (!NAME_OK.test(n)) return send(res, 400, { error: 'bad_name' });
     if (String(password).length < 6 || String(password).length > 100) return send(res, 400, { error: 'bad_password' });
@@ -216,6 +246,7 @@ async function api(req, res, url, ip) {
     const id = Number(Q.addUser.run(n, salt, hashPass(String(password), salt), now).lastInsertRowid);
     if (Q.count.get().n === 1) { Q.setRole.run('admin', id); log('ADMIN', `Administrateur : ${n}`); }
     const p = freeSpot(); Q.addBase.run(id, p.x, p.y, now);
+    newAccounts.set(ip, [...(newAccounts.get(ip) || []), now]);
     const token = crypto.randomBytes(32).toString('hex'); Q.addSession.run(token, id, now, now);
     STATS.registered++; STATS.players.add(n);
     log('INSCRIPTION', `${n} · ${ip} · base en (${p.x}, ${p.y})`);
@@ -250,6 +281,8 @@ async function api(req, res, url, ip) {
     return;
   }
   if (url === '/api/logout' && req.method === 'POST') { Q.delSession.run(me.token); seenAt.delete(me.token); log('DÉCONNEXION', `${me.name} · ${ip}`); return send(res, 200, { ok: true }); }
+  const ENGINE = (url === '/api/state' && req.method === 'GET') || (url === '/api/act' && req.method === 'POST') || (url === '/api/chest' && req.method === 'POST');
+  if (ENGINE && !(await orderTurn(me))) return tooFast(me, ip, res);   // the game engine runs for these: one line per player
   if (url === '/api/state' && req.method === 'GET') {
     const b = Q.base.get(me.id), r = runFor(me, b, null, [], langOf(req));
     return send(res, 200, { name: me.name, role: me.role, pos: { x: b.x, y: b.y }, state: r.state, events: r.events, serverTime: Date.now(),
@@ -375,6 +408,8 @@ function incomingFor(uid, st) {
 const RESS = ['metal', 'wood', 'stone', 'fuel', 'rations', 'gold'];
 const UNIT_IDS = ['recruit', 'rifleman', 'sniper', 'assault', 'truck', 'drone', 'apc', 'tank', 'artillery', 'heli', 'gunship'];
 const TECH_IDS = ['extraction', 'forestry', 'rationing', 'refining', 'engineering', 'drill', 'ballistics', 'armor', 'medicine', 'logistics', 'engines', 'robotics', 'intel'];
+const PROTO_KEYS = new Set([...Object.getOwnPropertyNames(Object.prototype), '__proto__']);   // names every object answers to: never a game name
+const gameId = id => typeof id === 'string' && /^[a-z0-9_]{2,40}$/.test(id) && !PROTO_KEYS.has(id);
 const int = (v, lo, hi) => Math.max(lo, Math.min(hi, Math.floor(Number(v) || 0)));
 function createAccount(name, password, role) {
   const n = String(name || '').trim();
@@ -413,8 +448,8 @@ async function admin(req, res, me, ip) {
   st.res = st.res || {}; st.troops = st.troops || {}; st.inv = st.inv || {}; st.slots = st.slots || {}; st.research = st.research || { lv: {}, cur: null };
   switch (action) {
     case 'give_res': { const n = int(p.amount, 0, 1e10); for (const r of (p.res === 'all' ? RESS : [p.res])) if (RESS.includes(r)) st.res[r] = (st.res[r] || 0) + n; break; }
-    case 'give_item': { const id = String(p.id || ''); if (!/^[a-z0-9_]{2,40}$/.test(id)) return send(res, 400, { error: 'bad_item' }); st.inv[id] = (st.inv[id] || 0) + int(p.n, 1, 100000); break; }
-    case 'give_all_items': { for (const id of (Array.isArray(p.ids) ? p.ids : [])) if (/^[a-z0-9_]{2,40}$/.test(id)) st.inv[id] = (st.inv[id] || 0) + int(p.n, 1, 1000); break; }
+    case 'give_item': { const id = String(p.id || ''); if (!gameId(id)) return send(res, 400, { error: 'bad_item' }); st.inv[id] = (st.inv[id] || 0) + int(p.n, 1, 100000); break; }
+    case 'give_all_items': { for (const id of (Array.isArray(p.ids) ? p.ids : [])) if (gameId(id)) st.inv[id] = (st.inv[id] || 0) + int(p.n, 1, 1000); break; }
     case 'give_troops': { if (!UNIT_IDS.includes(p.u)) return send(res, 400, { error: 'bad_unit' }); st.troops[p.u] = (st.troops[p.u] || 0) + int(p.n, 1, 10_000_000); break; }
     case 'finish_all': {
       if (st.queue) st.queue.end = now;
@@ -441,7 +476,7 @@ async function admin(req, res, me, ip) {
 // ---------- mystery chests: opened by the game engine on the server (secure random draw) ----------
 async function openChest(req, res, me, ip) {
   const { id, count = 1, lang } = await readBody(req, 10_000);
-  if (!LOOT[id]) return send(res, 400, { error: 'bad_chest' });
+  if (!gameId(id) || !Object.hasOwn(LOOT, id)) return send(res, 400, { error: 'bad_chest' });
   const r = runFor(me, Q.base.get(me.id), 'useItem', [id, count > 1], lang);
   refusedOrder(me, ip, 'chest', [id], r.error);
   return send(res, 200, { ok: !r.error, error: r.error, state: r.state, events: r.events });
@@ -526,18 +561,42 @@ const toNextHour = 3600_000 - (Date.now() % 3600_000);
 setTimeout(() => { summary(); setInterval(summary, 3600_000).unref(); }, toNextHour).unref();
 if (+process.env.BASTION_SUMMARY_MS) setInterval(summary, +process.env.BASTION_SUMMARY_MS).unref();   // tests only
 
+// ---------- nightly copy of the database: data/backups/bastion-YYYY-MM-DD.db, the 7 latest are kept ----------
+// Made once a day after 4 a.m. (server time), or at start-up if today's copy is missing and it is past 4 a.m.
+// The copy is taken while the game runs: the players notice nothing.
+const BACKUP_DIR = path.join(DATA, 'backups'), BACKUP_KEEP = +process.env.BACKUP_KEEP || 7, BACKUP_HOUR = 4;
+const DAY_FMT = new Intl.DateTimeFormat('en-CA', { timeZone: SERVER_TZ, year: 'numeric', month: '2-digit', day: '2-digit' });
+const HOUR_FMT = new Intl.DateTimeFormat('en-GB', { timeZone: SERVER_TZ, hour: '2-digit', hourCycle: 'h23' });
+function backupDb(force) {
+  try {
+    if (!force && +HOUR_FMT.format(new Date()) < BACKUP_HOUR) return;
+    fs.mkdirSync(BACKUP_DIR, { recursive: true });
+    const file = path.join(BACKUP_DIR, `bastion-${DAY_FMT.format(new Date())}.db`);
+    if (fs.existsSync(file)) { if (!force) return; fs.unlinkSync(file); }   // asked from the console: today's copy is made again
+    const t0 = Date.now();
+    db.exec(`VACUUM INTO '${file.replace(/'/g, "''")}'`);
+    const old = fs.readdirSync(BACKUP_DIR).filter(f => /^bastion-\d{4}-\d{2}-\d{2}\.db$/.test(f)).sort().reverse().slice(BACKUP_KEEP);
+    for (const f of old) fs.unlinkSync(path.join(BACKUP_DIR, f));
+    log('SAUVEGARDE', `Copie de la base : backups/${path.basename(file)} (${Math.round(fs.statSync(file).size / 1024)} Ko, ${Date.now() - t0} ms)${old.length ? ' · ' + old.length + ' ancienne(s) supprimée(s)' : ''}`);
+  } catch (e) { log('ERREUR', 'sauvegarde de la base : ' + e.message); }
+}
+setTimeout(() => backupDb(), 60_000).unref();
+setInterval(() => backupDb(), 30 * 60_000).unref();
+if (process.env.BACKUP_NOW) setTimeout(() => backupDb(true), 500).unref();   // tests only
+
 // forget sessions unused for 30 days
 setInterval(() => Q.oldSessions.run(Date.now() - 30 * 86400_000), 3600_000).unref();
 
 // ---------- commands typed in the Pelican console (only the server owner has access to it) ----------
-// aide · roles · joueurs · admin <pseudo> · testeur <pseudo> · joueur <pseudo>
+// aide · roles · joueurs · admin <pseudo> · testeur <pseudo> · joueur <pseudo> · sauvegarde
 const ROLE_FR = { admin: 'administrateur', tester: 'compte de test', player: 'joueur normal' };
 function consoleCommand(line) {
   const txt = String(line || '').trim(); if (!txt) return;
   const sp = txt.indexOf(' '), cmd = (sp < 0 ? txt : txt.slice(0, sp)).toLowerCase(), arg = sp < 0 ? '' : txt.slice(sp + 1).trim();
   const out = m => log('CONSOLE', m);
   if (cmd === 'aide' || cmd === 'help') {
-    out('Commandes : roles (qui a des droits) · joueurs (liste des joueurs) · admin <pseudo> · testeur <pseudo> · joueur <pseudo> (repasse en joueur normal)'); return; }
+    out('Commandes : roles (qui a des droits) · joueurs (liste des joueurs) · admin <pseudo> · testeur <pseudo> · joueur <pseudo> (repasse en joueur normal) · sauvegarde (copie de la base tout de suite)'); return; }
+  if (cmd === 'sauvegarde' || cmd === 'backup') { backupDb(true); return; }
   if (cmd === 'roles') {
     const list = db.prepare("SELECT name, role FROM users WHERE role != 'player' ORDER BY role, name").all();
     out(list.length ? list.map(u => `${u.name} (${ROLE_FR[u.role] || u.role})`).join(' · ') : 'aucun compte avec des droits'); return; }
