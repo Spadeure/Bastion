@@ -319,10 +319,9 @@ function researchPanel(){
     <div class="sub">${lab ? _t('{b} level {l}',{b:_t('Research Lab'),l:lab})+' · '+_t('Research speed +{p}%',{p:lab*5}) : _t('Build a {b} first',{b:_t('Research Lab')})}</div>
     <div class="sub">${IC.power} ${fmtN(techPower())} ${_t('power')} · ${_t('A technology cannot go above the level of the Research Lab.')}</div></div></div>`;
   if(!lab) h+=`<div class="why">${IC.lock} ${_t('Build a Research Lab on an empty plot of your base to unlock technologies.')}</div>`;
-  if(R.cur){ const c=R.cur;
-    h+=`<div class="row rcur"><div class="top"><div class="big tech">${techIcon(c.t)}</div><div style="flex:1;min-width:0"><b>${_t('In progress:')} ${_t(TECH[c.t].name)} · ${_t('Lv')} ${c.l}</b>
-      <div class="prog"><i class="lv-bar" data-s="${c.s}" data-e="${c.e}" style="width:${pct(c.s,c.e)}%"></i></div><span class="sub">${IC.time} <span class="lv-time" data-s="${c.s}" data-e="${c.e}">${fmtT((c.e-Date.now())/1000)}</span></span></div></div>
-      <div style="display:flex;gap:8px;margin-top:8px"><button class="sm" data-act="speed" data-tg="research">${IC.time} ${_t('Speed up')}</button><button class="sm" data-act="rfinish">${_t('Finish now (test)')}</button><button class="sec sm" data-act="rcancel">${_t('Cancel (80% back)')}</button></div></div>`; }
+  if(R.cur){ const c=R.cur;   // only a slim reminder up here: the controls are on the row of the research itself
+    h+=`<button class="rjump" data-act="rjump" data-t="${c.t}">${techIcon(c.t)}<span><b>${_t('In progress:')} ${_t(TECH[c.t].name)} · ${_t('Lv')} ${c.l}</b>
+      <span class="sub">${IC.time} <span class="lv-time" data-s="${c.s}" data-e="${c.e}">${fmtT((c.e-Date.now())/1000)}</span></span></span></button>`; }
   for(const [br,label] of TECH_BR){ h+=`<h3>${_t(label)}</h3>`;
     for(const t in TECH){ const d=TECH[t]; if(d.br!==br) continue;
       const l=techLv(t), n=l+1, mx=techMax(t), maxed=l>=mx, miss=missingTech(techReqAt(t,n)), hasMiss=Object.keys(miss).length>0, busy=R.cur&&R.cur.t===t, noPlans=!maxed && d.plans && !invN(d.plans);
@@ -333,7 +332,7 @@ function researchPanel(){
       else if(busy){ const c=R.cur;   // the speed-up is right here, on the row of the research in progress (no need to go back up)
         h+=`<div class="rbusy" id="rbusy"><div class="prog"><i class="lv-bar" data-s="${c.s}" data-e="${c.e}" style="width:${pct(c.s,c.e)}%"></i></div>
           <div class="sub">${IC.time} ${_t('Research in progress')} · <span class="lv-time" data-s="${c.s}" data-e="${c.e}">${fmtT((c.e-Date.now())/1000)}</span></div>
-          <div class="trow2"><button class="sm" data-act="speed" data-tg="research">${IC.time} ${_t('Speed up')}</button><button class="sm" data-act="rfinish">${_t('Finish now (test)')}</button><button class="sec sm" data-act="rcancel">${_t('Cancel (80% back)')}</button></div></div>`; }
+          <div class="rbtns"><button class="sm" data-act="speed" data-tg="research">${IC.time} ${_t('Speed up')}</button><button class="sm" data-act="rfinish">${_t('Finish now (test)')}</button><button class="sec sm" data-act="rcancel">${_t('Cancel (80% back)')}</button></div></div>`; }
       else if(hasMiss) h+=`<div class="why">${IC.lock} ${_t('Requires research: {r}',{r:techReqText(miss)})}</div>`;
       else { const why=whyNotResearch(t,n); h+=`${techChips(t,n)}<button data-act="research" data-t="${t}"${why?' disabled':''}>${_t('Research')}</button>${why?`<div class="why">${why}</div>`:''}`; }
       h+=`</div>`; } }
@@ -1993,7 +1992,12 @@ const liveKey = html => html.replace(/(class="fg lv-ring"[^>]*?) style="[^"]*"/g
 let lastBodyKey=null;
 function setBody(html){ const body=document.getElementById('sheetBody'), k=liveKey(html);
   if(k===lastBodyKey && body.firstChild){ liveSheet(); return; }
-  lastBodyKey=k; body.innerHTML=html; }
+  lastBodyKey=k;
+  // keep what the player is looking at in place: a block that appears or disappears above (a research that ends...) must not make the list jump
+  const sc=[document.getElementById('sheet'), body].find(e=>e && e.scrollTop>0), cr=sc && sc.getBoundingClientRect();
+  let an=null, top0=0; if(sc) for(const e of body.querySelectorAll('[id]:not(#rbusy)')){ const r=e.getBoundingClientRect(); if(r.top>=cr.top-2){ an=e.id; top0=r.top; break; } }
+  body.innerHTML=html;
+  if(an){ const e=document.getElementById(an); if(e) sc.scrollTop+=e.getBoundingClientRect().top-top0; } }
 function liveIn(root){ const now=Date.now();
   root.querySelectorAll('[data-e]').forEach(el=>{ const a=+el.dataset.s, b=+el.dataset.e;
     if(el.classList.contains('lv-bar')) el.style.width=pct(a,b)+'%'; else if(el.classList.contains('lv-sbar')) el.setAttribute('width', 1.2*pct(a,b)); else if(el.classList.contains('lv-time')) el.textContent=fmtT((b-now)/1000); else if(el.classList.contains('lv-ring')) el.style.strokeDashoffset=RING*(1-pct(a,b)/100); }); }
@@ -2077,6 +2081,7 @@ function onAct(e){
   if(a==='speed') openSpeed(btn.dataset.tg);
   if(a==='suse') useSpeed(btn.dataset.id);
   if(a==='speedback') speedDone();
+  if(a==='rjump') techFocus(btn.dataset.t);
   if(a==='rfinish') checkResearch(true);
   if(a==='rcancel') cancelResearch();
   if(a==='mfinish') finishMarch(btn.dataset.id);
