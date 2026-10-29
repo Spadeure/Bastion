@@ -843,3 +843,5 @@ button.danger{background:linear-gradient(180deg,#b8432f,#7a2416)!important;color
 .pnote li::marker{color:var(--brass)}
 .pnote:not(.last) li{color:var(--mut)}
 .pok{display:block;width:100%;margin-top:14px}
+.rbusy{margin-top:8px;padding:8px;border-radius:8px;background:#0006;border:1px solid var(--brass)}
+.rbusy .trow2{flex-wrap:wrap;margin-top:6px}
