@@ -265,7 +265,6 @@ async function api(req, res, url, ip) {
       if (t) {
         if (t.user_id === me.id) return refuse('bad_order');
         if (t.shield > Date.now()) return refuse('target_protected');
-        if (b.lvl - t.lvl > PVP.levelGap) return refuse('target_too_weak');
         o.pvp = { uid: t.user_id, name: t.name, kind: o.kind === 'spy' ? 'spy' : 'attack' };
       } else if (o.kind === 'spy') return refuse('bad_order');
     }
@@ -302,7 +301,7 @@ function shape(s) {
   return JSON.stringify(rest) + (titan ? JSON.stringify({ ...titan, hp: titan.hp >= 100 ? 100 : 0 }) : '');
 }
 // ---------- attacks between players ----------
-const PVP = { beginnerMs: 3 * 86400_000, beginnerCC: 5, levelGap: 10 };
+const PVP = { beginnerMs: 3 * 86400_000, beginnerCC: 5 };   // no level gap: any commander can attack any other one
 // beginner protection: 3 days, or until the Command Center reaches level 5, or until the player attacks someone
 const beginnerEnd = (st, created) => (st && !st.attackedPlayer && ((st.slots || {}).cc || {}).lvl < PVP.beginnerCC) ? created + PVP.beginnerMs : 0;
 const shieldOf = (st, created) => Math.max(beginnerEnd(st, created), (st && st.truce) || 0);
