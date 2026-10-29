@@ -186,7 +186,7 @@ function freeSpot() {
   const used = Q.allPos.all();
   for (let i = 0; i < 500; i++) {
     const x = 2 * Math.floor((80 + Math.random() * (MAPN - 160)) / 2), y = 2 * Math.floor((80 + Math.random() * (MAPN - 160)) / 2);
-    if (used.every(p => Math.abs(p.x - x) + Math.abs(p.y - y) >= 8)) return { x, y };
+    if (used.every(p => Math.abs(p.x - x) + Math.abs(p.y - y) >= 8) && !engine.isFort(x, y)) return { x, y };   // never on a Fortified Mountain
   }
   throw new Error('map full');
 }

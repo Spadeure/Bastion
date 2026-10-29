@@ -786,3 +786,10 @@ button.danger{background:linear-gradient(180deg,#b8432f,#7a2416)!important;color
 #alertmini img{width:18px;height:18px}
 @keyframes amini{50%{box-shadow:0 0 22px #ff6a5acc}}
 @media (min-width:761px){ #alertmini{top:104px} }
+/* Fortified Mountains: nearest one from the map coordinates, plans shown on the outpost research */
+#cfort .ic{width:28px;height:28px;vertical-align:-8px;margin:-4px -2px}
+.plinfo{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:6px;padding:6px 8px;border-radius:8px;background:#0006;border:1px solid #ff9a3c66;font-size:13px}
+.plinfo.ok{border-color:#7fd06a66}
+.plinfo>div{flex:1 1 170px;min-width:0}
+.plinfo button{margin-left:auto}
+.plinfo .sub{font-size:12px}

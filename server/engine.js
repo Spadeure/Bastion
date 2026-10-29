@@ -57,4 +57,6 @@ function pvp(attSt, defSt, mid, attName, defName) {
   try { return JSON.parse(ctx.__pvp(JSON.stringify(attSt), JSON.stringify(defSt), mid, attName, defName)); }
   finally { fakeNow = null; }
 }
-module.exports = { run, load, pvp };
+// is there a Fortified Mountain on this tile? (new bases are never placed on one)
+function isFort(x, y) { if (!ctx) load(); return !!ctx.isFort(x, y); }
+module.exports = { run, load, pvp, isFort };
