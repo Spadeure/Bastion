@@ -57,6 +57,10 @@ db.exec(`PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL;
 if (!db.prepare("SELECT 1 FROM pragma_table_info('bases') WHERE name = 'shield'").get()) db.exec("ALTER TABLE bases ADD COLUMN shield INTEGER NOT NULL DEFAULT 0");
 // roles: player · tester (test account with every power) · admin (can also create accounts)
 if (!db.prepare("SELECT 1 FROM pragma_table_info('users') WHERE name = 'role'").get()) db.exec("ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'player'");
+// accounts blocked for using a script: banned = time of the block (0 = free); the reports explain why
+if (!db.prepare("SELECT 1 FROM pragma_table_info('users') WHERE name = 'banned'").get()) db.exec("ALTER TABLE users ADD COLUMN banned INTEGER NOT NULL DEFAULT 0");
+db.exec(`CREATE TABLE IF NOT EXISTS bans (id INTEGER PRIMARY KEY, user_id INTEGER NOT NULL, at INTEGER NOT NULL, reason TEXT NOT NULL, detail TEXT, active INTEGER NOT NULL DEFAULT 1);
+  CREATE INDEX IF NOT EXISTS bans_user ON bans (user_id, at);`);
 // Public test phase: the account named ADMIN_NAME (Spadeure) is always the administrator, the only one with every power.
 // Once (remembered in the database): every other account becomes a normal player, test accounts included.
 const ADMIN_NAME = process.env.ADMIN_NAME || 'Spadeure';
@@ -96,7 +100,7 @@ const Q = {
   userByName: db.prepare('SELECT * FROM users WHERE name = ?'),
   addUser: db.prepare('INSERT INTO users (name, salt, hash, created) VALUES (?, ?, ?, ?)'),
   addSession: db.prepare('INSERT INTO sessions (token, user_id, created, seen) VALUES (?, ?, ?, ?)'),
-  session: db.prepare('SELECT s.token, u.id, u.name, u.role, u.created FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token = ?'),
+  session: db.prepare('SELECT s.token, u.id, u.name, u.role, u.created, u.banned FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token = ?'),
   user: db.prepare('SELECT id, name, role, created FROM users WHERE id = ?'),
   seen: db.prepare('UPDATE sessions SET seen = ? WHERE token = ?'),
   delSession: db.prepare('DELETE FROM sessions WHERE token = ?'),
@@ -118,7 +122,14 @@ const Q = {
   atkIncoming: db.prepare("SELECT a.*, u.name AS aname FROM attacks a JOIN users u ON u.id = a.att WHERE a.def = ? AND a.status = 'out' ORDER BY a.arrive"),
   count: db.prepare('SELECT COUNT(*) AS n FROM users'),
   setRole: db.prepare('UPDATE users SET role = ? WHERE id = ?'),
-  accounts: db.prepare('SELECT u.name, u.role, u.created, b.lvl, b.power, b.updated FROM users u LEFT JOIN bases b ON b.user_id = u.id ORDER BY u.id'),
+  accounts: db.prepare(`SELECT u.name, u.role, u.created, u.banned, b.lvl, b.power, b.updated,
+    (SELECT json_object('at', x.at, 'reason', x.reason, 'detail', x.detail) FROM bans x WHERE x.user_id = u.id AND x.active = 1 ORDER BY x.at DESC LIMIT 1) AS ban
+    FROM users u LEFT JOIN bases b ON b.user_id = u.id ORDER BY u.id`),
+  setBanned: db.prepare('UPDATE users SET banned = ? WHERE id = ?'),
+  addBan: db.prepare('INSERT INTO bans (user_id, at, reason, detail) VALUES (?, ?, ?, ?)'),
+  endBans: db.prepare('UPDATE bans SET active = 0 WHERE user_id = ?'),
+  lastBan: db.prepare('SELECT * FROM bans WHERE user_id = ? ORDER BY at DESC LIMIT 1'),
+  bannedList: db.prepare('SELECT u.id, u.name, u.banned, (SELECT reason FROM bans x WHERE x.user_id = u.id ORDER BY x.at DESC LIMIT 1) AS reason FROM users u WHERE u.banned > 0 ORDER BY u.banned DESC'),
 };
 
 // ---------- statistics for the hourly summary ----------
@@ -181,6 +192,7 @@ setInterval(() => {   // forget old tries so the lists never grow
   for (const [ip, u] of blocked) if (now >= u) blocked.delete(ip);
   for (const [tk, s] of seenAt) if (now - s > 3600_000) seenAt.delete(tk);
   for (const [id, b] of orderBucket) if (!b.waiting && now - b.at > 600_000) orderBucket.delete(id);
+  for (const [id, w] of watch) { const last = w.acts.length ? w.acts[w.acts.length - 1].t : 0; if (now - last > 3600_000 && !w.bad.some(t => now - t < 600_000)) watch.delete(id); }
   for (const [id, t] of tooFastLog) if (now - t > 600_000) tooFastLog.delete(id);
   for (const ip of [...newAccounts.keys()]) accountsToday(ip);
 }, 5 * 60_000).unref();
@@ -205,10 +217,82 @@ async function orderTurn(me) {
   return true;
 }
 const tooFastLog = new Map();   // one line per player and per minute in the console
-function tooFast(me, ip, res) {
+function tooFast(me, ip, res, req) {
   STATS.refused++; const now = Date.now();
+  banPlayer(me, ip, req, 'burst', { n: ORDER_WAIT_MAX }); if (me.banned) return send(res, 403, { error: 'banned' });
   if (now - (tooFastLog.get(me.id) || 0) > 60_000) { tooFastLog.set(me.id, now); cheat(me, ip, 'beaucoup trop d\'ordres à la fois (script ?) : ordres refusés pendant un moment'); }
   return send(res, 429, { error: 'too_fast' });
+}
+// ---------- scripts are forbidden: an account caught using one is blocked, with a report saying why ----------
+// The game itself never sends an order on its own (its timers only ask for the news), so every order comes from a tap.
+// Signs that cannot come from a person:
+//  · not_game : requests that do not come from the game page (a program talking to the server directly)
+//  · burst    : more orders waiting at once than fingers can send
+//  · rush     : far too many orders in one minute
+//  · flood    : far too many orders in 10 minutes
+//  · regular  : a long run of orders at perfectly regular intervals (a person is never that regular, a timer always is)
+//  · nonstop  : orders in every 10-minute slot for 16 hours in a row (a person sleeps)
+// The thresholds are far above what a very fast player does. The administrator is never checked.
+const BOT = { badSig: 20, rush: 200, flood: 600, regularN: 60, regularCv: 0.025, regularMinGap: 1500, regularMaxGap: 600_000, nonstopH: 16 };
+const watch = new Map();   // user id -> {acts:[{t,a}], bad:[t], slots:Set}
+const watchOf = id => { let w = watch.get(id); if (!w) watch.set(id, w = { acts: [], bad: [], slots: new Set() }); return w; };
+// the game page signs its requests with a mark computed from the session key (same function in js/game.js)
+function pageSig(token) { let h1 = 0xdeadbeef ^ 77, h2 = 0x41c6ce57 ^ 77; const s = token + '|bastion-play';
+  for (let i = 0; i < s.length; i++) { const c = s.charCodeAt(i); h1 = Math.imul(h1 ^ c, 2654435761); h2 = Math.imul(h2 ^ c, 1597334677); }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  return (h2 >>> 0).toString(16).padStart(8, '0') + (h1 >>> 0).toString(16).padStart(8, '0'); }
+const REASON_FR = {
+  not_game: d => `${d.n} requêtes envoyées hors de la page du jeu (un programme qui parle directement au serveur)`,
+  burst: d => `plus de ${d.n} ordres en attente en même temps (ordres envoyés par un programme)`,
+  rush: d => `${d.n} ordres en une minute (impossible à la main)`,
+  flood: d => `${d.n} ordres en 10 minutes (impossible à la main)`,
+  regular: d => `${d.n} ordres d'affilée à intervalles parfaitement réguliers (toutes les ${d.g} s, écart ${d.v} %) : un humain n'est jamais aussi régulier`,
+  nonstop: d => `des ordres toutes les 10 minutes sans aucune pause pendant ${d.h} heures`,
+};
+function banPlayer(me, ip, req, reason, d) {
+  if (me.role === 'admin' || me.banned) return;
+  const now = Date.now(), w = watchOf(me.id);
+  const detail = { ...d, ip, ua: clean(String(req.headers['user-agent'] || '')).slice(0, 40) + (String(req.headers['user-agent'] || '').length > 40 ? '…' : ''),
+    last: w.acts.slice(-25).map(x => [x.t, x.a]) };
+  Q.setBanned.run(now, me.id); Q.addBan.run(me.id, now, reason, JSON.stringify(detail));   // its sessions stay: every request answers « blocked »
+  me.banned = now; watch.delete(me.id); orderBucket.delete(me.id);
+  log('SCRIPT', `${me.name} BLOQUÉ · ${ip} · ${REASON_FR[reason](d)} · tape « rapport ${me.name} » pour le détail, « debloquer ${me.name} » pour annuler`);
+  push(me.id, 'banned', {});
+  const set = streams.get(me.id); if (set) for (const r of set) { try { r.end(); } catch (e) {} }
+}
+// a request to the game engine without the mark of the game page: refused (an old page reloads by itself); many of them = a program
+function checkSig(me, ip, req) {
+  if (me.role === 'admin') return true;
+  if (req.headers['x-bastion'] === pageSig(me.token)) return true;
+  const w = watchOf(me.id), now = Date.now(); w.bad = w.bad.filter(t => now - t < 600_000); w.bad.push(now);
+  if (w.bad.length >= BOT.badSig) banPlayer(me, ip, req, 'not_game', { n: w.bad.length });
+  return false;
+}
+// one order from a player: looked at after it is done (nothing is slowed down)
+function noteOrder(me, ip, req, a) {
+  if (me.role === 'admin' || me.banned) return;
+  const now = Date.now(), w = watchOf(me.id);
+  w.acts.push({ t: now, a: clean(a).slice(0, 16) }); if (w.acts.length > BOT.flood + 50) w.acts.splice(0, w.acts.length - BOT.flood - 50);
+  const n10 = w.acts.filter(x => now - x.t < 600_000).length;
+  const n1 = w.acts.filter(x => now - x.t < 60_000).length;
+  if (n1 >= BOT.rush) return banPlayer(me, ip, req, 'rush', { n: n1 });
+  if (n10 >= BOT.flood) return banPlayer(me, ip, req, 'flood', { n: n10 });
+  if (w.acts.length > BOT.regularN) {
+    const tt = w.acts.slice(-BOT.regularN - 1).map(x => x.t), gaps = tt.slice(1).map((t, i) => t - tt[i]);
+    if (gaps.every(g => g >= BOT.regularMinGap && g <= BOT.regularMaxGap)) {
+      const mean = gaps.reduce((s, g) => s + g, 0) / gaps.length, cv = Math.sqrt(gaps.reduce((s, g) => s + (g - mean) ** 2, 0) / gaps.length) / mean;
+      if (cv < BOT.regularCv) return banPlayer(me, ip, req, 'regular', { n: gaps.length, g: +(mean / 1000).toFixed(2), v: +(cv * 100).toFixed(1) });
+    }
+  }
+  const slot = Math.floor(now / 600_000); w.slots.add(slot);
+  if (w.slots.size > 200) for (const k of w.slots) if (k < slot - 150) w.slots.delete(k);
+  let run = 0; while (w.slots.has(slot - run)) run++;
+  if (run >= BOT.nonstopH * 6) return banPlayer(me, ip, req, 'nonstop', { h: BOT.nonstopH });
+}
+function unbanPlayer(u, by) {
+  Q.setBanned.run(0, u.id); Q.endBans.run(u.id); watch.delete(u.id); orderBucket.delete(u.id);
+  log('SCRIPT', `${u.name} débloqué par ${by}`);
 }
 // a free spot for a new base: on the tile grid, away from the map edges and from other players
 function freeSpot() {
@@ -263,6 +347,7 @@ async function api(req, res, url, ip) {
       blockIfTooMany(ip, n, 'connexions échouées');
       return send(res, 401, { error: 'bad_login' });
     }
+    if (u.banned) { log('CONNEXION REFUSÉE', `${u.name} · ${ip} · compte bloqué (script)`); return send(res, 403, { error: 'banned' }); }
     const token = crypto.randomBytes(32).toString('hex'), now = Date.now(); Q.addSession.run(token, u.id, now, now);
     STATS.loginOk++; STATS.players.add(u.name);
     log('CONNEXION OK', `${u.name} · ${ip}${u.role !== 'player' ? ' · ' + u.role : ''}`);
@@ -270,6 +355,7 @@ async function api(req, res, url, ip) {
   }
   const me = auth(req);
   if (!me) return send(res, 401, { error: 'not_logged_in' });
+  if (me.banned) return send(res, 403, { error: 'banned' });   // blocked for using a script
   STATS.players.add(me.name);
   if (url === '/api/stream' && req.method === 'GET') {   // the live line (kept open)
     res.writeHead(200, { 'Content-Type': 'text/event-stream; charset=utf-8', 'Cache-Control': 'no-cache, no-transform', 'Connection': 'keep-alive', 'X-Accel-Buffering': 'no' });
@@ -282,7 +368,9 @@ async function api(req, res, url, ip) {
   }
   if (url === '/api/logout' && req.method === 'POST') { Q.delSession.run(me.token); seenAt.delete(me.token); log('DÉCONNEXION', `${me.name} · ${ip}`); return send(res, 200, { ok: true }); }
   const ENGINE = (url === '/api/state' && req.method === 'GET') || (url === '/api/act' && req.method === 'POST') || (url === '/api/chest' && req.method === 'POST');
-  if (ENGINE && !(await orderTurn(me))) return tooFast(me, ip, res);   // the game engine runs for these: one line per player
+  if (ENGINE && !checkSig(me, ip, req)) return send(res, me.banned ? 403 : 409, { error: me.banned ? 'banned' : 'old_page' });   // not from the game page
+  if (ENGINE && !(await orderTurn(me))) return tooFast(me, ip, res, req);
+  if (me.banned) return send(res, 403, { error: 'banned' });   // the game engine runs for these: one line per player
   if (url === '/api/state' && req.method === 'GET') {
     const b = Q.base.get(me.id), r = runFor(me, b, null, [], langOf(req));
     return send(res, 200, { name: me.name, role: me.role, pos: { x: b.x, y: b.y }, state: r.state, events: r.events, serverTime: Date.now(),
@@ -303,7 +391,8 @@ async function api(req, res, url, ip) {
     }
     if (a === 'useItem' && Array.isArray(args) && /^truce_/.test(String(args[0])) && Q.atkIncoming.all(me.id).length) return refuse('attack_incoming');
     const r = runFor(me, b, String(a || ''), Array.isArray(args) ? args.slice(0, 5) : [], lang);
-    refusedOrder(me, ip, act, args, r.error);
+    refusedOrder(me, ip, act, args, r.error); noteOrder(me, ip, req, act);
+    if (me.banned) return send(res, 403, { error: 'banned' });
     return send(res, 200, { state: r.state, events: r.events, error: r.error, serverTime: Date.now() });
   }
   if (url === '/api/state' && req.method === 'PUT') { cheat(me, ip, 'tentative d\'envoyer une partie modifiée (PUT /api/state)'); return send(res, 403, { error: 'forbidden' }); }
@@ -432,6 +521,11 @@ async function admin(req, res, me, ip) {
     try { const c = createAccount(p.name, p.password, p.role); log('ADMIN', `${me.name} a créé le compte ${c.n} (${c.rl})`); return send(res, 200, { ok: true, name: c.n }); }
     catch (e) { return send(res, e.code || 500, { error: e.message }); }
   }
+  if (action === 'unban') {
+    if (me.role !== 'admin') { cheat(me, ip, 'compte test : tentative de débloquer un compte'); return send(res, 403, { error: 'forbidden' }); }
+    const tu = Q.userByName.get(String(p.target || '').trim()); if (!tu) return send(res, 404, { error: 'unknown_player' });
+    unbanPlayer(tu, me.name); return send(res, 200, { ok: true, name: tu.name });
+  }
   // the administrator can give to any player (p.target = player name); test accounts only to themselves
   let who = me;
   if (p.target !== undefined && p.target !== null && p.target !== '') {
@@ -478,7 +572,8 @@ async function openChest(req, res, me, ip) {
   const { id, count = 1, lang } = await readBody(req, 10_000);
   if (!gameId(id) || !Object.hasOwn(LOOT, id)) return send(res, 400, { error: 'bad_chest' });
   const r = runFor(me, Q.base.get(me.id), 'useItem', [id, count > 1], lang);
-  refusedOrder(me, ip, 'chest', [id], r.error);
+  refusedOrder(me, ip, 'chest', [id], r.error); noteOrder(me, ip, req, 'chest');
+  if (me.banned) return send(res, 403, { error: 'banned' });
   return send(res, 200, { ok: !r.error, error: r.error, state: r.state, events: r.events });
 }
 
@@ -595,8 +690,24 @@ function consoleCommand(line) {
   const sp = txt.indexOf(' '), cmd = (sp < 0 ? txt : txt.slice(0, sp)).toLowerCase(), arg = sp < 0 ? '' : txt.slice(sp + 1).trim();
   const out = m => log('CONSOLE', m);
   if (cmd === 'aide' || cmd === 'help') {
-    out('Commandes : roles (qui a des droits) · joueurs (liste des joueurs) · admin <pseudo> · testeur <pseudo> · joueur <pseudo> (repasse en joueur normal) · sauvegarde (copie de la base tout de suite)'); return; }
+    out('Commandes : roles (qui a des droits) · joueurs (liste des joueurs) · admin <pseudo> · testeur <pseudo> · joueur <pseudo> (repasse en joueur normal) · sauvegarde (copie de la base tout de suite) · bloques (comptes bloqués pour script) · rapport <pseudo> (pourquoi il est bloqué) · debloquer <pseudo>'); return; }
   if (cmd === 'sauvegarde' || cmd === 'backup') { backupDb(true); return; }
+  if (cmd === 'bloques' || cmd === 'bloqués' || cmd === 'bannis') {
+    const list = Q.bannedList.all();
+    out(list.length ? `${list.length} compte(s) bloqué(s) : ` + list.map(u => `${u.name} (${STAMP.format(new Date(u.banned))}, ${u.reason || '?'})`).join(' · ') + ' · tape « rapport <pseudo> »' : 'aucun compte bloqué'); return; }
+  if (cmd === 'rapport') {
+    const u = arg && Q.userByName.get(arg); if (!u) { out(arg ? `Joueur introuvable : ${arg}` : 'Il manque le pseudo : rapport <pseudo>'); return; }
+    const b = Q.lastBan.get(u.id); if (!b) { out(`${u.name} n'a jamais été bloqué`); return; }
+    let d = {}; try { d = JSON.parse(b.detail || '{}'); } catch (e) {}
+    out(`RAPPORT ${u.name} · ${u.banned ? 'BLOQUÉ' : 'débloqué depuis'} · bloqué le ${STAMP.format(new Date(b.at))}`);
+    out(`Raison : ${REASON_FR[b.reason] ? REASON_FR[b.reason](d) : b.reason}`);
+    out(`Adresse : ${d.ip || '?'} · Navigateur : ${d.ua || '?'}`);
+    const last = (d.last || []).map(([t, a], i, L) => `${STAMP.format(new Date(t)).slice(-8)}${i ? ' (+' + ((t - L[i - 1][0]) / 1000).toFixed(1) + ' s)' : ''} ${a}`);
+    out(last.length ? `Derniers ordres : ${last.join(' · ')}` : 'Derniers ordres : aucun (requêtes hors du jeu)'); return; }
+  if (cmd === 'debloquer' || cmd === 'débloquer') {
+    const u = arg && Q.userByName.get(arg); if (!u) { out(arg ? `Joueur introuvable : ${arg}` : 'Il manque le pseudo : debloquer <pseudo>'); return; }
+    if (!u.banned) { out(`${u.name} n'est pas bloqué`); return; }
+    unbanPlayer(u, 'la console'); return; }
   if (cmd === 'roles') {
     const list = db.prepare("SELECT name, role FROM users WHERE role != 'player' ORDER BY role, name").all();
     out(list.length ? list.map(u => `${u.name} (${ROLE_FR[u.role] || u.role})`).join(' · ') : 'aucun compte avec des droits'); return; }
