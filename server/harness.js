@@ -97,6 +97,22 @@ const __ACTIONS = {
   daily() { return claimDailyTicket(); },
   readReport(id) { const r = state.reports.find(x => x.id === Number(id)); if (!r) return 'bad_order'; r.read = true; },
   readAllReports() { for (const r of state.reports) r.read = true; },
+  // ----- alliances: orders given by the server only (a browser sending them is refused before the engine) -----
+  reinforce(x, y, q) {   // troops leave to defend an ally's base: travel time like a march
+    if (!bldLevel('rally')) return _t('Build a {b} first',{b:_t('Rally Point')});
+    const t = {}; let n = 0; for (const u in (q || {})) if (own(UNITS, u)) { const k = __int(q[u], 0, 1e9); if (k > (state.troops[u] || 0)) return _t('Choose your troops'); if (k) { t[u] = k; n += k; } }
+    if (!n) return 'bad_order';
+    mapSel = { x: __int(x, 1, MAPN), y: __int(y, 1, MAPN) };
+    const secs = marchStats(t, false).secs; for (const u in t) state.troops[u] -= t[u];
+    __events.push({ t: 'reinf', secs, q: t }); },
+  reinfBack(q) { for (const u in (q || {})) if (own(UNITS, u)) state.troops[u] = (state.troops[u] || 0) + __int(q[u], 0, 1e9); },
+  allyGive(res) { const R = ['metal', 'wood', 'stone', 'fuel', 'rations'];
+    for (const r of R) if (__int((res || {})[r], 0, 1e12) > Math.floor(state.res[r] || 0)) return _t('Not enough resources');
+    for (const r of R) state.res[r] -= __int((res || {})[r], 0, 1e12); },
+  allyGet(res) { for (const r of ['metal', 'wood', 'stone', 'fuel', 'rations']) state.res[r] = (state.res[r] || 0) + __int((res || {})[r], 0, 1e12); },
+  allyHelp(b, key, share, min) { return __in(b, () => { const q = state.queue, now = Date.now();
+    if (!q || q.end <= now || `${b}|${q.slot}|${q.type}|${q.lvl}|${q.start}` !== key) return 'bad_order';
+    q.end = Math.max(now, q.end - Math.max(min, Math.round((q.end - q.start) * share))); }); },
   // test buttons (admin and test accounts only)
   finish(b) { return __in(b, () => { if (state.queue) complete(); }); },
   finishTraining(bl, b) { return __in(b, () => { if (!TRAINERS.includes(bl)) return 'bad_order'; finishTraining(bl); }); },

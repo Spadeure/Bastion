@@ -166,7 +166,7 @@ const Q = {
   allPos: db.prepare('SELECT x, y FROM bases'),
   baseAt: db.prepare('SELECT user_id FROM bases WHERE x = ? AND y = ?'),
   // alliance: always empty until alliances exist (the map already shows it, so nothing changes on the player side then)
-  players: db.prepare('SELECT u.name, b.x, b.y, b.lvl, b.power, b.shield, NULL AS alliance FROM bases b JOIN users u ON u.id = b.user_id WHERE b.user_id != ?'),
+  players: db.prepare('SELECT u.id AS uid, u.name, b.x, b.y, b.lvl, b.power, b.shield FROM bases b JOIN users u ON u.id = b.user_id WHERE b.user_id != ?'),
   target: db.prepare('SELECT b.user_id, b.lvl, b.shield, u.name FROM bases b JOIN users u ON u.id = b.user_id WHERE b.x = ? AND b.y = ?'),
   atkByMarch: db.prepare('SELECT id, status, arrive FROM attacks WHERE att = ? AND mid = ?'),
   atkAdd: db.prepare('INSERT INTO attacks (att, def, kind, mid, launched, eta0, arrive, troops, titan) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'),
@@ -463,9 +463,9 @@ async function api(req, res, url, ip) {
     return;
   }
   if (url === '/api/logout' && req.method === 'POST') { Q.delSession.run(me.token); seenAt.delete(me.token); log('DÉCONNEXION', `${me.name} · ${ip}`); return send(res, 200, { ok: true }); }
-  const ENGINE = (url === '/api/state' && req.method === 'GET') || (url === '/api/act' && req.method === 'POST') || (url === '/api/chest' && req.method === 'POST');
+  const ENGINE = (url === '/api/state' && req.method === 'GET') || (url === '/api/act' && req.method === 'POST') || (url === '/api/chest' && req.method === 'POST') || (url === '/api/alliance' && req.method === 'POST');
   // maintenance: the players can still look at their game (time goes on), but every order is refused; the administrator plays normally
-  if (panel.isMaint() && me.role !== 'admin' && ((url === '/api/act' || url === '/api/chest' || url === '/api/admin') && req.method === 'POST')) return send(res, 503, { error: 'maintenance', srv: panel.status() });
+  if (panel.isMaint() && me.role !== 'admin' && ((url === '/api/act' || url === '/api/chest' || url === '/api/admin' || url === '/api/alliance') && req.method === 'POST')) return send(res, 503, { error: 'maintenance', srv: panel.status() });
   if (ENGINE && !checkSig(me, ip, req)) return send(res, me.banned ? 403 : 409, { error: me.banned ? 'banned' : 'old_page' });   // not from the game page
   if (ENGINE && !(await orderTurn(me))) return tooFast(me, ip, res, req);
   if (me.banned) return send(res, 403, { error: 'banned' });   // the game engine runs for these: one line per player
@@ -477,12 +477,14 @@ async function api(req, res, url, ip) {
   if (url === '/api/act' && req.method === 'POST') {             // one order from the player: checked and run by the server
     const { a, args = [], lang } = await readBody(req, 20_000);
     const b = Q.base.get(me.id), act = clean(a);
+    if (ally.SERVER_ACTS.has(String(a))) { cheat(me, ip, `ordre réservé au serveur : ${act}`); return send(res, 403, { error: 'forbidden' }); }
     const refuse = err => { if (err === 'bad_order') refusedOrder(me, ip, act, args, err); const r0 = runFor(me, b, null, [], lang); return send(res, 200, { state: r0.state, events: r0.events, error: err, serverTime: Date.now() }); };
     if (a === 'launch' && Array.isArray(args) && args[0] && typeof args[0] === 'object') {
       const o = args[0]; delete o.pvp;                             // only the server says that the target is a player
       const t = Q.target.get(Math.floor(Number(o.x) || 0), Math.floor(Number(o.y) || 0));
       if (t) {
         if (t.user_id === me.id) return refuse('bad_order');
+        if (ally.sameAlliance(me.id, t.user_id)) return refuse('same_alliance');   // never against a member of your own alliance
         if (t.shield > Date.now()) return refuse('target_protected');
         o.pvp = { uid: t.user_id, name: t.name, kind: o.kind === 'spy' ? 'spy' : 'attack' };
       } else if (o.kind === 'spy') return refuse('bad_order');
@@ -506,7 +508,14 @@ async function api(req, res, url, ip) {
   if (url === '/api/state' && req.method === 'PUT') { cheat(me, ip, 'tentative d\'envoyer une partie modifiée (PUT /api/state)'); return send(res, 403, { error: 'forbidden' }); }
   if (url === '/api/admin' && req.method === 'POST') return admin(req, res, me, ip);
   if (url === '/api/chest' && req.method === 'POST') return openChest(req, res, me, ip);
-  if (url === '/api/players' && req.method === 'GET') { const now = Date.now(); return send(res, 200, { players: Q.players.all(me.id).map(p => ({ ...p, shield: p.shield > now ? p.shield : 0 })), outposts: Q.allOps.all() }); }
+  if (url === '/api/players' && req.method === 'GET') { const now = Date.now(), an = ally.names();
+    return send(res, 200, { players: Q.players.all(me.id).map(({ uid, ...p }) => ({ ...p, shield: p.shield > now ? p.shield : 0, alliance: an.get(uid) || null })), outposts: Q.allOps.all() }); }
+  if (url === '/api/alliance' && req.method === 'GET') return send(res, 200, ally.view(me));
+  if (url === '/api/alliance' && req.method === 'POST') {
+    const P = await readBody(req, 20_000); const op = clean(P.op);
+    try { const r = ally.act(me, P); noteOrder(me, ip, req, 'ally:' + op); if (me.banned) return send(res, 403, { error: 'banned' }); return send(res, 200, { ...r, view: ally.view(me) }); }
+    catch (e) { if (!e.code) throw e; if (e.error === 'bad_order') refusedOrder(me, ip, 'ally:' + op, [P.name || P.id || ''], 'bad_order'); return send(res, e.code, { error: e.error }); }
+  }
   if (url === '/api/ranking' && req.method === 'GET') return send(res, 200, ranking(new URLSearchParams(req.url.split('?')[1] || '').get('by'), me.id));
   if (url === '/api/incoming' && req.method === 'GET') { const b = Q.base.get(me.id); return send(res, 200, { incoming: incomingFor(me.id, b && b.state ? JSON.parse(b.state) : {}) }); }
   return send(res, 404, { error: 'not_found' });
@@ -530,7 +539,7 @@ function ranking(by, uid) {
   if (!c || Date.now() - c.at > 20_000) {
     const rows = db.prepare(`SELECT u.id, u.name, b.power, b.pvp, b.wins, ROW_NUMBER() OVER (ORDER BY ${RANK_BY[by]} DESC, b.power DESC, u.id) AS r
       FROM users u JOIN bases b ON b.user_id = u.id WHERE u.banned = 0`).all();
-    const pub = x => ({ r: x.r, name: x.name, power: x.power, pvp: x.pvp, wins: x.wins, alliance: null });   // never the position of the base
+    const an = ally.names(), pub = x => ({ r: x.r, name: x.name, power: x.power, pvp: x.pvp, wins: x.wins, alliance: an.get(x.id) || null });   // never the position of the base
     c = { at: Date.now(), top: rows.slice(0, RANK_TOP).map(pub), mine: new Map(rows.map(x => [x.id, pub(x)])), n: rows.length };
     rankCache.set(by, c);
   }
@@ -593,9 +602,12 @@ function resolveAttack(row) {
   if (!ab || !dbs || !au || !du || !ab.state) { Q.atkStatus.run('gone', null, row.id); return; }
   const ast = JSON.parse(ab.state); ast.pos = { x: ab.x, y: ab.y };
   const dst = dbs.state ? JSON.parse(dbs.state) : { pos: { x: dbs.x, y: dbs.y } }; dst.pos = { x: dbs.x, y: dbs.y };
+  if (row.kind !== 'spy') { const rf = ally.reinfAt(row.def); if (Object.keys(rf).length) dst.reinf = rf; }   // allies' reinforcements defend with him
   const r = engine.pvp(ast, dst, row.mid, au.name, du.name);
   if (r.gone) { Q.atkStatus.run('gone', null, row.id); return; }
   r.att.pos = { x: ab.x, y: ab.y }; r.def.pos = { x: dbs.x, y: dbs.y };
+  const rleft = r.def.reinfLeft; delete r.def.reinf; delete r.def.reinfLeft;
+  if (rleft) ally.afterFight(row.def, rleft, au.name);
   Q.atkStatus.run('done', JSON.stringify(r.r).slice(0, 2000), row.id);
   saveState(row.att, au.created, { state: r.att, lvl: r.a.lvl, power: r.a.power });
   saveState(row.def, du.created, { state: r.def, lvl: r.d.lvl, power: r.d.power });
@@ -871,6 +883,9 @@ function consoleCommand(line) {
 }
 try { require('readline').createInterface({ input: process.stdin, terminal: false }).on('line', l => { try { consoleCommand(l); } catch (e) { log('ERREUR', 'commande console : ' + e.message); } }); }
 catch (e) { log('ERREUR', 'console indisponible : ' + e.message); }
+
+// ---------- alliances ----------
+const ally = require('./alliance.js')({ db, Q, log, clean, push, runFor, DAY_FMT });
 
 // ---------- management panel (/admin): maintenance, updates, players, announcements, backups, journal ----------
 const panel = require('./panel.js')({
