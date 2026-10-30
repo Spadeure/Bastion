@@ -152,16 +152,9 @@ async function viewDash() {
       <div class="card"><div class="ch"><img src="${IMG('command')}" alt=""><h2>Version installée</h2></div>${versionKv(s)}
         <div class="kv" style="margin-top:6px"><span>Démarré</span><span>il y a <b data-up="${s.started}">${dur(now() - s.started)}</b></span><span>Mémoire</span><span>${s.mem} Mo · Node ${esc(s.node)}</span>
         <span>Lanceur</span><span>${s.launcher ? '<span class="ok">oui</span> (redémarrage possible)' : '<span class="warn">non</span> (Main file ≠ server/launcher.js)'}</span></div></div>
-      ${testCard()}${deployCard()}${s.test ? '' : `
-      <div class="card${D.gameAdmin ? ' warnc' : ''}"><div class="ch"><img src="${IMG('ui_lock')}" alt=""><h2>Administration dans le jeu</h2></div>
-        <p>${D.gameAdmin ? '<b class="warn">Activée</b> : tu as les boutons d\'administration dans le jeu (dons, réglages) et les dons du panel.' : '<b class="ok">Désactivée</b> : sur l\'officiel, tu joues comme un joueur normal.'}</p>
-        <p class="mut small">Option temporaire. Les tests se font normalement sur le serveur de test. Tes parties ouvertes se rechargent au changement.</p>
-        <div class="row"><button class="btn ${D.gameAdmin ? '' : 'ora'}" id="gadm"><img src="${IMG(D.gameAdmin ? 'ui_ok' : 'ui_lock')}" alt="">${D.gameAdmin ? 'Désactiver' : 'Activer'}</button></div></div>`}
+      ${testCard()}${deployCard()}
       <div class="card wide"><div class="ch"><img src="${IMG('ui_warn')}" alt=""><h2>Dernières erreurs</h2></div>
         ${D.errors.length ? D.errors.map(e => `<div class="err"><span class="mut mono">${DTS.format(new Date(e.at))}</span> ${esc(e.msg)}</div>`).join('') : '<p class="ok">Aucune erreur.</p>'}</div></div>`;
-    const g = $('#gadm'); if (g) g.onclick = async () => { const on = !D.gameAdmin;
-      if (on && !(await confirmBox('Administration dans le jeu', 'Tu retrouves les boutons d\'administration dans le jeu sur le serveur officiel (dons, réglages). Les autres joueurs ne voient rien. Continuer ?', 'Activer', 'ora'))) return;
-      if (await run(g, () => api('POST', 'gameadmin', { on }), on ? 'Administration activée' : 'Administration désactivée') && await run(null, () => loadDash())) draw(); };
   };
   if (await run(null, () => loadDash())) draw();
   every(1000, tickCountdowns);
@@ -305,7 +298,7 @@ async function openPlayer(name) {
       <select id="role">${Object.entries(ROLE).filter(([k]) => k !== 'tester' || (D && D.server.test) || p.role === 'tester').map(([k, l]) => `<option value="${k}"${k === p.role ? ' selected' : ''}>${l}</option>`).join('')}</select><button class="btn sec sm" id="setrole">Changer le rôle</button>`}</div>
     ${p.admin ? '' : p.banned ? `<div class="row"><button class="btn sm" id="unban"><img src="${IMG('ui_ok')}" alt="">Débloquer</button></div>`
       : `<div class="row"><input id="motif" class="grow" maxlength="200" placeholder="Motif du blocage (le joueur le verra)"><button class="btn red sm" id="ban"><img src="${IMG('ui_lock')}" alt="">Bloquer</button></div>`}
-    ${D && D.gameAdmin ? `<h3>Dons</h3>
+    ${D && D.server.test ? `<h3>Dons</h3>
     <div class="gifts">
       <div class="gift"><h3><img src="${IMG('metal')}" alt="">Ressources</h3><div class="row"><select id="gres">${opts(CAT.res)}<option value="all">Toutes (sauf alliage)</option></select></div>
         <div class="row"><input id="gresn" type="number" min="1" value="100000"><button class="btn sm" data-give="res">Donner</button></div></div>
@@ -315,7 +308,7 @@ async function openPlayer(name) {
         <div class="row"><input id="gunitn" type="number" min="1" value="1000"><button class="btn sm" data-give="unit">Donner</button></div></div>
       <div class="gift"><h3><img src="${IMG('titan_1')}" alt="">Pièces du Titan</h3><div class="parts">${parts('', k => IMG('eq_' + k + '_1'))}</div>
         <h3><img src="${IMG('rempart_titan_1')}" alt="">Pièces du Titan Rempart</h3><div class="parts">${parts('r_', k => IMG('rempart_eq_' + k))}</div></div>
-    </div>` : '<p class="mut small">Serveur officiel : pas de dons, tout le monde joue normalement (option « Administration dans le jeu » du tableau de bord).</p>'}
+    </div>` : '<p class="mut small">Serveur officiel : pas de dons, tout le monde joue normalement. Les dons se font sur le serveur de test.</p>'}
     <h3>Rapport anti-triche</h3>
     ${p.bans.length ? p.bans.map(b => `<div class="ban"><b>${b.active ? 'Blocage en cours' : 'Ancien blocage'}</b> · ${dt(b.at)}<br>${esc(b.text)}${b.ip ? `<br><span class="mut small">Adresse ${esc(b.ip)}${b.ua ? ' · ' + esc(b.ua) : ''}</span>` : ''}
       ${b.last.length ? `<div class="ord">Derniers ordres : ${b.last.map(o => `${esc(DTS.format(new Date(o.t)).slice(-8))}${o.gap ? ' (+' + o.gap + ' s)' : ''} ${esc(o.a)}`).join(' · ')}</div>` : ''}</div>`).join('') : '<p class="ok small">Jamais bloqué.</p>'}`);

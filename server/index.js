@@ -423,9 +423,8 @@ async function api(req, res, url, ip) {
   if (me.banned) return send(res, 403, banError(me.id));   // blocked for using a script, or by the administrator
   STATS.players.add(me.name); lastIp.set(me.id, ip);
   // official server: nobody has any power in the game, the administrator plays exactly like everybody (checks, maintenance…);
-  // his role only opens the management panel, unless he switches the administration in the game on in the panel.
-  // Test accounts never have any power on the official server.
-  if (!IS_TEST && !(me.role === 'admin' && panel.isGameAdmin())) me.role = 'player';
+  // his role only opens the management panel. The tests with the administration buttons are done on the test server.
+  if (!IS_TEST) me.role = 'player';
   if (url.startsWith('/api/admin/')) return panel.route(req, res, url, me, ip);   // not an administrator: refused there
   if (url === '/api/stream' && req.method === 'GET') {   // the live line (kept open)
     res.writeHead(200, { 'Content-Type': 'text/event-stream; charset=utf-8', 'Cache-Control': 'no-cache, no-transform', 'Connection': 'keep-alive', 'X-Accel-Buffering': 'no' });
