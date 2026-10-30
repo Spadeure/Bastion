@@ -44,9 +44,9 @@ function autoUpdate() {
 let child = null, stopping = false;
 function start() {
   deploy();
-  child = spawn(process.execPath, [CHILD], { cwd: ROOT, stdio: 'inherit', env: process.env });
+  child = spawn(process.execPath, [CHILD], { cwd: ROOT, stdio: 'inherit', env: { ...process.env, BASTION_LAUNCHER: '1' } });   // the game knows it can ask for a restart
   child.on('exit', (code, sig) => {
-    if (code === RESTART && !stopping) { say('redémarrage demandé par le panel'); return setTimeout(start, 500); }
+    if (code === RESTART && !stopping) { say('redémarrage demandé par le panel'); return setTimeout(() => { autoUpdate(); start(); }, 500); }   // Auto Update: a simple restart also gets the latest version of the branch
     process.exit(code == null ? (sig ? 1 : 0) : code);
   });
 }

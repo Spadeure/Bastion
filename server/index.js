@@ -21,9 +21,9 @@ function gameVersion() {
   return h.digest('base64url').slice(0, 10);
 }
 const VERSION = gameVersion();
-let indexPage = null;   // index.html with the version stamped in, built once
-function buildIndex() {
-  const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8')
+let indexPage = null, adminPage = null;   // index.html (and admin.html, the management panel) with the version stamped in, built once
+function buildIndex(file = 'index.html') {
+  const html = fs.readFileSync(path.join(ROOT, file), 'utf8')
     .replace(/(href|src)="((?:css|js)\/[^"?]+\.(?:css|js))"/g, `$1="$2?v=${VERSION}"`)
     .replace('</head>', `<script>window.BASTION_VER=${JSON.stringify(VERSION)}</script>\n</head>`);
   const data = Buffer.from(html);
@@ -33,11 +33,31 @@ const DATA = path.join(ROOT, 'data');                       // never in git: hol
 const PORT = +process.env.SERVER_PORT || +process.env.PORT || 8080;   // Pelican gives the port in SERVER_PORT
 const MAPN = 750;
 fs.mkdirSync(DATA, { recursive: true });
+// Installed version: git commit and branch (read at start), and the id of the latest "What's new" notes.
+// The branch tells the server what it is: "test" = the test server (orange banner, registrations closed).
+function gitInfo() {
+  const out = { commit: '', branch: '', subject: '' };
+  const git = (...a) => require('child_process').execFileSync('git', a, { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 5000 }).trim();
+  try { out.commit = git('rev-parse', 'HEAD'); out.branch = git('rev-parse', '--abbrev-ref', 'HEAD'); out.subject = git('log', '-1', '--format=%s').slice(0, 200); }
+  catch (e) {   // no git program: read the .git folder directly
+    try { const head = fs.readFileSync(path.join(ROOT, '.git', 'HEAD'), 'utf8').trim(), m = /^ref: refs\/heads\/(.+)$/.exec(head);
+      if (!m) out.commit = head; else { out.branch = m[1];
+        const f = path.join(ROOT, '.git', 'refs', 'heads', m[1]);
+        if (fs.existsSync(f)) out.commit = fs.readFileSync(f, 'utf8').trim();
+        else { const pr = fs.readFileSync(path.join(ROOT, '.git', 'packed-refs'), 'utf8').split('\n').find(l => l.endsWith(' refs/heads/' + m[1])); if (pr) out.commit = pr.split(' ')[0]; } } } catch (e2) {} }
+  if (!/^[0-9a-f]{40}$/.test(out.commit)) out.commit = '';
+  return out;
+}
+const GIT = gitInfo();
+const PATCH_ID = (/const PATCH = \[\s*\{id:'([^']+)'/.exec(fs.readFileSync(path.join(ROOT, 'js', 'game.js'), 'utf8')) || [])[1] || '';
+const IS_TEST = process.env.BASTION_TEST ? /^(1|true|on)$/i.test(process.env.BASTION_TEST) : GIT.branch === 'test';
+const STARTED = Date.now();
 
 // ---------- console log (in French: it is read by the server owner in the Pelican console) ----------
 const STAMP = new Intl.DateTimeFormat('fr-FR', { timeZone: SERVER_TZ, day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' });
 const clean = v => String(v ?? '').replace(/[\u0000-\u001f\u007f]/g, '?').slice(0, 40);   // a name typed by anybody: no line breaks in the log
-function log(tag, msg) { console.log(`[${STAMP.format(new Date())}] [${tag}] ${msg}`); }
+let logStore = null;   // set once the database is open: every line is also kept for the live journal of the management panel
+function log(tag, msg) { console.log(`[${STAMP.format(new Date())}] [${tag}] ${msg}`); if (logStore) try { logStore.run(Date.now(), String(tag), String(msg).slice(0, 2000)); } catch (e) {} }
 // an error in a background task must never stop the whole server: it is written in the console instead
 process.on('unhandledRejection', e => log('ERREUR', `tâche en arrière-plan : ${e && e.stack ? e.stack.split('\n').slice(0, 3).join(' | ') : e}`));
 
@@ -59,6 +79,13 @@ if (!db.prepare("SELECT 1 FROM pragma_table_info('bases') WHERE name = 'shield'"
 if (!db.prepare("SELECT 1 FROM pragma_table_info('users') WHERE name = 'role'").get()) db.exec("ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'player'");
 // accounts blocked for using a script: banned = time of the block (0 = free); the reports explain why
 if (!db.prepare("SELECT 1 FROM pragma_table_info('users') WHERE name = 'banned'").get()) db.exec("ALTER TABLE users ADD COLUMN banned INTEGER NOT NULL DEFAULT 0");
+// last time the player was seen (any request), for the management panel
+if (!db.prepare("SELECT 1 FROM pragma_table_info('users') WHERE name = 'seen'").get()) db.exec("ALTER TABLE users ADD COLUMN seen INTEGER NOT NULL DEFAULT 0");
+// the journal (same lines as the console) and the announcements, for the management panel
+db.exec(`CREATE TABLE IF NOT EXISTS logs (id INTEGER PRIMARY KEY, at INTEGER NOT NULL, tag TEXT NOT NULL, msg TEXT NOT NULL);
+  CREATE TABLE IF NOT EXISTS announces (id INTEGER PRIMARY KEY, at INTEGER NOT NULL, text TEXT NOT NULL, color TEXT NOT NULL, until INTEGER NOT NULL, by TEXT);`);
+logStore = db.prepare('INSERT INTO logs (at, tag, msg) VALUES (?, ?, ?)');
+setInterval(() => { try { db.prepare('DELETE FROM logs WHERE id < (SELECT MAX(id) FROM logs) - 20000').run(); } catch (e) {} }, 3600_000).unref();   // the 20 000 latest lines are kept
 db.exec(`CREATE TABLE IF NOT EXISTS bans (id INTEGER PRIMARY KEY, user_id INTEGER NOT NULL, at INTEGER NOT NULL, reason TEXT NOT NULL, detail TEXT, active INTEGER NOT NULL DEFAULT 1);
   CREATE INDEX IF NOT EXISTS bans_user ON bans (user_id, at);`);
 // Public test phase: the account named ADMIN_NAME (Spadeure) is always the administrator, the only one with every power.
@@ -138,9 +165,13 @@ const Q = {
   delOp: db.prepare('DELETE FROM outposts WHERE user_id = ?'),
   opLvl: db.prepare('UPDATE outposts SET lvl = ? WHERE user_id = ? AND lvl != ?'),
   allOps: db.prepare('SELECT o.type AS t, o.x, o.y, o.lvl, u.name FROM outposts o JOIN users u ON u.id = o.user_id'),
+  userSeen: db.prepare('UPDATE users SET seen = ? WHERE id = ?'),
   bannedList: db.prepare('SELECT u.id, u.name, u.banned, (SELECT reason FROM bans x WHERE x.user_id = u.id ORDER BY x.at DESC LIMIT 1) AS reason FROM users u WHERE u.banned > 0 ORDER BY u.banned DESC'),
 };
 
+const lastIp = new Map(), onlineSince = new Map();   // user id -> last address seen · time the game was opened (live line)
+// the answer for a blocked account: blocked for a script, or by the administrator (with his reason)
+function banError(uid) { const b = Q.lastBan.get(uid); if (b && b.reason === 'admin') { let d = {}; try { d = JSON.parse(b.detail || '{}'); } catch (e) {} return { error: 'banned_admin', motif: String(d.motif || '').slice(0, 200) }; } return { error: 'banned' }; }
 // ---------- statistics for the hourly summary ----------
 const newStats = () => ({ loginOk: 0, loginFail: 0, registered: 0, blockedIps: new Set(), blockedHits: 0, refused: 0, cheat: 0, saved: 0, skipped: 0,
   players: new Set(), refusedBy: new Map(), apiN: 0, apiMs: 0, apiMax: 0, apiMaxUrl: '' });
@@ -174,7 +205,7 @@ const seenAt = new Map();   // the "last seen" time of a session is written at m
 function auth(req) {
   const m = /^Bearer ([a-f0-9]{64})$/.exec(req.headers.authorization || ''); if (!m) return null;
   const s = Q.session.get(m[1]); if (!s) return null;
-  const now = Date.now(); if (now - (seenAt.get(m[1]) || 0) > 60_000) { seenAt.set(m[1], now); Q.seen.run(now, m[1]); }
+  const now = Date.now(); if (now - (seenAt.get(m[1]) || 0) > 60_000) { seenAt.set(m[1], now); Q.seen.run(now, m[1]); Q.userSeen.run(now, s.id); }
   return s;
 }
 // protection against password guessing: more than 10 failed tries (or new accounts) in one minute
@@ -258,6 +289,7 @@ const REASON_FR = {
   flood: d => `${d.n} ordres en 10 minutes (impossible à la main)`,
   regular: d => `${d.n} ordres d'affilée à intervalles parfaitement réguliers (toutes les ${d.g} s, écart ${d.v} %) : un humain n'est jamais aussi régulier`,
   nonstop: d => `des ordres toutes les 10 minutes sans aucune pause pendant ${d.h} heures`,
+  admin: d => `bloqué par ${d.by || 'l\'administrateur'}${d.motif ? ' : ' + d.motif : ''}`,
 };
 function banPlayer(me, ip, req, reason, d) {
   if (me.role === 'admin' || me.banned) return;
@@ -326,13 +358,17 @@ function cheat(me, ip, what) { STATS.cheat++; log('TRICHE?', `${me ? me.name : '
 
 // ---------- API ----------
 async function api(req, res, url, ip) {
-  if (url === '/api/ping') return send(res, 200, { t: Date.now(), tz: SERVER_TZ, v: VERSION });
-  if (url === '/api/health') return send(res, 200, { ok: true, game: 'Bastion', players: Q.count.get().n, uptime: Math.round(process.uptime()) });
+  if (url === '/api/ping') return send(res, 200, { t: Date.now(), tz: SERVER_TZ, v: VERSION, s: panel.status() });   // s: maintenance, announcement, test server
+  if (url === '/api/health') return send(res, 200, { ok: true, game: 'Bastion', players: Q.count.get().n, uptime: Math.round(process.uptime()),
+    commit: GIT.commit, branch: GIT.branch, subject: GIT.subject, patch: PATCH_ID, version: VERSION, test: IS_TEST });
 
   if (url === '/api/register' && req.method === 'POST') {
     if (isBlocked(ip)) return send(res, 429, { error: 'too_many' });
     blockIfTooMany(ip, strike(ip), 'créations de compte');          // every new account counts: no flood of accounts
     const { name = '', password = '' } = await readBody(req, 10_000);
+    // test server: only the administrator account can be created here (the testers are created from the management panel)
+    if (IS_TEST && String(name).trim().toLowerCase() !== ADMIN_NAME.toLowerCase()) { log('INSCRIPTION REFUSÉE', `${clean(String(name).trim())} · ${ip} · serveur de test (comptes créés depuis le panel)`); return send(res, 403, { error: 'test_closed' }); }
+    if (panel.isMaint() && String(name).trim().toLowerCase() !== ADMIN_NAME.toLowerCase()) return send(res, 503, { error: 'maintenance' });
     if (accountsToday(ip) >= ACCOUNTS_PER_DAY) { log('INSCRIPTION REFUSÉE', `${clean(String(name).trim())} · ${ip} · déjà ${ACCOUNTS_PER_DAY} comptes créés aujourd'hui depuis cette adresse`); return send(res, 429, { error: 'too_many_accounts' }); }
     const n = String(name).trim();
     if (!NAME_OK.test(n)) return send(res, 400, { error: 'bad_name' });
@@ -343,7 +379,7 @@ async function api(req, res, url, ip) {
     if (Q.count.get().n === 1) { Q.setRole.run('admin', id); log('ADMIN', `Administrateur : ${n}`); }
     const p = freeSpot(); Q.addBase.run(id, p.x, p.y, now);
     newAccounts.set(ip, [...(newAccounts.get(ip) || []), now]);
-    const token = crypto.randomBytes(32).toString('hex'); Q.addSession.run(token, id, now, now);
+    const token = crypto.randomBytes(32).toString('hex'); Q.addSession.run(token, id, now, now); Q.userSeen.run(now, id); lastIp.set(id, ip);
     STATS.registered++; STATS.players.add(n);
     log('INSCRIPTION', `${n} · ${ip} · base en (${p.x}, ${p.y})`);
     return send(res, 200, { token, name: n });
@@ -359,27 +395,31 @@ async function api(req, res, url, ip) {
       blockIfTooMany(ip, n, 'connexions échouées');
       return send(res, 401, { error: 'bad_login' });
     }
-    if (u.banned) { log('CONNEXION REFUSÉE', `${u.name} · ${ip} · compte bloqué (script)`); return send(res, 403, { error: 'banned' }); }
-    const token = crypto.randomBytes(32).toString('hex'), now = Date.now(); Q.addSession.run(token, u.id, now, now);
+    if (u.banned) { const be = banError(u.id); log('CONNEXION REFUSÉE', `${u.name} · ${ip} · compte bloqué (${be.error === 'banned_admin' ? 'par l\'administrateur' : 'script'})`); return send(res, 403, be); }
+    const token = crypto.randomBytes(32).toString('hex'), now = Date.now(); Q.addSession.run(token, u.id, now, now); Q.userSeen.run(now, u.id); lastIp.set(u.id, ip);
     STATS.loginOk++; STATS.players.add(u.name);
     log('CONNEXION OK', `${u.name} · ${ip}${u.role !== 'player' ? ' · ' + u.role : ''}`);
     return send(res, 200, { token, name: u.name });
   }
   const me = auth(req);
   if (!me) return send(res, 401, { error: 'not_logged_in' });
-  if (me.banned) return send(res, 403, { error: 'banned' });   // blocked for using a script
-  STATS.players.add(me.name);
+  if (me.banned) return send(res, 403, banError(me.id));   // blocked for using a script, or by the administrator
+  STATS.players.add(me.name); lastIp.set(me.id, ip);
+  if (url.startsWith('/api/admin/')) return panel.route(req, res, url, me, ip);   // the management panel (administrator only, checked there)
   if (url === '/api/stream' && req.method === 'GET') {   // the live line (kept open)
     res.writeHead(200, { 'Content-Type': 'text/event-stream; charset=utf-8', 'Cache-Control': 'no-cache, no-transform', 'Connection': 'keep-alive', 'X-Accel-Buffering': 'no' });
     let set = streams.get(me.id); if (!set) streams.set(me.id, set = new Set());
     if (set.size >= 5) { const old = set.values().next().value; set.delete(old); try { old.end(); } catch (e) {} }   // 5 open games max per player
-    set.add(res);
-    const b = Q.base.get(me.id); res.write(`retry: 3000\nevent: incoming\ndata: ${JSON.stringify({ incoming: incomingFor(me.id, b && b.state ? JSON.parse(b.state) : {}) })}\n\n`);
-    req.on('close', () => { set.delete(res); if (!set.size) streams.delete(me.id); });
+    set.add(res); if (!onlineSince.has(me.id)) onlineSince.set(me.id, Date.now());
+    const b = Q.base.get(me.id); res.write(`retry: 3000\nevent: incoming\ndata: ${JSON.stringify({ incoming: incomingFor(me.id, b && b.state ? JSON.parse(b.state) : {}) })}\n\nevent: srv\ndata: ${JSON.stringify(panel.status())}\n\n`);
+    req.on('close', () => { set.delete(res); if (!set.size && streams.get(me.id) === set) { streams.delete(me.id); Q.userSeen.run(Date.now(), me.id);
+      setTimeout(() => { if (!streams.has(me.id)) onlineSince.delete(me.id); }, 90_000).unref(); } });   // a short network cut does not count as leaving
     return;
   }
   if (url === '/api/logout' && req.method === 'POST') { Q.delSession.run(me.token); seenAt.delete(me.token); log('DÉCONNEXION', `${me.name} · ${ip}`); return send(res, 200, { ok: true }); }
   const ENGINE = (url === '/api/state' && req.method === 'GET') || (url === '/api/act' && req.method === 'POST') || (url === '/api/chest' && req.method === 'POST');
+  // maintenance: the players can still look at their game (time goes on), but every order is refused; the administrator plays normally
+  if (panel.isMaint() && me.role !== 'admin' && ((url === '/api/act' || url === '/api/chest' || url === '/api/admin') && req.method === 'POST')) return send(res, 503, { error: 'maintenance', srv: panel.status() });
   if (ENGINE && !checkSig(me, ip, req)) return send(res, me.banned ? 403 : 409, { error: me.banned ? 'banned' : 'old_page' });   // not from the game page
   if (ENGINE && !(await orderTurn(me))) return tooFast(me, ip, res, req);
   if (me.banned) return send(res, 403, { error: 'banned' });   // the game engine runs for these: one line per player
@@ -452,6 +492,7 @@ const shieldOf = (st, created) => Math.max(beginnerEnd(st, created), (st && st.t
 // the attacks table follows the marches of the attacker (speed-ups change the arrival time, a cancelled game removes them)
 // ---------- live line to the open games: alerts and results are pushed at once (no waiting for the next check) ----------
 const streams = new Map();   // user id -> open connections
+function broadcast(ev, data) { const msg = `event: ${ev}\ndata: ${JSON.stringify(data)}\n\n`; for (const set of streams.values()) for (const r of set) { try { r.write(msg); } catch (e) {} } }
 function push(uid, ev, data) { const set = streams.get(uid); if (!set) return; const msg = `event: ${ev}\ndata: ${JSON.stringify(data)}\n\n`; for (const r of set) { try { r.write(msg); } catch (e) {} } }
 function pushIncoming(uid) { if (!streams.has(uid)) return; const b = Q.base.get(uid); push(uid, 'incoming', { incoming: incomingFor(uid, b && b.state ? JSON.parse(b.state) : {}) }); }
 setInterval(() => { for (const set of streams.values()) for (const r of set) { try { r.write(': ping\n\n'); } catch (e) {} } }, 20000);   // keeps the line open through Cloudflare
@@ -536,9 +577,10 @@ function createAccount(name, password, role) {
   const p = freeSpot(); Q.addBase.run(id, p.x, p.y, now);
   return { n, rl };
 }
-async function admin(req, res, me, ip) {
+// preset: an order from the management panel (already read and checked there)
+async function admin(req, res, me, ip, preset) {
   if (!['admin', 'tester'].includes(me.role)) { cheat(me, ip, 'tentative d\'utiliser l\'administration'); return send(res, 403, { error: 'forbidden' }); }
-  const { action, p = {} } = await readBody(req, 50_000);
+  const { action, p: p0 } = preset || await readBody(req, 50_000), p = p0 && typeof p0 === 'object' ? p0 : {};
   if (action === 'accounts') return me.role === 'admin' ? send(res, 200, { accounts: Q.accounts.all() }) : send(res, 403, { error: 'forbidden' });
   if (action === 'create_account') {
     if (me.role !== 'admin') { cheat(me, ip, 'compte test : tentative de créer un compte'); return send(res, 403, { error: 'forbidden' }); }
@@ -630,11 +672,14 @@ function loadFile(file, cb) {
   });
 }
 function serveFile(req, res, url) {
-  if (url === '/' || url === '/index.html') {   // the page itself: never kept in any cache
-    if (!indexPage) indexPage = buildIndex();
+  const adm = url === '/admin' || url === '/admin/' || url === '/admin.html';   // the management panel: a page of its own, without the game
+  if (url === '/' || url === '/index.html' || adm) {   // the page itself: never kept in any cache
+    if (adm && !adminPage) adminPage = buildIndex('admin.html'); else if (!adm && !indexPage) indexPage = buildIndex();
+    const pg = adm ? adminPage : indexPage;
     const ae = String(req.headers['accept-encoding'] || ''), h = { 'Content-Type': TYPES['.html'], 'Cache-Control': 'no-store', 'Vary': 'Accept-Encoding' };
-    let body = indexPage.data;
-    if (/\bbr\b/.test(ae)) { body = indexPage.br; h['Content-Encoding'] = 'br'; } else if (/\bgzip\b/.test(ae)) { body = indexPage.gz; h['Content-Encoding'] = 'gzip'; }
+    if (adm) { h['X-Robots-Tag'] = 'noindex'; h['X-Frame-Options'] = 'DENY'; }
+    let body = pg.data;
+    if (/\bbr\b/.test(ae)) { body = pg.br; h['Content-Encoding'] = 'br'; } else if (/\bgzip\b/.test(ae)) { body = pg.gz; h['Content-Encoding'] = 'gzip'; }
     h['Content-Length'] = body.length; res.writeHead(200, h); return res.end(req.method === 'HEAD' ? undefined : body);
   }
   const stamped = /[?&]v=/.test(req.url || '');
@@ -759,3 +804,11 @@ function consoleCommand(line) {
 }
 try { require('readline').createInterface({ input: process.stdin, terminal: false }).on('line', l => { try { consoleCommand(l); } catch (e) { log('ERREUR', 'commande console : ' + e.message); } }); }
 catch (e) { log('ERREUR', 'console indisponible : ' + e.message); }
+
+// ---------- management panel (/admin): maintenance, updates, players, announcements, backups, journal ----------
+const panel = require('./panel.js')({
+  db, Q, log, send, readBody, broadcast, push, streams, onlineSince, lastIp, watch, cheat, clean, STAMP,
+  ROOT, DATA, ADMIN_NAME, IS_TEST, GIT, PATCH_ID, VERSION, STARTED, REASON_FR, NAME_OK,
+  BACKUP_DIR, backupDb: () => backupDb(true), createAccount, unbanPlayer, admin, engine, UNIT_IDS,
+  orderBucket,
+});

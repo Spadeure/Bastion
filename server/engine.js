@@ -62,3 +62,14 @@ function isFort(x, y) { if (!ctx) load(); return !!ctx.isFort(x, y); }
 // the outposts of every player (the map must know them: they are never attacked, and a Fortified Mountain moves away)
 function setOutposts(list) { if (!ctx) load(); return ctx.__setOutposts(JSON.stringify(list || [])); }
 module.exports = { run, load, pvp, isFort, setOutposts };
+// what the management panel can give: items, troops and resources, with their French names and pictures
+function catalog() {
+  if (!ctx) load();
+  return JSON.parse(vm.runInContext(`(() => { const L0 = LANG; LANG = 'fr';
+    try { return JSON.stringify({
+      items: ITEM_ORDER.map(id => ({ id, name: itemName(id), img: itemArt(id) || ICS.drop || '' })),
+      units: Object.keys(UNITS).map(id => ({ id, name: _t(UNITS[id].name), img: UNITS[id].img || '' })),
+      res: ['metal', 'wood', 'stone', 'fuel', 'rations', 'gold', 'alloy'].map(id => ({ id, name: _t(id), img: ICS[id] || '' })) }); }
+    finally { LANG = L0; } })()`, ctx));
+}
+module.exports.catalog = catalog;

@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<title>Bastion · Gestion</title>
+<link rel="stylesheet" href="css/admin.css">
+<link rel="icon" type="image/png" href="assets/app/favicon.png">
+<meta name="theme-color" content="#141a12">
+</head>
+<body>
+<div id="app">
+  <aside id="nav">
+    <div class="brand"><img src="assets/app/icon-192.png" alt=""><div><b>BASTION</b><small>Panel de gestion</small></div></div>
+    <div id="srvtag" class="srvtag"></div>
+    <nav id="menu">
+      <button data-v="dash"><img src="assets/img/radar.webp" alt=""><span>Tableau de bord</span></button>
+      <button data-v="maint"><img src="assets/img/ui_build.webp" alt=""><span>Maintenance</span></button>
+      <button data-v="players"><img src="assets/img/troops.webp" alt=""><span>Joueurs</span></button>
+      <button data-v="ann"><img src="assets/img/messages.webp" alt=""><span>Annonces</span></button>
+      <button data-v="logs"><img src="assets/img/reports.webp" alt=""><span>Journal</span></button>
+    </nav>
+    <div class="navfoot"><a href="./" class="btn sec"><img src="assets/img/base.webp" alt="">Ouvrir le jeu</a><button id="logout" class="btn sec"><img src="assets/img/ui_back.webp" alt="">Déconnexion</button></div>
+  </aside>
+  <main id="main"></main>
+</div>
+<div id="toast"></div>
+<script src="js/admin.js"></script>
+</body>
+</html>
