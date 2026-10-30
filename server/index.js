@@ -528,9 +528,9 @@ function ranking(by, uid) {
   if (!Object.hasOwn(RANK_BY, by)) by = 'power';
   let c = rankCache.get(by);
   if (!c || Date.now() - c.at > 20_000) {
-    const rows = db.prepare(`SELECT u.id, u.name, b.lvl, b.power, b.pvp, b.wins, b.x, b.y, ROW_NUMBER() OVER (ORDER BY ${RANK_BY[by]} DESC, b.power DESC, u.id) AS r
+    const rows = db.prepare(`SELECT u.id, u.name, b.power, b.pvp, b.wins, ROW_NUMBER() OVER (ORDER BY ${RANK_BY[by]} DESC, b.power DESC, u.id) AS r
       FROM users u JOIN bases b ON b.user_id = u.id WHERE u.banned = 0`).all();
-    const pub = x => ({ r: x.r, name: x.name, lvl: x.lvl, power: x.power, pvp: x.pvp, wins: x.wins, x: x.x, y: x.y, alliance: null });
+    const pub = x => ({ r: x.r, name: x.name, power: x.power, pvp: x.pvp, wins: x.wins, alliance: null });   // never the position of the base
     c = { at: Date.now(), top: rows.slice(0, RANK_TOP).map(pub), mine: new Map(rows.map(x => [x.id, pub(x)])), n: rows.length };
     rankCache.set(by, c);
   }

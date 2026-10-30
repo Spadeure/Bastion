@@ -1417,7 +1417,7 @@ function rankPanel(){
   if(d.err) return h+`<p class="rnone">${_t('Server error. Try again later.')}</p>`;
   const tab=RANK_TABS.find(t=>t[0]===rankBy), val=p=>rankBy==='power'?fmtN(p.power):fmtN(p[rankBy]||0);
   const row=(p,me)=>`<div class="rkrow${me?' me':''}${p.r<=3?' top'+p.r:''}"><div class="rkn">${p.r}</div>
-    <div class="rmid"><div class="rl1">${esc(p.name)}${p.alliance?` <small>[${esc(p.alliance)}]</small>`:''}</div><div class="rl2">${_t('Lv')} ${p.lvl} · ${IC.power} ${fmtN(p.power)} · ${coordLink(p)}</div></div>
+    <div class="rmid"><div class="rl1">${esc(p.name)}${p.alliance?` <small>[${esc(p.alliance)}]</small>`:''}</div>${rankBy==='power'?'':`<div class="rl2">${IC.power} ${fmtN(p.power)}</div>`}</div>
     <div class="rkv">${tab[2]()} ${val(p)}</div></div>`;
   if(!d.top.length) return h+`<p class="rnone">${_t('No player ranked yet.')}</p>`;
   h+=`<div class="rlist">${d.top.map(p=>row(p, p.name===NET.name)).join('')}</div>`;
