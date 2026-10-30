@@ -32,16 +32,17 @@
         <button class="nicon" data-view="map" title="Map" data-i18n-title="Map"><img class="ic" data-ic="map" alt=""></button>
         <button class="nicon on" data-view="city" title="Base" data-i18n-title="Base"><img class="ic" data-ic="base" alt=""></button>
       </div>
-      <button class="menub" id="menuBtn" title="Menu" data-i18n-title="Menu"><img class="ic" data-ic="menu" alt=""></button>
+      <button class="menub" id="menuBtn" title="Menu" data-i18n-title="Menu"><img class="ic" data-ic="menu" alt=""><b class="rbadge" id="menuBadge" style="display:none">0</b></button>
     </div>
     <div id="powpop"></div>
     <div class="plate coordbox" id="coordBox"><span>X</span><input id="cxi" type="number" min="1" max="750" inputmode="numeric"><span>Y</span><input id="cyi" type="number" min="1" max="750" inputmode="numeric">
       <button id="cgo" data-i18n="GO">GO</button><button class="sec" id="chome" title="Back to my base" data-i18n-title="Back to my base"><img class="ic" data-ic="base" alt=""></button><button class="sec" id="cop" title="My outpost" data-i18n-title="My outpost" style="display:none"><img class="ic" src="assets/img/outpost.webp" alt=""></button><button class="sec" id="cfort" title="Nearest Fortified Mountain" data-i18n-title="Nearest Fortified Mountain"><img class="ic" data-ic="fort" alt=""></button></div>
+    <div class="plate chatbar" id="chatbar" style="display:none"></div>
     <div class="side left">
       <button class="sbtn" data-soon="1"><span><img class="ic" data-ic="shop" alt=""></span><em data-i18n="Shop">Shop</em></button>
       <button class="sbtn" id="questsBtn"><span><img class="ic" data-ic="quests" alt=""><b class="rbadge" id="questBadge" style="display:none">0</b></span><em data-i18n="Quests">Quests</em></button>
       <button class="sbtn" id="wheelBtn"><span><img class="ic" data-ic="wheel" alt=""></span><em data-i18n="Wheel">Wheel</em></button>
-      <button class="sbtn ph-hide" data-soon="1"><span><img class="ic" data-ic="messages" alt=""></span><em data-i18n="Messages">Messages</em></button>
+      <button class="sbtn ph-hide" id="msgBtn"><span><img class="ic" data-ic="messages" alt=""><b class="rbadge" id="msgBadge" style="display:none">0</b></span><em data-i18n="Messages">Messages</em></button>
       <button class="sbtn" id="reportsBtn"><span><img class="ic" data-ic="reports" alt=""><b class="rbadge" id="repBadge" style="display:none">0</b></span><em data-i18n="Reports">Reports</em></button>
     </div>
     <div class="plate tabs">

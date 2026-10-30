@@ -362,7 +362,7 @@ async function viewAnn() {
 
 // ===== 5. backups and journal =====
 let lcat = '', lq = '', lastId = 0, live = true;
-const TAGCAT = {}; for (const [c, l] of Object.entries({ triche: ['TRICHE?', 'ORDRE REFUSÉ'], blocages: ['BLOQUÉ', 'SCRIPT', 'INSCRIPTION REFUSÉE', 'CONNEXION REFUSÉE', 'PANEL REFUSÉ'], connexions: ['CONNEXION OK', 'CONNEXION ÉCHOUÉE', 'DÉCONNEXION', 'INSCRIPTION'], erreurs: ['ERREUR'], admin: ['ADMIN', 'CONSOLE', 'PANEL', 'MAINTENANCE', 'ANNONCE', 'SAUVEGARDE', 'DÉMARRAGE', 'MISE À JOUR', 'REDÉMARRAGE'] })) for (const t of l) TAGCAT[t] = c;
+const TAGCAT = {}; for (const [c, l] of Object.entries({ triche: ['TRICHE?', 'ORDRE REFUSÉ', 'SIGNALEMENT'], blocages: ['BLOQUÉ', 'SCRIPT', 'INSCRIPTION REFUSÉE', 'CONNEXION REFUSÉE', 'PANEL REFUSÉ'], connexions: ['CONNEXION OK', 'CONNEXION ÉCHOUÉE', 'DÉCONNEXION', 'INSCRIPTION'], erreurs: ['ERREUR'], admin: ['ADMIN', 'CONSOLE', 'PANEL', 'MAINTENANCE', 'ANNONCE', 'SAUVEGARDE', 'DÉMARRAGE', 'MISE À JOUR', 'REDÉMARRAGE'] })) for (const t of l) TAGCAT[t] = c;
 async function viewLogs() {
   const size = b => b > 1048576 ? (b / 1048576).toFixed(1) + ' Mo' : Math.round(b / 1024) + ' Ko';
   $('#main').innerHTML = top('Sauvegardes et journal') + `

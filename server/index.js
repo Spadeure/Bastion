@@ -463,7 +463,7 @@ async function api(req, res, url, ip) {
     return;
   }
   if (url === '/api/logout' && req.method === 'POST') { Q.delSession.run(me.token); seenAt.delete(me.token); log('DÉCONNEXION', `${me.name} · ${ip}`); return send(res, 200, { ok: true }); }
-  const ENGINE = (url === '/api/state' && req.method === 'GET') || (url === '/api/act' && req.method === 'POST') || (url === '/api/chest' && req.method === 'POST') || (url === '/api/alliance' && req.method === 'POST');
+  const ENGINE = (url === '/api/state' && req.method === 'GET') || (url === '/api/act' && req.method === 'POST') || (url === '/api/chest' && req.method === 'POST') || (url === '/api/alliance' && req.method === 'POST') || (url === '/api/chat' && req.method === 'POST');
   // maintenance: the players can still look at their game (time goes on), but every order is refused; the administrator plays normally
   if (panel.isMaint() && me.role !== 'admin' && ((url === '/api/act' || url === '/api/chest' || url === '/api/admin' || url === '/api/alliance') && req.method === 'POST')) return send(res, 503, { error: 'maintenance', srv: panel.status() });
   if (ENGINE && !checkSig(me, ip, req)) return send(res, me.banned ? 403 : 409, { error: me.banned ? 'banned' : 'old_page' });   // not from the game page
@@ -511,6 +511,14 @@ async function api(req, res, url, ip) {
   if (url === '/api/players' && req.method === 'GET') { const now = Date.now(), an = ally.names();
     return send(res, 200, { players: Q.players.all(me.id).map(({ uid, ...p }) => ({ ...p, shield: p.shield > now ? p.shield : 0, alliance: an.get(uid) || null })), outposts: Q.allOps.all() }); }
   if (url === '/api/alliance' && req.method === 'GET') return send(res, 200, ally.view(me));
+  if (url.startsWith('/api/chat')) {   // the chat: general, alliance, private
+    try {
+      const qs = new URLSearchParams(req.url.split('?')[1] || '');
+      if (url === '/api/chat/sum' && req.method === 'GET') return send(res, 200, chat.summary(me));
+      if (url === '/api/chat' && req.method === 'GET') return send(res, 200, chat.read(me, qs.get('ch'), qs.get('after')));
+      if (url === '/api/chat' && req.method === 'POST') { const P = await readBody(req, 10_000); return send(res, 200, chat.act(me, P)); }
+    } catch (e) { if (!e.code) throw e; return send(res, e.code, { error: e.error }); }
+  }
   if (url === '/api/alliance' && req.method === 'POST') {
     const P = await readBody(req, 20_000); const op = clean(P.op);
     try { const r = ally.act(me, P); noteOrder(me, ip, req, 'ally:' + op); if (me.banned) return send(res, 403, { error: 'banned' }); return send(res, 200, { ...r, view: ally.view(me) }); }
@@ -886,6 +894,8 @@ catch (e) { log('ERREUR', 'console indisponible : ' + e.message); }
 
 // ---------- alliances ----------
 const ally = require('./alliance.js')({ db, Q, log, clean, push, runFor, DAY_FMT });
+// ---------- chat ----------
+const chat = require('./chat.js')({ db, Q, log, clean, push, broadcast, ally });
 
 // ---------- management panel (/admin): maintenance, updates, players, announcements, backups, journal ----------
 const panel = require('./panel.js')({

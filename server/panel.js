@@ -71,7 +71,7 @@ module.exports = function makePanel(C) {
 
   // ---------- journal ----------
   const CATS = {
-    triche: ['TRICHE?', 'ORDRE REFUSÉ'],
+    triche: ['TRICHE?', 'ORDRE REFUSÉ', 'SIGNALEMENT'],
     blocages: ['BLOQUÉ', 'SCRIPT', 'INSCRIPTION REFUSÉE', 'CONNEXION REFUSÉE', 'PANEL REFUSÉ'],
     connexions: ['CONNEXION OK', 'CONNEXION ÉCHOUÉE', 'DÉCONNEXION', 'INSCRIPTION'],
     erreurs: ['ERREUR'],
