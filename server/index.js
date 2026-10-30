@@ -519,7 +519,7 @@ function incomingFor(uid, st) {
 
 // ---------- administration (admin and test accounts only) ----------
 const RESS = ['metal', 'wood', 'stone', 'fuel', 'rations', 'gold', 'alloy'];
-const UNIT_IDS = ['recruit', 'rifleman', 'sniper', 'assault', 'truck', 'drone', 'apc', 'tank', 'artillery', 'heli', 'gunship'];
+const UNIT_IDS = ['recruit', 'rifleman', 'sniper', 'assault', 'truck', 'drone', 'apc', 'tank', 'artillery', 'heli', 'gunship', 'mastodon'];
 const TECH_IDS = ['extraction', 'forestry', 'rationing', 'refining', 'engineering', 'drill', 'ballistics', 'armor', 'medicine', 'logistics', 'engines', 'robotics', 'intel'];
 const PROTO_KEYS = new Set([...Object.getOwnPropertyNames(Object.prototype), '__proto__']);   // names every object answers to: never a game name
 const gameId = id => typeof id === 'string' && /^[a-z0-9_]{2,40}$/.test(id) && !PROTO_KEYS.has(id);
