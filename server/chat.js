@@ -47,7 +47,7 @@ module.exports = function makeChat(C) {
   const err = (code, error) => Object.assign(new Error(error), { code, error });
   const pch = (a, b) => `p:${Math.min(a, b)}:${Math.max(a, b)}`;
   const allyCh = uid => { const m = db.prepare('SELECT aid FROM ally_members WHERE user_id = ?').get(uid); return m ? 'a:' + m.aid : null; };
-  const pub = m => ({ id: m.id, name: m.name, text: m.text, at: m.at });
+  const pub = m => ({ id: m.id, name: m.name, text: filter(m.text), at: m.at });   // filtered again when read: old messages follow the current list of words
   // which channel a player asks for: 'g', 'a' (his alliance) or 'p:<name>' (private with that player)
   function resolve(me, ch) {
     ch = String(ch || '');
