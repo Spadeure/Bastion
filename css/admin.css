@@ -26,6 +26,8 @@ h1{font-size:24px;margin-bottom:14px}h2{font-size:18px;margin-bottom:10px}h3{fon
 .srvtag{font:13px/1 var(--disp);letter-spacing:1.5px;text-align:center;padding:6px;border-radius:7px;border:1px solid var(--line)}
 .srvtag.off{background:#22301c;border-color:#5e7a3e;color:#bfe39a}
 #otherp{justify-content:center;font-size:13px}
+#mtop .btn{white-space:nowrap}
+#mtop .otherp{font-size:12px;padding-left:9px;padding-right:9px}
 #otherp.test{background:linear-gradient(180deg,#f08a1c,#b55a08);border-color:#ffd08a;color:#1a0f02}
 #otherp.off{background:#22301c;border-color:#5e7a3e;color:#bfe39a}
 .srvtag.test{background:linear-gradient(180deg,#f08a1c,#b55a08);border-color:#ffd08a;color:#1a0f02}
@@ -50,7 +52,8 @@ h1{font-size:24px;margin-bottom:14px}h2{font-size:18px;margin-bottom:10px}h3{fon
   h1{font-size:20px}
 }
 #mtop{display:none;align-items:center;gap:8px;margin-bottom:10px}
-#mtop .srvtag{display:block;flex:none;padding:5px 8px}
+#mtop .srvtag{display:block;flex:none;padding:5px 7px;font-size:11px;letter-spacing:.5px}
+#mtop{gap:6px}
 #mtop .sp{flex:1}
 #mtop .btn{padding:5px 9px;font-size:14px}
 

@@ -368,8 +368,13 @@ p{font-size:15px;color:#d6d6ca;line-height:1.35;font-weight:500}
   .tabs .trow{flex-wrap:nowrap;gap:5px}
   .tab{white-space:nowrap!important;display:inline-flex!important;align-items:center;gap:5px}
 }
-@media (min-width:761px) and (max-width:1250px){ .tab .ic{display:none} .tab{padding:5px 9px!important;font-size:13px!important} }
-@media (min-width:761px) and (max-width:1080px){ .tabs .trow.two{display:none!important} }
+@media (min-width:761px) and (max-width:1560px){ .tab .ic{display:none} }   /* 6 tabs: the icons go first when the room is short */
+@media (min-width:761px) and (max-width:1250px){ .tab{padding:5px 8px!important;font-size:12px!important;letter-spacing:.5px} }
+/* tablets and small screens: not enough room between the two top cards, the tabs go just below them, all of them */
+@media (min-width:761px) and (max-width:1300px){
+  .tabs{top:106px!important;left:50%!important;max-width:calc(100% - 300px)!important}
+  .coordbox{top:148px!important}
+}
 
 /* ===== Titan ===== */
 .eqgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:8px}
@@ -617,10 +622,13 @@ p{font-size:15px;color:#d6d6ca;line-height:1.35;font-weight:500}
 .albtn button,.rkrow>button{flex:none}
 button.red{border-color:#8a2a1c;color:#ffb3a3}
 .aldesc{margin:8px 0;padding:9px 11px;border-radius:9px;background:#141a14;border:1px solid #3d3a26;color:#d9cfa8;font-size:14px;white-space:normal;overflow-wrap:anywhere}
-.alres{display:flex;align-items:center;gap:8px;margin:6px 0}
-.alres .ic{width:26px;height:26px}
-.alres span{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.alres input{width:120px;flex:none}
+.alic{width:92px;height:76px;flex:none;border:2px solid var(--brass);border-radius:10px;background:radial-gradient(circle at 50% 40%,#46573a,#151a14);display:flex;align-items:center;justify-content:center}
+.alic .ic{width:46px;height:46px}
+.alrow .trow2 input{flex:1 1 110px;max-width:180px}
+.alsum{margin-top:12px}
+.chip.bad{border-color:#8a2a1c;color:#ffb3a3}
+.alfoot{justify-content:space-between;margin-top:12px}
+@media (max-width:760px){ .alic,.alrow .uimg{width:64px;height:56px} .alic .ic{width:36px;height:36px} }
 .allogs{display:flex;flex-direction:column;gap:5px;margin-top:8px}
 .allog{font-size:14px;color:#d9cfa8;padding:6px 9px;border-radius:8px;background:#141a14;border:1px solid #2c2a1c}
 .allog .ic{width:16px;height:16px;vertical-align:-3px}

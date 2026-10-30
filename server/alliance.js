@@ -25,7 +25,9 @@ module.exports = function makeAlliances(C) {
     CREATE TABLE IF NOT EXISTS ally_sent (user_id INTEGER NOT NULL, day TEXT NOT NULL, amount INTEGER NOT NULL, PRIMARY KEY (user_id, day));
     CREATE TABLE IF NOT EXISTS reinforcements (id INTEGER PRIMARY KEY, owner INTEGER NOT NULL, host INTEGER NOT NULL, troops TEXT NOT NULL, status TEXT NOT NULL, arrive INTEGER NOT NULL, secs INTEGER NOT NULL, created INTEGER NOT NULL);
     CREATE INDEX IF NOT EXISTS reinf_host ON reinforcements (host, status);
-    CREATE INDEX IF NOT EXISTS reinf_owner ON reinforcements (owner);`);
+    CREATE INDEX IF NOT EXISTS reinf_owner ON reinforcements (owner);
+    CREATE TABLE IF NOT EXISTS convoys (id INTEGER PRIMARY KEY, owner INTEGER NOT NULL, host INTEGER NOT NULL, troops TEXT NOT NULL, res TEXT NOT NULL, status TEXT NOT NULL, arrive INTEGER NOT NULL, secs INTEGER NOT NULL, created INTEGER NOT NULL);
+    CREATE INDEX IF NOT EXISTS convoys_due ON convoys (status, arrive);`);
   if (!db.prepare("SELECT 1 FROM pragma_table_info('users') WHERE name = 'aleft'").get()) db.exec('ALTER TABLE users ADD COLUMN aleft INTEGER NOT NULL DEFAULT 0');   // time the player left his alliance
 
   const A = {
@@ -68,6 +70,12 @@ module.exports = function makeAlliances(C) {
     rDue: db.prepare("SELECT * FROM reinforcements WHERE status IN ('go', 'back') AND arrive <= ? ORDER BY arrive LIMIT 50"),
     rOf: db.prepare("SELECT * FROM reinforcements WHERE (owner = ? OR host = ?) AND status != 'back'"),
     attacksBetween: db.prepare("SELECT 1 FROM attacks WHERE status = 'out' AND ((att = ? AND def = ?) OR (att = ? AND def = ?)) LIMIT 1"),
+    cAdd: db.prepare('INSERT INTO convoys (owner, host, troops, res, status, arrive, secs, created) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'),
+    cDue: db.prepare('SELECT * FROM convoys WHERE arrive <= ? ORDER BY arrive LIMIT 50'),
+    cStatus: db.prepare('UPDATE convoys SET status = ?, arrive = ? WHERE id = ?'),
+    cDel: db.prepare('DELETE FROM convoys WHERE id = ?'),
+    cOut: db.prepare('SELECT c.*, u.name FROM convoys c JOIN users u ON u.id = c.host WHERE c.owner = ? ORDER BY c.id'),
+    cIn: db.prepare("SELECT c.*, u.name FROM convoys c JOIN users u ON u.id = c.owner WHERE c.host = ? AND c.status = 'go' ORDER BY c.id"),
     nameOf: db.prepare('SELECT a.name FROM ally_members m JOIN alliances a ON a.id = m.aid WHERE m.user_id = ?'),
   };
   const err = (code, error) => Object.assign(new Error(error), { code, error });
@@ -81,9 +89,10 @@ module.exports = function makeAlliances(C) {
   const tellAlly = aid => { for (const m of A.members.all(aid)) push(m.id, 'ally', {}); };
   const userOf = id => Q.user.get(id);
   // a game changed by a server-only order (or read, without an order): the engine catches up the time first
-  function game(uid, action, args) {
+  const LANGS = ['en', 'fr', 'es', 'de', 'it', 'pt', 'pl', 'tr', 'ru'];
+  function game(uid, action, args, lang) {
     const u = userOf(uid), b = Q.base.get(uid); if (!u || !b) throw err(404, 'unknown_player');
-    return runFor({ id: u.id, name: u.name, created: u.created, role: 'player' }, b, action, args || [], 'en');
+    return runFor({ id: u.id, name: u.name, created: u.created, role: 'player' }, b, action, args || [], LANGS.includes(lang) ? lang : 'en');   // the messages in the player's language
   }
   const rallyLvl = st => { let l = 0; for (const k in (st.slots || {})) if (st.slots[k].type === 'rally') l = Math.max(l, st.slots[k].lvl || 0); return l; };
   const reinfCap = st => RALLY_TROOPS[Math.max(0, Math.min(10, rallyLvl(st)))];
@@ -102,6 +111,22 @@ module.exports = function makeAlliances(C) {
         if (troopSum(t)) { game(r.owner, 'reinfBack', [t]); push(r.owner, 'sync', {}); }
         push(r.owner, 'ally', {});
       } catch (e) { log('ERREUR', `renforts ${r.id} : ${e.message}`); A.rDel.run(r.id); }
+    }
+  }, 1000).unref();
+
+  // convoys: the resources are delivered on arrival, then the transport troops drive back home
+  setInterval(() => {
+    const now = Date.now();
+    for (const c of A.cDue.all(now)) {
+      try {
+        if (c.status === 'go') {
+          const res = parse(c.res); game(c.host, 'allyGet', [res]); A.cStatus.run('back', c.arrive + c.secs * 1000, c.id);
+          const al = A.member.get(c.host), o = userOf(c.owner), h = userOf(c.host);
+          if (al) note(al.aid, 'convoy', { n: o ? o.name : '?', t: h ? h.name : '?', res });
+          push(c.host, 'sync', {}); push(c.host, 'ally', {}); push(c.owner, 'ally', {}); continue;
+        }
+        A.cDel.run(c.id); game(c.owner, 'reinfBack', [parse(c.troops)]); push(c.owner, 'sync', {}); push(c.owner, 'ally', {});
+      } catch (e) { log('ERREUR', `convoi ${c.id} : ${e.message}`); A.cDel.run(c.id); }
     }
   }, 1000).unref();
 
@@ -144,6 +169,8 @@ module.exports = function makeAlliances(C) {
       reinfIn: A.rIn.all(me.id).map(r => ({ id: r.id, name: r.name, troops: parse(r.troops), status: r.status, arrive: r.arrive })),
       reinfOut: A.rOut.all(me.id).map(r => ({ id: r.id, name: r.name, troops: parse(r.troops), status: r.status, arrive: r.arrive })),
       reinfCap: reinfCap(myState), reinfUsed: reinfUsed(me.id),
+      convoyOut: A.cOut.all(me.id).map(c => ({ id: c.id, name: c.name, troops: parse(c.troops), res: parse(c.res), status: c.status, arrive: c.arrive })),
+      convoyIn: A.cIn.all(me.id).map(c => ({ id: c.id, name: c.name, res: parse(c.res), arrive: c.arrive })),
       sent: (A.sent.get(me.id, DAY_FMT.format(new Date(now))) || { amount: 0 }).amount, sendMax: SEND_DAY_MAX };
     return out;
   }
@@ -237,11 +264,13 @@ module.exports = function makeAlliances(C) {
         if (!tot) throw err(400, 'ally_nothing');
         const day = DAY_FMT.format(new Date(now)), sent = (A.sent.get(me.id, day) || { amount: 0 }).amount;
         if (sent + tot > SEND_DAY_MAX) throw err(409, 'ally_send_limit');
-        const r1 = game(me.id, 'allyGive', [res]); if (r1.error) throw err(409, r1.error);
-        game(u.id, 'allyGet', [res]); A.sentAdd.run(me.id, day, tot);
-        note(al.a.id, 'give', { n: me.name, t: u.name, res }); log('ALLIANCE', `${me.name} envoie ${Object.entries(res).map(([k, v]) => k + ' ' + v).join(', ')} à ${u.name}`);
-        push(u.id, 'sync', {}); tellAlly(al.a.id);
-        return { ok: true, state: r1.state };
+        const hb = Q.base.get(u.id), q = {}; for (const k of ['truck', 'apc']) { const n = Math.floor(Number((P.q || {})[k]) || 0); if (n > 0) q[k] = Math.min(n, 1e9); }
+        const r1 = game(me.id, 'allyGive', [res, q, hb.x, hb.y], P.lang); if (r1.error) throw err(409, r1.error);
+        const ev = r1.events.find(e => e.t === 'convoy'); if (!ev) throw err(409, 'bad_order');
+        A.cAdd.run(me.id, u.id, JSON.stringify(ev.q), JSON.stringify(res), 'go', now + ev.secs * 1000, ev.secs, now); A.sentAdd.run(me.id, day, tot);
+        note(al.a.id, 'give', { n: me.name, t: u.name, res }); log('ALLIANCE', `${me.name} envoie un convoi (${Object.entries(res).map(([k, v]) => k + ' ' + v).join(', ')}) à ${u.name}, arrivée dans ${ev.secs} s`);
+        push(u.id, 'ally', {}); tellAlly(al.a.id);
+        return { ok: true, state: r1.state, secs: ev.secs };
       }
       // ----- help an ally's construction -----
       case 'help': {
@@ -258,11 +287,11 @@ module.exports = function makeAlliances(C) {
         const u = mate(), q = cleanTroops(P.q), n = troopSum(q); if (!n) throw err(400, 'ally_nothing');
         const hb = Q.base.get(u.id), hs = hb && hb.state ? parse(hb.state) : {};
         if (reinfUsed(u.id) + n > reinfCap(hs)) throw err(409, 'ally_reinf_full');
-        const r = game(me.id, 'reinforce', [hb.x, hb.y, q]); if (r.error) throw err(409, r.error);
+        const r = game(me.id, 'reinforce', [hb.x, hb.y, q], P.lang); if (r.error) throw err(409, r.error);
         const ev = r.events.find(e => e.t === 'reinf'); if (!ev) throw err(409, 'bad_order');
         A.rAdd.run(me.id, u.id, JSON.stringify(q), 'go', now + ev.secs * 1000, ev.secs, now);
         note(al.a.id, 'reinf', { n: me.name, t: u.name, c: n }); push(u.id, 'ally', {}); tellAlly(al.a.id);
-        return { ok: true, state: r.state };
+        return { ok: true, state: r.state, secs: ev.secs };
       }
       case 'recall': case 'sendback': {
         const r = A.rById.get(Math.floor(Number(P.id) || 0));

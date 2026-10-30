@@ -106,9 +106,16 @@ const __ACTIONS = {
     const secs = marchStats(t, false).secs; for (const u in t) state.troops[u] -= t[u];
     __events.push({ t: 'reinf', secs, q: t }); },
   reinfBack(q) { for (const u in (q || {})) if (own(UNITS, u)) state.troops[u] = (state.troops[u] || 0) + __int(q[u], 0, 1e9); },
-  allyGive(res) { const R = ['metal', 'wood', 'stone', 'fuel', 'rations'];
-    for (const r of R) if (__int((res || {})[r], 0, 1e12) > Math.floor(state.res[r] || 0)) return _t('Not enough resources');
-    for (const r of R) state.res[r] -= __int((res || {})[r], 0, 1e12); },
+  // resources to an ally: carried by a convoy of transport troops (Supply Trucks, Armored Carriers), travel time like a march
+  allyGive(res, q, x, y) { const R = ['metal', 'wood', 'stone', 'fuel', 'rations'], t = {}; let tot = 0, n = 0;
+    for (const r of R) { const k = __int((res || {})[r], 0, 1e12); if (k > Math.floor(state.res[r] || 0)) return _t('Not enough resources'); tot += k; }
+    for (const u of ['truck', 'apc']) { const k = __int((q || {})[u], 0, 1e9); if (k > (state.troops[u] || 0)) return _t('Choose your troops'); if (k) { t[u] = k; n += k; } }
+    if (!n) return _t('Choose your transport troops');
+    mapSel = { x: __int(x, 1, MAPN), y: __int(y, 1, MAPN) };
+    const st = marchStats(t, false); if (tot > st.load) return _t('Not enough transport capacity: {a} / {b}', { a: fmtN(tot), b: fmtN(st.load) });
+    for (const r of R) state.res[r] -= __int((res || {})[r], 0, 1e12);
+    for (const u in t) state.troops[u] -= t[u];
+    __events.push({ t: 'convoy', secs: st.secs, q: t }); },
   allyGet(res) { for (const r of ['metal', 'wood', 'stone', 'fuel', 'rations']) state.res[r] = (state.res[r] || 0) + __int((res || {})[r], 0, 1e12); },
   allyHelp(b, key, share, min) { return __in(b, () => { const q = state.queue, now = Date.now();
     if (!q || q.end <= now || `${b}|${q.slot}|${q.type}|${q.lvl}|${q.start}` !== key) return 'bad_order';
