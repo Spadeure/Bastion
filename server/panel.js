@@ -165,6 +165,16 @@ module.exports = function makePanel(C) {
       if (!t || !t.ok || !t.commit) return send(res, 502, { error: 'version du serveur de test illisible' + (t && t.error ? ' (' + t.error + ')' : '') });
       if (P.commit && P.commit !== t.commit) return send(res, 409, { error: 'le serveur de test a changé de version entre-temps : recharge le tableau de bord' });
       if (t.commit === GIT.commit) return send(res, 409, { error: 'cette version est déjà installée' });
+      // never back in time: the version of the test server must come after the one installed here
+      if (GIT.commit) {
+        const git = (...a) => require('child_process').execFileSync('git', a, { cwd: path.join(DATA, '..'), encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], timeout: 60000 });
+        try { git('fetch', '--quiet', 'origin', 'test'); } catch (e) {}
+        let newer = null;
+        try { git('merge-base', '--is-ancestor', GIT.commit, t.commit); newer = true; } catch (e) { newer = e.status === 1 ? false : null; }
+        if (newer === false) { log('PANEL', `${by} · déploiement refusé : la version du serveur de test (${t.commit.slice(0, 7)}) est plus ancienne que celle de l'officiel (${GIT.commit.slice(0, 7)})`);
+          return send(res, 409, { error: 'le serveur de test a une version plus ancienne que l\'officiel : redémarre d\'abord le serveur de test (Pelican ou panel du test), puis recharge ce tableau de bord' }); }
+        if (newer === null) return send(res, 409, { error: 'impossible de comparer les versions (git) : réessaie dans un instant' });
+      }
       fs.writeFileSync(path.join(DATA, 'deploy.json'), JSON.stringify({ commit: t.commit, branch: 'test', by, at: Date.now() }));
       if (!maint) startMaint(15, 'update', by, 'installation d\'une mise à jour');
       did(`déploiement de la version du serveur de test ${t.commit.slice(0, 7)} (${t.subject})`);
