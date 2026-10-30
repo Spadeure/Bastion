@@ -288,7 +288,7 @@ function tooFast(me, ip, res, req) {
 //  · flood    : far too many orders in 10 minutes
 //  · regular  : a long run of orders at perfectly regular intervals (a person is never that regular, a timer always is)
 //  · nonstop  : orders in every 10-minute slot for 16 hours in a row (a person sleeps)
-// The thresholds are far above what a very fast player does. The administrator is never checked.
+// The thresholds are far above what a very fast player does. The administrator is never checked (on the test server only).
 const BOT = { badSig: 20, rush: 200, flood: 600, regularN: 60, regularCv: 0.025, regularMinGap: 1500, regularMaxGap: 600_000, nonstopH: 16 };
 const watch = new Map();   // user id -> {acts:[{t,a}], bad:[t], slots:Set}
 const watchOf = id => { let w = watch.get(id); if (!w) watch.set(id, w = { acts: [], bad: [], slots: new Set() }); return w; };
@@ -419,9 +419,13 @@ async function api(req, res, url, ip) {
   }
   const me = auth(req);
   if (!me) return send(res, 401, { error: 'not_logged_in' });
+  if (url.startsWith('/api/admin/') && me.role === 'admin') { lastIp.set(me.id, ip); return panel.route(req, res, url, me, ip); }   // the management panel (administrator only)
   if (me.banned) return send(res, 403, banError(me.id));   // blocked for using a script, or by the administrator
   STATS.players.add(me.name); lastIp.set(me.id, ip);
-  if (url.startsWith('/api/admin/')) return panel.route(req, res, url, me, ip);   // the management panel (administrator only, checked there)
+  // official server: nobody has any power in the game, the administrator plays exactly like everybody (checks, maintenance…);
+  // his role only opens the management panel. The tests with the administration buttons are done on the test server.
+  if (!IS_TEST) me.role = 'player';
+  if (url.startsWith('/api/admin/')) return panel.route(req, res, url, me, ip);   // not an administrator: refused there
   if (url === '/api/stream' && req.method === 'GET') {   // the live line (kept open)
     res.writeHead(200, { 'Content-Type': 'text/event-stream; charset=utf-8', 'Cache-Control': 'no-cache, no-transform', 'Connection': 'keep-alive', 'X-Accel-Buffering': 'no' });
     let set = streams.get(me.id); if (!set) streams.set(me.id, set = new Set());
@@ -811,6 +815,7 @@ function consoleCommand(line) {
     const u = Q.userByName.get(arg);
     if (!u) { out(`Joueur introuvable : ${arg} (tape « joueurs » pour voir la liste)`); return; }
     if (u.name.toLowerCase() === ADMIN_NAME.toLowerCase() && ROLES[cmd] !== 'admin') { out(`${u.name} est le compte principal : il reste toujours administrateur`); return; }
+    if (ROLES[cmd] === 'tester' && !IS_TEST) { out('Pas de compte de test sur le serveur officiel : les tests se font sur le serveur de test'); return; }
     if (u.role === ROLES[cmd]) { out(`${u.name} est déjà ${ROLE_FR[u.role]}`); return; }
     Q.setRole.run(ROLES[cmd], u.id);
     log('ADMIN', `Console : ${u.name} passe ${ROLE_FR[ROLES[cmd]]} (avant : ${ROLE_FR[u.role] || u.role})`);

@@ -211,6 +211,7 @@ module.exports = function makePanel(C) {
       if (op === 'unban') { if (!u.banned) return send(res, 409, { error: 'ce joueur n\'est pas bloqué' }); unbanPlayer(u, by + ' (panel)'); return send(res, 200, { ok: true }); }
       if (op === 'role') {
         const role = ['player', 'tester', 'admin'].includes(P.role) ? P.role : null; if (!role) return send(res, 400, { error: 'rôle inconnu' });
+        if (role === 'tester' && !IS_TEST) return send(res, 409, { error: 'pas de compte de test sur le serveur officiel' });
         if (main && role !== 'admin') return send(res, 409, { error: `${u.name} est le compte principal : il reste toujours administrateur` });
         if (u.id === me.id) return send(res, 409, { error: 'impossible de changer ton propre rôle' });
         if (u.role === role) return send(res, 409, { error: 'il a déjà ce rôle' });
@@ -224,7 +225,8 @@ module.exports = function makePanel(C) {
         log('DÉCONNEXION', `${u.name} déconnecté par ${by} (${n} session(s) fermée(s))`);
         return send(res, 200, { ok: true });
       }
-      if (op === 'give') {   // the gifts of the in-game administration, to this player
+      if (op === 'give') {   // the gifts of the in-game administration, to this player (test server only: on the official server everybody plays normally)
+        if (!IS_TEST) return send(res, 403, { error: 'les dons se font seulement sur le serveur de test' });
         const action = String(P.action || '');
         if (!['give_res', 'give_item', 'give_troops', 'titan_part'].includes(action)) return send(res, 400, { error: 'don inconnu' });
         const p = P.p && typeof P.p === 'object' && !Array.isArray(P.p) ? { ...P.p } : {};
@@ -233,7 +235,7 @@ module.exports = function makePanel(C) {
       return send(res, 400, { error: 'action inconnue' });
     }
     if (req.method === 'POST' && name === 'create') {
-      try { const c = createAccount(P.name, P.password, P.role === 'tester' ? 'tester' : 'player'); log('ADMIN', `${by} a créé le compte ${c.n} (${c.rl}) depuis le panel`); return send(res, 200, { ok: true, name: c.n }); }
+      try { const c = createAccount(P.name, P.password, P.role === 'tester' && IS_TEST ? 'tester' : 'player'); log('ADMIN', `${by} a créé le compte ${c.n} (${c.rl}) depuis le panel`); return send(res, 200, { ok: true, name: c.n }); }
       catch (e) { return send(res, e.code || 500, { error: { bad_name: 'nom invalide (3 à 16 lettres, chiffres, espaces, - ou _)', bad_password: 'mot de passe trop court (6 caractères minimum)', name_taken: 'ce nom est déjà pris' }[e.message] || e.message }); }
     }
     // ----- backups and journal -----

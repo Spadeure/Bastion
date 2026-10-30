@@ -267,9 +267,9 @@ function sheet(html) { let s = $('#sheet'); if (!s) { s = document.createElement
 function closeSheet() { const s = $('#sheet'); if (s) s.className = ''; }
 function createAccount() {
   const s = sheet(`<div class="ch"><img src="${IMG('ui_star')}" alt=""><h2>Créer un compte</h2></div>
-    <p class="mut small">Pour tes testeurs. ${D && D.server.test ? 'Sur ce serveur de test, c\'est la seule façon de créer un compte.' : ''}</p>
+    <p class="mut small">${D && D.server.test ? 'Pour tes testeurs. Sur ce serveur de test, c\'est la seule façon de créer un compte.' : 'Serveur officiel : le compte créé est un joueur normal (pas de boutons de test).'}</p>
     <div class="row"><input id="cn" class="grow" placeholder="Nom du commandant" maxlength="16"><input id="cp" class="grow" placeholder="Mot de passe (6 caractères min.)" maxlength="100"></div>
-    <div class="row"><select id="cr"><option value="tester">Compte de test (boutons de test)</option><option value="player">Joueur normal</option></select>
+    <div class="row"><select id="cr">${D && D.server.test ? '<option value="tester">Compte de test (boutons de test)</option>' : ''}<option value="player">Joueur normal</option></select>
       <button class="btn" id="cgo"><img src="${IMG('ui_ok')}" alt="">Créer</button></div><p id="cres"></p>`);
   s.querySelector('#cp').value = Math.random().toString(36).slice(2, 10);
   s.querySelector('#cgo').onclick = async e => { const name = $('#cn').value.trim(), password = $('#cp').value;
@@ -295,10 +295,10 @@ async function openPlayer(name) {
     <h3>Actions</h3>
     <div class="row">${p.admin ? '<span class="mut small">Compte principal : il ne peut être ni bloqué, ni déconnecté, ni changé de rôle.</span>' : `
       <button class="btn sec sm" id="kick"${p.online || p.games ? '' : ''}><img src="${IMG('ui_back')}" alt="">Déconnecter tout de suite</button>
-      <select id="role">${Object.entries(ROLE).map(([k, l]) => `<option value="${k}"${k === p.role ? ' selected' : ''}>${l}</option>`).join('')}</select><button class="btn sec sm" id="setrole">Changer le rôle</button>`}</div>
+      <select id="role">${Object.entries(ROLE).filter(([k]) => k !== 'tester' || (D && D.server.test) || p.role === 'tester').map(([k, l]) => `<option value="${k}"${k === p.role ? ' selected' : ''}>${l}</option>`).join('')}</select><button class="btn sec sm" id="setrole">Changer le rôle</button>`}</div>
     ${p.admin ? '' : p.banned ? `<div class="row"><button class="btn sm" id="unban"><img src="${IMG('ui_ok')}" alt="">Débloquer</button></div>`
       : `<div class="row"><input id="motif" class="grow" maxlength="200" placeholder="Motif du blocage (le joueur le verra)"><button class="btn red sm" id="ban"><img src="${IMG('ui_lock')}" alt="">Bloquer</button></div>`}
-    <h3>Dons</h3>
+    ${D && D.server.test ? `<h3>Dons</h3>
     <div class="gifts">
       <div class="gift"><h3><img src="${IMG('metal')}" alt="">Ressources</h3><div class="row"><select id="gres">${opts(CAT.res)}<option value="all">Toutes (sauf alliage)</option></select></div>
         <div class="row"><input id="gresn" type="number" min="1" value="100000"><button class="btn sm" data-give="res">Donner</button></div></div>
@@ -308,7 +308,7 @@ async function openPlayer(name) {
         <div class="row"><input id="gunitn" type="number" min="1" value="1000"><button class="btn sm" data-give="unit">Donner</button></div></div>
       <div class="gift"><h3><img src="${IMG('titan_1')}" alt="">Pièces du Titan</h3><div class="parts">${parts('', k => IMG('eq_' + k + '_1'))}</div>
         <h3><img src="${IMG('rempart_titan_1')}" alt="">Pièces du Titan Rempart</h3><div class="parts">${parts('r_', k => IMG('rempart_eq_' + k))}</div></div>
-    </div>
+    </div>` : '<p class="mut small">Serveur officiel : pas de dons, tout le monde joue normalement. Les dons se font sur le serveur de test.</p>'}
     <h3>Rapport anti-triche</h3>
     ${p.bans.length ? p.bans.map(b => `<div class="ban"><b>${b.active ? 'Blocage en cours' : 'Ancien blocage'}</b> · ${dt(b.at)}<br>${esc(b.text)}${b.ip ? `<br><span class="mut small">Adresse ${esc(b.ip)}${b.ua ? ' · ' + esc(b.ua) : ''}</span>` : ''}
       ${b.last.length ? `<div class="ord">Derniers ordres : ${b.last.map(o => `${esc(DTS.format(new Date(o.t)).slice(-8))}${o.gap ? ' (+' + o.gap + ' s)' : ''} ${esc(o.a)}`).join(' · ')}</div>` : ''}</div>`).join('') : '<p class="ok small">Jamais bloqué.</p>'}`);
