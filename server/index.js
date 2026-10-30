@@ -77,6 +77,13 @@ db.exec(`PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL;
   CREATE INDEX IF NOT EXISTS attacks_def ON attacks (def, status);`);
 // shield: end of the beginner protection or of the truce (0 = can be attacked)
 if (!db.prepare("SELECT 1 FROM pragma_table_info('bases') WHERE name = 'shield'").get()) db.exec("ALTER TABLE bases ADD COLUMN shield INTEGER NOT NULL DEFAULT 0");
+// ranking: PvP victories (attacks + defenses won) and battles won, copied from the saved game at each save (read by the ranking)
+if (!db.prepare("SELECT 1 FROM pragma_table_info('bases') WHERE name = 'pvp'").get()) {
+  db.exec("ALTER TABLE bases ADD COLUMN pvp INTEGER NOT NULL DEFAULT 0; ALTER TABLE bases ADD COLUMN wins INTEGER NOT NULL DEFAULT 0");
+  const up = db.prepare('UPDATE bases SET pvp = ?, wins = ? WHERE user_id = ?');
+  for (const b of db.prepare('SELECT user_id, state FROM bases WHERE state IS NOT NULL').all()) {
+    try { const ss = JSON.parse(b.state).stats || {}; up.run((+ss.pvpWins || 0) + (+ss.pvpDef || 0), +ss.wins || 0, b.user_id); } catch (e) {} }
+}
 // roles: player · tester (test account with every power) · admin (can also create accounts)
 if (!db.prepare("SELECT 1 FROM pragma_table_info('users') WHERE name = 'role'").get()) db.exec("ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'player'");
 // accounts blocked for using a script: banned = time of the block (0 = free); the reports explain why
@@ -155,7 +162,7 @@ const Q = {
   oldSessions: db.prepare('DELETE FROM sessions WHERE seen < ?'),
   base: db.prepare('SELECT * FROM bases WHERE user_id = ?'),
   addBase: db.prepare('INSERT INTO bases (user_id, x, y, updated) VALUES (?, ?, ?, ?)'),
-  saveBase: db.prepare('UPDATE bases SET state = ?, lvl = ?, power = ?, updated = ?, shield = ? WHERE user_id = ?'),
+  saveBase: db.prepare('UPDATE bases SET state = ?, lvl = ?, power = ?, updated = ?, shield = ?, pvp = ?, wins = ? WHERE user_id = ?'),
   allPos: db.prepare('SELECT x, y FROM bases'),
   baseAt: db.prepare('SELECT user_id FROM bases WHERE x = ? AND y = ?'),
   // alliance: always empty until alliances exist (the map already shows it, so nothing changes on the player side then)
@@ -500,6 +507,7 @@ async function api(req, res, url, ip) {
   if (url === '/api/admin' && req.method === 'POST') return admin(req, res, me, ip);
   if (url === '/api/chest' && req.method === 'POST') return openChest(req, res, me, ip);
   if (url === '/api/players' && req.method === 'GET') { const now = Date.now(); return send(res, 200, { players: Q.players.all(me.id).map(p => ({ ...p, shield: p.shield > now ? p.shield : 0 })), outposts: Q.allOps.all() }); }
+  if (url === '/api/ranking' && req.method === 'GET') return send(res, 200, ranking(new URLSearchParams(req.url.split('?')[1] || '').get('by'), me.id));
   if (url === '/api/incoming' && req.method === 'GET') { const b = Q.base.get(me.id); return send(res, 200, { incoming: incomingFor(me.id, b && b.state ? JSON.parse(b.state) : {}) }); }
   return send(res, 404, { error: 'not_found' });
 }
@@ -511,6 +519,22 @@ function refusedOrder(me, ip, act, args, error) {
   let a = ''; try { a = JSON.stringify(args).slice(0, 120); } catch (e) {}
   if (error === 'forbidden') cheat(me, ip, `bouton de test interdit aux joueurs : ${act} ${a}`);
   else log('ORDRE REFUSÉ', `${me.name} · ${ip} · ${act || '(vide)'} ${a}`);
+}
+
+// ---------- ranking of the players: power, PvP victories, battles won (top 100 + the player's own place) ----------
+// Blocked accounts are not ranked. Ties: the strongest first, then the oldest account. Computed at most every 20 seconds.
+const RANK_BY = { power: 'b.power', pvp: 'b.pvp', wins: 'b.wins' }, RANK_TOP = 100, rankCache = new Map();
+function ranking(by, uid) {
+  if (!Object.hasOwn(RANK_BY, by)) by = 'power';
+  let c = rankCache.get(by);
+  if (!c || Date.now() - c.at > 20_000) {
+    const rows = db.prepare(`SELECT u.id, u.name, b.lvl, b.power, b.pvp, b.wins, b.x, b.y, ROW_NUMBER() OVER (ORDER BY ${RANK_BY[by]} DESC, b.power DESC, u.id) AS r
+      FROM users u JOIN bases b ON b.user_id = u.id WHERE u.banned = 0`).all();
+    const pub = x => ({ r: x.r, name: x.name, lvl: x.lvl, power: x.power, pvp: x.pvp, wins: x.wins, x: x.x, y: x.y, alliance: null });
+    c = { at: Date.now(), top: rows.slice(0, RANK_TOP).map(pub), mine: new Map(rows.map(x => [x.id, pub(x)])), n: rows.length };
+    rankCache.set(by, c);
+  }
+  return { by, top: c.top, me: c.mine.get(uid) || null, n: c.n, at: c.at };
 }
 
 // ---------- running the game for one player ----------
@@ -547,7 +571,8 @@ function syncAttacks(uid, st) {
   for (const r of Q.atkOutOf.all(uid)) if (!seen.has(r.mid)) { Q.atkStatus.run('gone', null, r.id); pushIncoming(r.def); }
 }
 function saveState(uid, created, r) {
-  Q.saveBase.run(JSON.stringify(r.state), r.lvl, r.power, Date.now(), shieldOf(r.state, created), uid); STATS.saved++;
+  const ss = r.state.stats || {};
+  Q.saveBase.run(JSON.stringify(r.state), r.lvl, r.power, Date.now(), shieldOf(r.state, created), (+ss.pvpWins || 0) + (+ss.pvpDef || 0), +ss.wins || 0, uid); STATS.saved++;
   if (r.state.op) { const l = ((r.state.op.slots || {}).cc || {}).lvl || 1; Q.opLvl.run(l, uid, l); }   // level shown on the map
   syncAttacks(uid, r.state);
 }
