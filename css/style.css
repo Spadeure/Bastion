@@ -877,3 +877,4 @@ button.danger{background:linear-gradient(180deg,#b8432f,#7a2416)!important;color
 @media (max-width:760px){ #tBase{display:none!important} }
 @media (max-width:760px){ .cmd .navicons.five{gap:2px} .cmd .navicons.five .nicon{width:35px!important;height:35px!important} }
 @media (max-width:380px){ .cmd .navicons.five .nicon{width:31px!important;height:31px!important} }
+@media (max-width:760px){ .coordbox{gap:4px!important;padding:2px 4px!important} .coordbox input{width:46px!important} .coordbox button{padding:4px 6px!important} }
