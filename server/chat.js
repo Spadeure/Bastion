@@ -32,7 +32,7 @@ module.exports = function makeChat(C) {
 
   // ---------- rude words: replaced by stars (whole words, any case, accents ignored) ----------
   const BAD = ['merde', 'putain', 'pute', 'salope', 'connard', 'connasse', 'encule', 'enculer', 'batard', 'nique', 'niquer', 'fdp', 'ntm', 'pd', 'tg', 'ta gueule',
-    'fils de pute', 'nique ta mere', 'couille', 'couilles', 'chier', 'enfoire', 'abruti', 'cretin', 'debile', 'gogol', 'negre', 'bougnoule',
+    'fils de pute', 'nique ta mere', 'bite', 'couille', 'couilles', 'chier', 'enfoire', 'abruti', 'cretin', 'debile', 'gogol', 'negre', 'bougnoule',
     'fuck', 'fucking', 'fucker', 'motherfucker', 'shit', 'bitch', 'bastard', 'asshole', 'dick', 'cunt', 'whore', 'slut', 'faggot', 'fag', 'nigger', 'nigga', 'stfu', 'kys'];
   const fold = s => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
   const BAD_RE = new RegExp(`(^|[^\\p{L}\\p{N}])((?:${BAD.map(w => w.replace(/ /g, '\\s+')).sort((a, b) => b.length - a.length).join('|')})(?:e?s)?)(?=$|[^\\p{L}\\p{N}])`, 'gu');   // plurals too
