@@ -32,6 +32,15 @@ function deploy() {
   try { fs.unlinkSync(DEPLOY); fs.writeFileSync(path.join(DATA, 'deploy-result.json'), JSON.stringify(res)); } catch (e) {}
 }
 
+// Pelican "Auto Update" switch (AUTO_UPDATE=1): get the latest version of the branch when the server starts,
+// even if the startup command has no "git pull". Never for a restart asked by the panel (that one installs an exact version).
+function autoUpdate() {
+  if (!/^(1|true|on)$/i.test(String(process.env.AUTO_UPDATE || '')) || fs.existsSync(DEPLOY)) return;
+  try { const before = git('rev-parse', 'HEAD'); git('pull', '--ff-only', '--quiet'); const now = git('rev-parse', 'HEAD');
+    say(before === now ? `à jour (${now.slice(0, 7)})` : `mise à jour automatique : ${before.slice(0, 7)} -> ${now.slice(0, 7)}`); }
+  catch (e) { say(`git pull impossible : ${String(e.stderr || e.message).trim().slice(0, 300)} (la version actuelle démarre)`); }
+}
+
 let child = null, stopping = false;
 function start() {
   deploy();
@@ -42,4 +51,5 @@ function start() {
   });
 }
 for (const s of ['SIGINT', 'SIGTERM']) process.on(s, () => { stopping = true; if (child) child.kill(s); else process.exit(0); });
+autoUpdate();
 start();
