@@ -22,9 +22,9 @@ levelUpShow = (from, to, rew) => { __events.push({ t: 'levelup', from, to, rew }
 // changes the production, the storage or the upkeep from that moment on, exactly as if the player had stayed online.
 function __nextEvent(limit) {
   const ts = [];
-  if (state.queue) ts.push(state.queue.end);
+  for (const b of baseList()) { const q = queueOf(b), T = trainingOf(b) || {};   // main base and outpost
+    if (q) ts.push(q.end); for (const bl in T) for (const j of T[bl]) ts.push(j.e); }
   const rc = researchState().cur; if (rc) ts.push(rc.e);
-  for (const bl in state.training) for (const j of state.training[bl]) ts.push(j.e);
   for (const m of state.marches) ts.push(m.st === 'out' ? m.a : m.b);
   for (const k in (state.boosts || {})) ts.push(state.boosts[k]);
   let best = null; for (const t of ts) if (t > state.last && t < limit && (best === null || t < best)) best = t;
@@ -43,21 +43,25 @@ function __safeArgs(v, depth){ if(depth>6) return false;
   if(Array.isArray(v)) return v.every(x=>__safeArgs(x, depth+1));
   if(v && typeof v==='object') return Object.keys(v).every(k=>!PROTO_KEYS.has(k) && __safeArgs(v[k], depth+1));
   return true; }
+// which base an order is for: the main base (default) or the outpost (only if the player has one)
+const __base = b => (b === undefined || b === null || b === 'main') ? 'main' : (b === 'op' && state.op) ? 'op' : null;
+const __in = (b, f) => { const bs = __base(b); if (!bs) return 'bad_order'; return withBase(bs, f); };
 const STAFF_ONLY = new Set(['finish', 'finishTraining', 'finishResearch', 'finishMarch', 'reset']);
 // every order the browser may send, with its checks (the game functions do the rest of the checks themselves)
 const __ACTIONS = {
-  build(slot, t, l) {
-    const s = SLOTS.find(x => x.id === slot), d = B[t]; l = __int(l, 1, MAX);
-    if (!s || s.deco || !own(B, t)) return 'bad_order';
+  build(slot, t, l, b) { return __in(b, () => {
+    const s = SLOTS.find(x => x.id === slot); l = __int(l, 1, MAX);
+    if (!s || !slotUsable(s) || !own(B, t) || !baseAllows(t)) return 'bad_order';
     const cur = state.slots[slot];
     if (cur) { if (cur.type !== t || l !== cur.lvl + 1) return 'bad_order'; }
-    else if (l !== 1 || (s.fixed ? t !== s.fixed : (d.fixed || !!d.field !== (s.view === 'fields') || (d.unique && exists(t))))) return 'bad_order';
+    else if (l !== 1 || !canPlace(s, t) || (state.queue && state.queue.slot === slot)) return 'bad_order';
     const why = whyNot(t, l); if (why) return why;
-    startBuild(slot, t, l);
-  },
-  cancel() { if (!state.queue) return 'bad_order'; cancel(); },
-  cancelTrain(bl, i) { i = __int(i, 0, 10); if (!TRAINERS.includes(bl) || !(state.training[bl] || [])[i]) return 'bad_order'; cancelTrain(bl, i); },
-  train(u, n) { n = __int(n, 0, 1e7); if (!own(UNITS, u)) return 'bad_order'; const why = whyNotTrain(u, n); if (why) return why; train(u, n); },
+    startBuild(slot, t, l); }); },
+  cancel(b) { return __in(b, () => { if (!state.queue) return 'bad_order'; cancel(); }); },
+  cancelTrain(bl, i, b) { return __in(b, () => { i = __int(i, 0, 10); if (!TRAINERS.includes(bl) || !(state.training[bl] || [])[i]) return 'bad_order'; cancelTrain(bl, i); }); },
+  train(u, n, b) { return __in(b, () => { n = __int(n, 0, 1e7); if (!own(UNITS, u)) return 'bad_order'; const why = whyNotTrain(u, n); if (why) return why; train(u, n); }); },
+  // found the outpost on a free mountain (the server has already checked that no base stands on this tile)
+  found(x, y) { if (typeof x !== 'number' || typeof y !== 'number') return 'bad_order'; return foundOutpost('rempart', __int(x, 1, MAPN), __int(y, 1, MAPN)) || undefined; },
   research(t) { if (!own(TECH, t)) return 'bad_order'; const why = whyNotResearch(t, techLv(t) + 1); if (why) return why; startResearch(t); },
   cancelResearch() { if (!researchState().cur) return 'bad_order'; cancelResearch(); },
   // o.pvp is added by the server only (after its own checks) when the target is another player's base
@@ -68,7 +72,7 @@ const __ACTIONS = {
     for (const u in (o.q || {})) if (own(UNITS, u) && (!spy || u === 'drone')) atkQty[u] = __int(o.q[u], 0, 1e8);
     atkTitan = !spy && !!o.titan;
     if (spy && !atkQty.drone) return 'bad_order';
-    if (!pv) { const tl = tileAt(x, y); if (!tl || tl.t === 'home' || tl.t === 'plain' || tl.t === 'player') return 'bad_order'; }
+    if (!pv) { const tl = tileAt(x, y); if (!attackable(tl)) return 'bad_order'; }   // never an outpost, a base or empty land
     if (x === state.pos.x && y === state.pos.y) return 'bad_order';
     const why = whyNotMarch(atkQty); if (why) return why;
     const n0 = state.marches.length; launch();
@@ -94,8 +98,8 @@ const __ACTIONS = {
   readReport(id) { const r = state.reports.find(x => x.id === Number(id)); if (!r) return 'bad_order'; r.read = true; },
   readAllReports() { for (const r of state.reports) r.read = true; },
   // test buttons (admin and test accounts only)
-  finish() { if (state.queue) complete(); },
-  finishTraining(bl) { if (!TRAINERS.includes(bl)) return 'bad_order'; finishTraining(bl); },
+  finish(b) { return __in(b, () => { if (state.queue) complete(); }); },
+  finishTraining(bl, b) { return __in(b, () => { if (!TRAINERS.includes(bl)) return 'bad_order'; finishTraining(bl); }); },
   finishResearch() { checkResearch(true); },
   finishMarch(id) { finishMarch(id); },
   reset() { const op = state.pos; state = fresh(); state.pos = op; normalizeState(); },
@@ -126,3 +130,5 @@ function __run(stJson, lang, action, argsJson, role) {
   }
   return JSON.stringify({ state, events: __events, error, lvl: playerLevel(totalPower()), power: totalPower() });
 }
+// every outpost of the map, from the database (the Fortified Mountains move away from them)
+function __setOutposts(json) { setOutposts(JSON.parse(json)); tileCache.clear(); return OUTPOSTS.size; }

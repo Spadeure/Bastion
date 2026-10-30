@@ -59,4 +59,6 @@ function pvp(attSt, defSt, mid, attName, defName) {
 }
 // is there a Fortified Mountain on this tile? (new bases are never placed on one)
 function isFort(x, y) { if (!ctx) load(); return !!ctx.isFort(x, y); }
-module.exports = { run, load, pvp, isFort };
+// the outposts of every player (the map must know them: they are never attacked, and a Fortified Mountain moves away)
+function setOutposts(list) { if (!ctx) load(); return ctx.__setOutposts(JSON.stringify(list || [])); }
+module.exports = { run, load, pvp, isFort, setOutposts };

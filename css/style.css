@@ -866,3 +866,14 @@ button.danger{background:linear-gradient(180deg,#b8432f,#7a2416)!important;color
 .aban-box h3{margin:0 0 4px;color:#ff8a78}
 .aban-box p{margin:6px 0}
 .aban-list{margin:4px 0 8px;padding-left:18px;max-height:180px;overflow:auto;font-size:12.5px}
+/* ===== Outposts ===== */
+.resbar.hasop{grid-template-columns:repeat(8,minmax(0,1fr))!important}
+@media (max-width:760px){ .resbar.hasop{grid-template-columns:repeat(4,minmax(0,1fr))!important}
+  .resbar.hasop #srvclock.inbar{grid-column:1/-1;grid-template-columns:auto auto auto;grid-template-rows:auto;justify-content:center;column-gap:8px;padding:1px 8px}
+  .resbar.hasop #srvclock.inbar i{grid-row:auto} .resbar.hasop #srvclock.inbar b{font-size:12px} }
+.uloc{display:flex;gap:6px;margin:4px 0 8px}
+.uloc button{flex:1}
+#tBase{cursor:pointer}
+@media (max-width:760px){ #tBase{display:none!important} }
+@media (max-width:760px){ .cmd .navicons.five{gap:2px} .cmd .navicons.five .nicon{width:35px!important;height:35px!important} }
+@media (max-width:380px){ .cmd .navicons.five .nicon{width:31px!important;height:31px!important} }

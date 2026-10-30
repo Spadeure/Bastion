@@ -65,6 +65,9 @@ db.exec(`CREATE TABLE IF NOT EXISTS bans (id INTEGER PRIMARY KEY, user_id INTEGE
 // Once (remembered in the database): every other account becomes a normal player, test accounts included.
 const ADMIN_NAME = process.env.ADMIN_NAME || 'Spadeure';
 db.exec('CREATE TABLE IF NOT EXISTS meta (k TEXT PRIMARY KEY, v TEXT)');
+// outposts: one row per outpost (a player has at most one of each type), never two on the same tile; lvl = level of its Outpost Center (shown on the map)
+db.exec(`CREATE TABLE IF NOT EXISTS outposts (user_id INTEGER NOT NULL, type TEXT NOT NULL, x INTEGER NOT NULL, y INTEGER NOT NULL, lvl INTEGER NOT NULL DEFAULT 1, created INTEGER NOT NULL, PRIMARY KEY (user_id, type));
+  CREATE UNIQUE INDEX IF NOT EXISTS outposts_pos ON outposts (x, y);`);
 { const adm = db.prepare('SELECT id, name, role FROM users WHERE name = ? COLLATE NOCASE').get(ADMIN_NAME);
   if (adm && adm.role !== 'admin') { db.prepare("UPDATE users SET role = 'admin' WHERE id = ?").run(adm.id); log('ADMIN', `Administrateur : ${adm.name}`); }
   if (adm && !db.prepare("SELECT 1 FROM meta WHERE k = 'public_test'").get()) {
@@ -129,6 +132,12 @@ const Q = {
   addBan: db.prepare('INSERT INTO bans (user_id, at, reason, detail) VALUES (?, ?, ?, ?)'),
   endBans: db.prepare('UPDATE bans SET active = 0 WHERE user_id = ?'),
   lastBan: db.prepare('SELECT * FROM bans WHERE user_id = ? ORDER BY at DESC LIMIT 1'),
+  opOf: db.prepare("SELECT * FROM outposts WHERE user_id = ? AND type = 'rempart'"),
+  opAt: db.prepare('SELECT user_id FROM outposts WHERE x = ? AND y = ?'),
+  addOp: db.prepare('INSERT INTO outposts (user_id, type, x, y, lvl, created) VALUES (?, ?, ?, ?, 1, ?)'),
+  delOp: db.prepare('DELETE FROM outposts WHERE user_id = ?'),
+  opLvl: db.prepare('UPDATE outposts SET lvl = ? WHERE user_id = ? AND lvl != ?'),
+  allOps: db.prepare('SELECT o.type AS t, o.x, o.y, o.lvl, u.name FROM outposts o JOIN users u ON u.id = o.user_id'),
   bannedList: db.prepare('SELECT u.id, u.name, u.banned, (SELECT reason FROM bans x WHERE x.user_id = u.id ORDER BY x.at DESC LIMIT 1) AS reason FROM users u WHERE u.banned > 0 ORDER BY u.banned DESC'),
 };
 
@@ -296,13 +305,16 @@ function unbanPlayer(u, by) {
 }
 // a free spot for a new base: on the tile grid, away from the map edges and from other players
 function freeSpot() {
-  const used = Q.allPos.all();
+  const used = [...Q.allPos.all(), ...Q.allOps.all()];   // away from the bases and the outposts
   for (let i = 0; i < 500; i++) {
     const x = 2 * Math.floor((80 + Math.random() * (MAPN - 160)) / 2), y = 2 * Math.floor((80 + Math.random() * (MAPN - 160)) / 2);
     if (used.every(p => Math.abs(p.x - x) + Math.abs(p.y - y) >= 8) && !engine.isFort(x, y)) return { x, y };   // never on a Fortified Mountain
   }
   throw new Error('map full');
 }
+// the game engine knows every outpost of the map (never attacked, Fortified Mountains move away from them)
+function loadOutposts() { engine.setOutposts(Q.allOps.all()); }
+loadOutposts();
 const NAME_OK = /^[\p{L}\p{N}_\- ]{3,16}$/u;
 // behind the Cloudflare tunnel every request comes from the tunnel: the real player address is in CF-Connecting-IP
 function ipOf(req) {
@@ -389,16 +401,26 @@ async function api(req, res, url, ip) {
         o.pvp = { uid: t.user_id, name: t.name, kind: o.kind === 'spy' ? 'spy' : 'attack' };
       } else if (o.kind === 'spy') return refuse('bad_order');
     }
+    if (a === 'found') {                                           // the outpost: never on a base or on another outpost
+      const x = Math.floor(Number(args && args[0]) || 0), y = Math.floor(Number(args && args[1]) || 0);
+      if (Q.baseAt.get(x, y) || Q.opAt.get(x, y)) return refuse('tile_taken');
+      if (Q.opOf.get(me.id)) return refuse('bad_order');
+    }
     if (a === 'useItem' && Array.isArray(args) && /^truce_/.test(String(args[0])) && Q.atkIncoming.all(me.id).length) return refuse('attack_incoming');
     const r = runFor(me, b, String(a || ''), Array.isArray(args) ? args.slice(0, 5) : [], lang);
     refusedOrder(me, ip, act, args, r.error); noteOrder(me, ip, req, act);
+    if (a === 'found' && !r.error && r.state.op && !Q.opOf.get(me.id)) {
+      try { Q.addOp.run(me.id, 'rempart', r.state.op.x, r.state.op.y, Date.now()); loadOutposts(); log('AVANT-POSTE', `${me.name} a fondé son avant-poste Rempart en (${r.state.op.x}, ${r.state.op.y})`); }
+      catch (e) { log('ERREUR', `avant-poste de ${me.name} : ${e.message}`); }
+    }
+    if (a === 'reset' && !r.state.op && Q.opOf.get(me.id)) { Q.delOp.run(me.id); loadOutposts(); }   // test button: the base starts again from zero, outpost included
     if (me.banned) return send(res, 403, { error: 'banned' });
     return send(res, 200, { state: r.state, events: r.events, error: r.error, serverTime: Date.now() });
   }
   if (url === '/api/state' && req.method === 'PUT') { cheat(me, ip, 'tentative d\'envoyer une partie modifiée (PUT /api/state)'); return send(res, 403, { error: 'forbidden' }); }
   if (url === '/api/admin' && req.method === 'POST') return admin(req, res, me, ip);
   if (url === '/api/chest' && req.method === 'POST') return openChest(req, res, me, ip);
-  if (url === '/api/players' && req.method === 'GET') { const now = Date.now(); return send(res, 200, { players: Q.players.all(me.id).map(p => ({ ...p, shield: p.shield > now ? p.shield : 0 })) }); }
+  if (url === '/api/players' && req.method === 'GET') { const now = Date.now(); return send(res, 200, { players: Q.players.all(me.id).map(p => ({ ...p, shield: p.shield > now ? p.shield : 0 })), outposts: Q.allOps.all() }); }
   if (url === '/api/incoming' && req.method === 'GET') { const b = Q.base.get(me.id); return send(res, 200, { incoming: incomingFor(me.id, b && b.state ? JSON.parse(b.state) : {}) }); }
   return send(res, 404, { error: 'not_found' });
 }
@@ -446,11 +468,13 @@ function syncAttacks(uid, st) {
 }
 function saveState(uid, created, r) {
   Q.saveBase.run(JSON.stringify(r.state), r.lvl, r.power, Date.now(), shieldOf(r.state, created), uid); STATS.saved++;
+  if (r.state.op) { const l = ((r.state.op.slots || {}).cc || {}).lvl || 1; Q.opLvl.run(l, uid, l); }   // level shown on the map
   syncAttacks(uid, r.state);
 }
 function runFor(me, b, action, args, lang, force) {
   const st = b.state ? JSON.parse(b.state) : { pos: { x: b.x, y: b.y } };
   st.pos = { x: b.x, y: b.y };                                          // the position always comes from the server
+  if (st.op && typeof st.op === 'object') { const o = Q.opOf.get(me.id); if (o) { st.op.x = o.x; st.op.y = o.y; } }   // the outpost too
   const before = shape(st);
   const r = engine.run(st, LANG_OK.includes(lang) ? lang : 'en', action, args, me.role);
   r.state.pos = { x: b.x, y: b.y };
@@ -494,7 +518,7 @@ function incomingFor(uid, st) {
 }
 
 // ---------- administration (admin and test accounts only) ----------
-const RESS = ['metal', 'wood', 'stone', 'fuel', 'rations', 'gold'];
+const RESS = ['metal', 'wood', 'stone', 'fuel', 'rations', 'gold', 'alloy'];
 const UNIT_IDS = ['recruit', 'rifleman', 'sniper', 'assault', 'truck', 'drone', 'apc', 'tank', 'artillery', 'heli', 'gunship'];
 const TECH_IDS = ['extraction', 'forestry', 'rationing', 'refining', 'engineering', 'drill', 'ballistics', 'armor', 'medicine', 'logistics', 'engines', 'robotics', 'intel'];
 const PROTO_KEYS = new Set([...Object.getOwnPropertyNames(Object.prototype), '__proto__']);   // names every object answers to: never a game name
@@ -547,11 +571,14 @@ async function admin(req, res, me, ip) {
     case 'give_troops': { if (!UNIT_IDS.includes(p.u)) return send(res, 400, { error: 'bad_unit' }); st.troops[p.u] = (st.troops[p.u] || 0) + int(p.n, 1, 10_000_000); break; }
     case 'finish_all': {
       if (st.queue) st.queue.end = now;
+      if (st.op && st.op.queue) st.op.queue.end = now;
+      if (st.op) for (const bl in (st.op.training || {})) for (const j of st.op.training[bl]) { j.s = now; j.e = now; }
       if (st.research.cur) st.research.cur.e = now;
       for (const bl in (st.training || {})) for (const j of st.training[bl]) { j.s = now; j.e = now; }
       for (const m of (st.marches || [])) { if (m.st === 'out') { m.a = now; m.b = now + 1000; } else m.b = now; }
       break; }
-    case 'set_buildings': { const l = int(p.lvl, 1, 10); for (const k in st.slots) st.slots[k].lvl = l; if (st.queue && st.queue.lvl <= l) st.queue = null; break; }
+    case 'set_buildings': { const l = int(p.lvl, 1, 10); for (const k in st.slots) st.slots[k].lvl = l; if (st.queue && st.queue.lvl <= l) st.queue = null;
+      if (st.op && st.op.slots) { for (const k in st.op.slots) st.op.slots[k].lvl = l; if (st.op.queue && st.op.queue.lvl <= l) st.op.queue = null; } break; }
     case 'set_research': { const l = int(p.lvl, 0, 10); for (const t of TECH_IDS) { if (l) st.research.lv[t] = l; else delete st.research.lv[t]; } st.research.cur = null; break; }
     case 'titan': { st.titan = st.titan || { lvl: 1, xp: 0, hp: 100, away: false, parts: {} }; st.titan.lvl = int(p.lvl, 1, 10); st.titan.xp = 0; st.titan.hp = 100; st.titan.away = false; break; }
     case 'titan_part': { st.titan = st.titan || { lvl: 1, xp: 0, hp: 100, away: false, parts: {} };   // gives one armor piece
