@@ -60,6 +60,8 @@ let logStore = null;   // set once the database is open: every line is also kept
 function log(tag, msg) { console.log(`[${STAMP.format(new Date())}] [${tag}] ${msg}`); if (logStore) try { logStore.run(Date.now(), String(tag), String(msg).slice(0, 2000)); } catch (e) {} }
 // an error in a background task must never stop the whole server: it is written in the console instead
 process.on('unhandledRejection', e => log('ERREUR', `tâche en arrière-plan : ${e && e.stack ? e.stack.split('\n').slice(0, 3).join(' | ') : e}`));
+// an unexpected error anywhere else: written in the journal, then the game stops; the launcher starts it again 5 seconds later
+process.on('uncaughtException', e => { log('ERREUR', `PLANTAGE : ${e && e.stack ? e.stack.split('\n').slice(0, 4).join(' | ') : e}`); process.exit(1); });
 
 // ---------- database ----------
 const db = new DatabaseSync(path.join(DATA, 'bastion.db'));
@@ -250,6 +252,7 @@ setInterval(() => {   // forget old tries so the lists never grow
   for (const [id, b] of orderBucket) if (!b.waiting && now - b.at > 600_000) orderBucket.delete(id);
   for (const [id, w] of watch) { const last = w.acts.length ? w.acts[w.acts.length - 1].t : 0; if (now - last > 3600_000 && !w.bad.some(t => now - t < 600_000)) watch.delete(id); }
   for (const [id, t] of tooFastLog) if (now - t > 600_000) tooFastLog.delete(id);
+  for (const [ip, t] of panelOutLog) if (now - t > 600_000) panelOutLog.delete(ip);
   for (const ip of [...newAccounts.keys()]) accountsToday(ip);
 }, 5 * 60_000).unref();
 // new accounts: at most 5 per day from the same address (a family or friends sharing a connection still fit)
@@ -370,10 +373,26 @@ function ipOf(req) {
   const local = /^(127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)|^::1$/.test(r);
   return clean((local && req.headers['cf-connecting-ip']) || r);
 }
+// The management panel opens only from home: a computer on the same local network as the server (http://192.168.1.190:<port>/admin).
+// Everything that comes from the internet goes through the Cloudflare tunnel, which always adds its CF-... marks: refused.
+// PANEL_REMOTE=1 (Pelican variable) opens it from anywhere, only in case of need.
+const PANEL_REMOTE = /^(1|true|on)$/i.test(String(process.env.PANEL_REMOTE || ''));
+function fromHome(req) {
+  if (PANEL_REMOTE) return true;
+  const r = (req.socket.remoteAddress || '').replace(/^::ffff:/, '');
+  const local = /^(127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)|^::1$|^f[cd][0-9a-f]{2}:|^fe80:/i.test(r);
+  return local && !req.headers['cf-connecting-ip'] && !req.headers['cf-ray'] && !req.headers['x-forwarded-for'];
+}
+const panelOutLog = new Map();   // one line per address and per 10 minutes in the journal
+function panelOutside(ip, url) {
+  const now = Date.now(); if (now - (panelOutLog.get(ip) || 0) < 600_000) return; panelOutLog.set(ip, now);
+  log('PANEL REFUSÉ', `${ip} · ${clean(url)} · le panel de gestion s'ouvre seulement depuis le réseau de la maison`);
+}
 function cheat(me, ip, what) { STATS.cheat++; log('TRICHE?', `${me ? me.name : '(non connecté)'} · ${ip} · ${what}`); }
 
 // ---------- API ----------
 async function api(req, res, url, ip) {
+  if (url.startsWith('/api/admin/') && !fromHome(req)) { panelOutside(ip, url); return send(res, 404, { error: 'not_found' }); }   // the panel does not exist seen from the internet
   if (url === '/api/ping') return send(res, 200, { t: Date.now(), tz: SERVER_TZ, v: VERSION, s: panel.status() });   // s: maintenance, announcement, test server
   if (url === '/api/health') return send(res, 200, { ok: true, game: 'Bastion', players: Q.count.get().n, uptime: Math.round(process.uptime()),
     commit: GIT.commit, branch: GIT.branch, subject: GIT.subject, patch: PATCH_ID, version: VERSION, test: IS_TEST });
@@ -693,6 +712,7 @@ function loadFile(file, cb) {
 }
 function serveFile(req, res, url) {
   const adm = url === '/admin' || url === '/admin/' || url === '/admin.html';   // the management panel: a page of its own, without the game
+  if ((adm || url === '/js/admin.js' || url === '/css/admin.css') && !fromHome(req)) { panelOutside(ipOf(req), url); res.writeHead(404); return res.end('Not found'); }
   if (url === '/' || url === '/index.html' || adm) {   // the page itself: never kept in any cache
     if (adm && !adminPage) adminPage = buildIndex('admin.html'); else if (!adm && !indexPage) indexPage = buildIndex();
     const pg = adm ? adminPage : indexPage;
@@ -735,7 +755,8 @@ http.createServer(async (req, res) => {
     return;
   }
   serveFile(req, res, url);
-}).listen(PORT, '0.0.0.0', () => log('DÉMARRAGE', `Serveur Bastion sur le port ${PORT} · version ${VERSION} · ${Q.count.get().n} joueurs inscrits`));
+}).listen(PORT, '0.0.0.0', () => { log('DÉMARRAGE', `Serveur Bastion sur le port ${PORT} · version ${VERSION} · ${Q.count.get().n} joueurs inscrits`);
+  if (process.env.BASTION_CRASHED) log('ERREUR', `Le jeu avait planté (${clean(process.env.BASTION_CRASHED)}) : redémarré automatiquement par le lanceur`); });
 
 // ---------- hourly summary in the console ----------
 function summary() {

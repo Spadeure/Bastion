@@ -4,7 +4,8 @@
 //  - the game server exits with code 75 = "restart me";
 //  - if data/deploy.json holds {commit}, that exact version is installed first (git fetch + git reset --hard),
 //    so the official server gets exactly the version that was tested on the test server.
-// Any other exit (Pelican "Stop", a crash) stops the launcher too, with the same code.
+// A crash (any other exit while nobody asked to stop) restarts the game after 5 seconds; after 5 crashes in 10 minutes
+// the launcher gives up and stops (something is really broken: the console says so). Pelican "Stop" stops everything.
 const { spawn, execFileSync } = require('child_process');
 const fs = require('fs'), path = require('path');
 const ROOT = path.join(__dirname, '..'), DATA = path.join(ROOT, 'data'), DEPLOY = path.join(DATA, 'deploy.json');
@@ -41,13 +42,22 @@ function autoUpdate() {
   catch (e) { say(`git pull impossible : ${String(e.stderr || e.message).trim().slice(0, 300)} (la version actuelle démarre)`); }
 }
 
-let child = null, stopping = false;
+let child = null, stopping = false, crashes = [], lastCrash = '';
+const CRASH_MAX = 5, CRASH_WINDOW = 10 * 60_000, CRASH_WAIT = 5000;
 function start() {
   deploy();
-  child = spawn(process.execPath, [CHILD], { cwd: ROOT, stdio: 'inherit', env: { ...process.env, BASTION_LAUNCHER: '1' } });   // the game knows it can ask for a restart
+  const env = { ...process.env, BASTION_LAUNCHER: '1' };   // the game knows it can ask for a restart
+  if (lastCrash) env.BASTION_CRASHED = lastCrash;           // the game writes in its journal that it came back after a crash
+  lastCrash = '';
+  child = spawn(process.execPath, [CHILD], { cwd: ROOT, stdio: 'inherit', env });
   child.on('exit', (code, sig) => {
-    if (code === RESTART && !stopping) { say('redémarrage demandé par le panel'); return setTimeout(() => { autoUpdate(); start(); }, 500); }   // Auto Update: a simple restart also gets the latest version of the branch
-    process.exit(code == null ? (sig ? 1 : 0) : code);
+    if (stopping) return process.exit(code == null ? (sig ? 1 : 0) : code);
+    if (code === RESTART) { say('redémarrage demandé par le panel'); return setTimeout(() => { autoUpdate(); start(); }, 500); }   // Auto Update: a simple restart also gets the latest version of the branch
+    const now = Date.now(); crashes = crashes.filter(t => now - t < CRASH_WINDOW); crashes.push(now);
+    const why = sig ? `signal ${sig}` : `code ${code}`;
+    if (crashes.length > CRASH_MAX) { say(`le jeu a planté ${crashes.length} fois en 10 minutes (${why}) : arrêt. Regarde les lignes ERREUR juste au-dessus, puis fais Restart.`); return process.exit(code || 1); }
+    say(`le jeu s'est arrêté tout seul (${why}) : redémarrage dans ${CRASH_WAIT / 1000} s (${crashes.length}/${CRASH_MAX} en 10 min)`);
+    lastCrash = why; setTimeout(start, CRASH_WAIT);
   });
 }
 for (const s of ['SIGINT', 'SIGTERM']) process.on(s, () => { stopping = true; if (child) child.kill(s); else process.exit(0); });
