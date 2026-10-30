@@ -9,6 +9,8 @@ module.exports = function makePanel(C) {
   const { db, Q, log, send, readBody, broadcast, push, streams, onlineSince, lastIp, watch, cheat, clean, STAMP,
     DATA, ADMIN_NAME, IS_TEST, GIT, PATCH_ID, VERSION, STARTED, REASON_FR, BACKUP_DIR, backupDb, createAccount, unbanPlayer, admin, engine, UNIT_IDS, orderBucket } = C;
   const TEST_URL = (process.env.TEST_URL || 'https://bastion-test.stryxhost.fr').replace(/\/+$/, '');
+  // the other server, for the link between the two panels (same computer at home, other port)
+  const OTHER = IS_TEST ? { name: 'OFFICIEL', port: +process.env.OFFICIAL_PORT || 58689 } : { name: 'TEST', port: +process.env.TEST_PORT || 55000 };
   const LAUNCHER = !!process.env.BASTION_LAUNCHER;   // started by server/launcher.js: a restart (exit code 75) brings the game back
   const RESTART = 75, REASONS = ['update', 'fix', 'server'], COLORS = ['info', 'warn'];
   const int = (v, lo, hi) => Math.max(lo, Math.min(hi, Math.floor(Number(v) || 0)));
@@ -135,7 +137,7 @@ module.exports = function makePanel(C) {
       const errors = db.prepare("SELECT at, msg FROM logs WHERE tag = 'ERREUR' ORDER BY id DESC LIMIT 8").all();
       return send(res, 200, { me: me.name, server: { test: IS_TEST, branch: GIT.branch, commit: GIT.commit, subject: GIT.subject, patch: PATCH_ID, version: VERSION, started: STARTED,
         uptime: Math.round(process.uptime()), node: process.version, launcher: LAUNCHER, mem: Math.round(process.memoryUsage().rss / 1048576) },
-        status: status(), maint, plan, ann: ann && ann.until > Date.now() ? ann : null,
+        status: status(), maint, plan, other: OTHER, ann: ann && ann.until > Date.now() ? ann : null,
         online: streams.size, players: Q.count.get().n, banned: Q.bannedList.all().length, errors, lastDeploy, testServer: await testVersion(qs.get('fresh') === '1'), now: Date.now() });
     }
     // ----- maintenance -----

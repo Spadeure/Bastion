@@ -99,10 +99,13 @@ function go(v) {
 // the server tag and the top bar (phone): which server this is
 function top(title) {
   const s = D && D.server, tag = s ? `<div class="srvtag ${s.test ? 'test' : 'off'}">${s.test ? 'SERVEUR DE TEST' : 'SERVEUR OFFICIEL'}</div>` : '';
-  return `<div id="mtop">${tag}<span class="sp"></span><a class="btn sec" href="./">Jeu</a><button class="btn sec" onclick="document.getElementById('logout').click()">Quitter</button></div><h1>${esc(title)}</h1>`;
+  return `<div id="mtop">${tag}<span class="sp"></span>${D && D.other ? `<a class="btn sec otherp" href="${esc(otherUrl())}">Panel ${esc(D.other.name)}</a>` : ''}<a class="btn sec" href="./">Jeu</a><button class="btn sec" onclick="document.getElementById('logout').click()">Quitter</button></div><h1>${esc(title)}</h1>`;
 }
+// the panel of the other server: same computer, other port (official 58689 <-> test 55000)
+const otherUrl = () => `${location.protocol}//${location.hostname}:${D.other.port}/admin`;
 function paintNav() {
   if (!D) return; const s = D.server, el = $('#srvtag');
+  const o = $('#otherp'); if (o && D.other) { o.href = otherUrl(); o.querySelector('span').textContent = 'Aller au panel ' + D.other.name; o.className = 'btn ' + (s.test ? 'off' : 'test'); o.style.display = ''; }
   el.className = 'srvtag ' + (s.test ? 'test' : 'off'); el.textContent = s.test ? 'SERVEUR DE TEST' : 'SERVEUR OFFICIEL';
   document.title = (s.test ? '[TEST] ' : '') + 'Bastion · Gestion';
   const mb = $('#menu [data-v=maint]'); let d = mb.querySelector('.dot'); const want = !!(D.maint || D.plan);
