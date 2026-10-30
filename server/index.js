@@ -122,6 +122,22 @@ db.exec(`CREATE TABLE IF NOT EXISTS outposts (user_id INTEGER NOT NULL, type TEX
       db.exec('COMMIT');
       log('ADMIN', `REMISE À ZÉRO : ${before - 1} compte(s) supprimé(s), base de ${adm.name} repartie de zéro · sauvegarde : ${path.basename(backup)}`);
     } } }
+// One-time full wipe (30/10/2026): every account is deleted, ADMIN_NAME too (it is created again with "Create an account").
+// Bases, outposts, attacks, sessions and blocks go with them; the journal and the announcements are kept.
+// A copy of the whole database is saved first in data/ (backup-before-wipe-….db), just in case.
+{ const KEY = 'wipe_2026_10_30';
+  if (!db.prepare('SELECT 1 FROM meta WHERE k = ?').get(KEY)) {
+    const before = db.prepare('SELECT COUNT(*) n FROM users').get().n;
+    if (before) {
+      const backup = path.join(DATA, `backup-before-wipe-${new Date().toISOString().slice(0, 10)}.db`);
+      try { if (!fs.existsSync(backup)) db.exec(`VACUUM INTO '${backup.replace(/'/g, "''")}'`); } catch (e) { log('ERREUR', 'sauvegarde avant wipe : ' + e.message); }
+      db.exec('BEGIN');
+      for (const t of ['attacks', 'sessions', 'outposts', 'bans', 'bases', 'users']) db.prepare(`DELETE FROM ${t}`).run();
+      db.prepare('INSERT INTO meta (k, v) VALUES (?, ?)').run(KEY, String(Date.now()));
+      db.exec('COMMIT');
+      log('ADMIN', `WIPE GÉNÉRAL : ${before} compte(s) supprimé(s), ${ADMIN_NAME} compris · sauvegarde : ${path.basename(backup)}`);
+    } else db.prepare('INSERT INTO meta (k, v) VALUES (?, ?)').run(KEY, 'empty');   // brand new server: nothing to wipe, ever
+  } }
 if (!db.prepare("SELECT 1 FROM users WHERE role = 'admin'").get()) {   // no admin yet (empty server): the very first account becomes the administrator
   const first = db.prepare('SELECT id, name FROM users ORDER BY id LIMIT 1').get();
   if (first) { db.prepare("UPDATE users SET role = 'admin' WHERE id = ?").run(first.id); log('ADMIN', `Administrateur : ${first.name}`); }
