@@ -20,6 +20,10 @@ module.exports = function makePanel(C) {
   let maint = metaGet('maint');        // {since, dur (minutes), reason, by}: the game is closed to the players
   let plan = metaGet('maint_plan');    // {at, dur, reason, by}: maintenance announced, starts at "at"
   let ann = metaGet('announce');       // {id, text, color, at, until}: banner shown to every player
+  // official server: the administrator plays as a normal player; this switch (off by default) gives him back the
+  // administration buttons in the game for a while. Always on for the test server.
+  let gameAdmin = !!metaGet('game_admin');
+  const isGameAdmin = () => IS_TEST || gameAdmin;
   if (maint) log('MAINTENANCE', `Le serveur démarre EN MAINTENANCE (depuis ${STAMP.format(new Date(maint.since))}) · « Remettre en ligne » dans le panel pour rouvrir le jeu`);
   // result of the last update installed by the launcher
   let lastDeploy = null;
@@ -135,7 +139,7 @@ module.exports = function makePanel(C) {
       const errors = db.prepare("SELECT at, msg FROM logs WHERE tag = 'ERREUR' ORDER BY id DESC LIMIT 8").all();
       return send(res, 200, { me: me.name, server: { test: IS_TEST, branch: GIT.branch, commit: GIT.commit, subject: GIT.subject, patch: PATCH_ID, version: VERSION, started: STARTED,
         uptime: Math.round(process.uptime()), node: process.version, launcher: LAUNCHER, mem: Math.round(process.memoryUsage().rss / 1048576) },
-        status: status(), maint, plan, ann: ann && ann.until > Date.now() ? ann : null,
+        status: status(), maint, plan, gameAdmin: isGameAdmin(), ann: ann && ann.until > Date.now() ? ann : null,
         online: streams.size, players: Q.count.get().n, banned: Q.bannedList.all().length, errors, lastDeploy, testServer: await testVersion(qs.get('fresh') === '1'), now: Date.now() });
     }
     // ----- maintenance -----
@@ -153,6 +157,13 @@ module.exports = function makePanel(C) {
       if (op === 'now') { if (maint) return send(res, 409, { error: 'déjà en maintenance' }); const p0 = plan || {}; startMaint(P.dur || p0.dur || 15, P.reason || p0.reason, by, 'lancée à la main'); return send(res, 200, { ok: true }); }
       if (op === 'off') { if (!maint && !plan) return send(res, 409, { error: 'le jeu est déjà en ligne' }); endMaint(by); return send(res, 200, { ok: true }); }
       return send(res, 400, { error: 'action inconnue' });
+    }
+    if (req.method === 'POST' && name === 'gameadmin') {   // official server: administration in the game on / off
+      if (IS_TEST) return send(res, 409, { error: 'toujours activée sur le serveur de test' });
+      gameAdmin = !!P.on; metaSet('game_admin', gameAdmin || null);
+      log('ADMIN', `${by} ${gameAdmin ? 'ACTIVE' : 'désactive'} ses pouvoirs d'administration dans le jeu (serveur officiel)`);
+      for (const u of db.prepare("SELECT id FROM users WHERE role = 'admin'").all()) push(u.id, 'reload', {});   // the open games reload with the new rights
+      return send(res, 200, { ok: true, on: gameAdmin });
     }
     if (req.method === 'POST' && name === 'restart') {
       if (!LAUNCHER) return send(res, 409, { error: 'no_launcher' });
@@ -226,7 +237,7 @@ module.exports = function makePanel(C) {
         return send(res, 200, { ok: true });
       }
       if (op === 'give') {   // the gifts of the in-game administration, to this player (test server only: on the official server everybody plays normally)
-        if (!IS_TEST) return send(res, 403, { error: 'les dons se font seulement sur le serveur de test' });
+        if (!isGameAdmin()) return send(res, 403, { error: 'dons désactivés : active l\'administration dans le jeu (tableau de bord)' });
         const action = String(P.action || '');
         if (!['give_res', 'give_item', 'give_troops', 'titan_part'].includes(action)) return send(res, 400, { error: 'don inconnu' });
         const p = P.p && typeof P.p === 'object' && !Array.isArray(P.p) ? { ...P.p } : {};
@@ -244,5 +255,5 @@ module.exports = function makePanel(C) {
     if (req.method === 'GET' && name === 'log') return send(res, 200, { lines: logRead(qs.get('after'), qs.get('cat'), qs.get('q'), qs.get('limit')) });
     return send(res, 404, { error: 'not_found' });
   }
-  return { route, status, isMaint };
+  return { route, status, isMaint, isGameAdmin };
 };
