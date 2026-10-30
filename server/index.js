@@ -580,10 +580,13 @@ async function admin(req, res, me, ip) {
     case 'set_buildings': { const l = int(p.lvl, 1, 10); for (const k in st.slots) st.slots[k].lvl = l; if (st.queue && st.queue.lvl <= l) st.queue = null;
       if (st.op && st.op.slots) { for (const k in st.op.slots) st.op.slots[k].lvl = l; if (st.op.queue && st.op.queue.lvl <= l) st.op.queue = null; } break; }
     case 'set_research': { const l = int(p.lvl, 0, 10); for (const t of TECH_IDS) { if (l) st.research.lv[t] = l; else delete st.research.lv[t]; } st.research.cur = null; break; }
-    case 'titan': { st.titan = st.titan || { lvl: 1, xp: 0, hp: 100, away: false, parts: {} }; st.titan.lvl = int(p.lvl, 1, 10); st.titan.xp = 0; st.titan.hp = 100; st.titan.away = false; break; }
+    case 'titan': { st.titan = st.titan || { lvl: 1, xp: 0, hp: 100, away: false, parts: {} }; st.titan.lvl = int(p.lvl, 1, 10); st.titan.xp = 0; st.titan.hp = 100; st.titan.away = false;
+      if (st.op && st.op.titan) { st.op.titan.lvl = st.titan.lvl; st.op.titan.xp = 0; st.op.titan.hp = 100; st.op.titan.away = false; } break; }   // both Titans
     case 'titan_part': { st.titan = st.titan || { lvl: 1, xp: 0, hp: 100, away: false, parts: {} };   // gives one armor piece
-      if (!['armor', 'weapon', 'reactor', 'legs'].includes(p.s)) return send(res, 400, { error: 'bad_part' });
-      st.titan.parts = st.titan.parts || {}; st.titan.parts[p.s] = 1; break; }
+      const rp = /^r_/.test(String(p.s || '')), ps = rp ? String(p.s).slice(2) : p.s;   // r_xxx: a piece of the Rampart Titan (outpost)
+      if (!['armor', 'weapon', 'reactor', 'legs'].includes(ps)) return send(res, 400, { error: 'bad_part' });
+      if (rp) { if (!st.op) return send(res, 400, { error: 'bad_part' }); st.op.titan = st.op.titan || { lvl: 1, xp: 0, hp: 100, away: false, parts: {} }; st.op.titan.parts = st.op.titan.parts || {}; st.op.titan.parts[ps] = 1; }
+      else { st.titan.parts = st.titan.parts || {}; st.titan.parts[ps] = 1; } break; }
     default: return send(res, 400, { error: 'unknown_action' });
   }
   b.state = JSON.stringify(st);

@@ -70,7 +70,7 @@ const __ACTIONS = {
     for (const k in atkQty) delete atkQty[k];
     const pv = o.pvp, spy = pv && pv.kind === 'spy';
     for (const u in (o.q || {})) if (own(UNITS, u) && (!spy || u === 'drone')) atkQty[u] = __int(o.q[u], 0, 1e8);
-    atkTitan = !spy && !!o.titan;
+    atkTitan = spy ? false : o.titan === 'op' ? (state.op ? 'op' : false) : (o.titan ? 'main' : false);   // one Titan: the main one or the Rampart one
     if (spy && !atkQty.drone) return 'bad_order';
     if (!pv) { const tl = tileAt(x, y); if (!attackable(tl)) return 'bad_order'; }   // never an outpost, a base or empty land
     if (x === state.pos.x && y === state.pos.y) return 'bad_order';
