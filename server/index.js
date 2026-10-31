@@ -541,7 +541,23 @@ function refusedOrder(me, ip, act, args, error) {
 // ---------- ranking of the players: power, PvP victories, battles won (top 100 + the player's own place) ----------
 // Blocked accounts are not ranked. Ties: the strongest first, then the oldest account. Computed at most every 20 seconds.
 const RANK_BY = { power: 'b.power', pvp: 'b.pvp', wins: 'b.wins' }, RANK_TOP = 100, rankCache = new Map();
+// alliances: total power of their members (blocked accounts left out), number of members, leader. Only names and numbers.
+function allyRanking(uid) {
+  let c = rankCache.get('ally');
+  if (!c || Date.now() - c.at > 20_000) {
+    const rows = db.prepare(`SELECT a.id, a.name, a.open, COUNT(u.id) AS members, COALESCE(SUM(b.power), 0) AS power,
+        MAX(CASE WHEN m.role = 'leader' THEN u.name END) AS leader, ROW_NUMBER() OVER (ORDER BY COALESCE(SUM(b.power), 0) DESC, a.id) AS r
+      FROM alliances a JOIN ally_members m ON m.aid = a.id JOIN users u ON u.id = m.user_id AND u.banned = 0 LEFT JOIN bases b ON b.user_id = u.id
+      GROUP BY a.id`).all();
+    const pub = x => ({ r: x.r, name: x.name, power: x.power, members: x.members, leader: x.leader || null, open: !!x.open });
+    c = { at: Date.now(), top: rows.slice(0, RANK_TOP).map(pub), mine: new Map(rows.map(x => [x.id, pub(x)])), n: rows.length };
+    rankCache.set('ally', c);
+  }
+  const m = db.prepare('SELECT aid FROM ally_members WHERE user_id = ?').get(uid);
+  return { by: 'ally', top: c.top, me: m ? c.mine.get(m.aid) || null : null, n: c.n, at: c.at };
+}
 function ranking(by, uid) {
+  if (by === 'ally') return allyRanking(uid);
   if (!Object.hasOwn(RANK_BY, by)) by = 'power';
   let c = rankCache.get(by);
   if (!c || Date.now() - c.at > 20_000) {
