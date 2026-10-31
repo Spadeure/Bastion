@@ -7,7 +7,7 @@ const fs = require('fs'), path = require('path');
 
 module.exports = function makePanel(C) {
   const { db, Q, log, send, readBody, broadcast, push, streams, onlineSince, lastIp, watch, cheat, clean, STAMP,
-    DATA, ADMIN_NAME, IS_TEST, GIT, PATCH_ID, VERSION, STARTED, REASON_FR, BACKUP_DIR, backupDb, createAccount, unbanPlayer, admin, engine, UNIT_IDS, orderBucket } = C;
+    DATA, ADMIN_NAME, IS_TEST, GIT, PATCH_ID, VERSION, STARTED, REASON_FR, BACKUP_DIR, backupDb, createAccount, unbanPlayer, admin, engine, UNIT_IDS, orderBucket, chat } = C;
   const TEST_URL = (process.env.TEST_URL || 'https://bastion-test.stryxhost.fr').replace(/\/+$/, '');
   // the other server, for the link between the two panels (same computer at home, other port)
   const OTHER = IS_TEST ? { name: 'OFFICIEL', port: +process.env.OFFICIAL_PORT || 58689 } : { name: 'TEST', port: +process.env.TEST_PORT || 55000 };
@@ -76,7 +76,7 @@ module.exports = function makePanel(C) {
     blocages: ['BLOQUÉ', 'SCRIPT', 'INSCRIPTION REFUSÉE', 'CONNEXION REFUSÉE', 'PANEL REFUSÉ'],
     connexions: ['CONNEXION OK', 'CONNEXION ÉCHOUÉE', 'DÉCONNEXION', 'INSCRIPTION'],
     erreurs: ['ERREUR'],
-    admin: ['ADMIN', 'CONSOLE', 'PANEL', 'MAINTENANCE', 'ANNONCE', 'SAUVEGARDE', 'DÉMARRAGE', 'MISE À JOUR', 'REDÉMARRAGE'],
+    admin: ['ADMIN', 'CONSOLE', 'PANEL', 'MODÉRATION', 'MAINTENANCE', 'ANNONCE', 'SAUVEGARDE', 'DÉMARRAGE', 'MISE À JOUR', 'REDÉMARRAGE'],
   };
   function logRead(after, cat, q, limit) {
     const where = ['id > ?'], args = [int(after, 0, 1e15)];
@@ -139,7 +139,19 @@ module.exports = function makePanel(C) {
       return send(res, 200, { me: me.name, server: { test: IS_TEST, branch: GIT.branch, commit: GIT.commit, subject: GIT.subject, patch: PATCH_ID, version: VERSION, started: STARTED,
         uptime: Math.round(process.uptime()), node: process.version, launcher: LAUNCHER, mem: Math.round(process.memoryUsage().rss / 1048576) },
         status: status(), maint, plan, other: OTHER, ann: ann && ann.until > Date.now() ? ann : null,
-        online: streams.size, players: Q.count.get().n, banned: Q.bannedList.all().length, errors, lastDeploy, testServer: await testVersion(qs.get('fresh') === '1'), now: Date.now() });
+        chatReports: chat.mod.open(), online: streams.size, players: Q.count.get().n, banned: Q.bannedList.all().length, errors, lastDeploy, testServer: await testVersion(qs.get('fresh') === '1'), now: Date.now() });
+    }
+    // ----- chat moderation: reports, latest messages of the general chat, muted players -----
+    if (req.method === 'GET' && name === 'chat') return send(res, 200, { reports: chat.mod.reports(), recent: chat.mod.recent(), mutes: chat.mod.mutes() });
+    if (req.method === 'POST' && name === 'chat') {
+      const op = String(P.op || '');
+      try {
+        if (op === 'del') return send(res, 200, chat.mod.del(int(P.id, 1, 1e15), by));
+        if (op === 'mute') return send(res, 200, chat.mod.mute(P.name, int(P.min, 0, 525600), P.reason, by));
+        if (op === 'unmute') return send(res, 200, chat.mod.unmute(P.name, by));
+        if (op === 'close') return send(res, 200, chat.mod.close(int(P.id, 1, 1e15), by));
+      } catch (e) { return send(res, e.code || 400, { error: e.error || 'erreur' }); }
+      return send(res, 400, { error: 'action inconnue' });
     }
     // ----- maintenance -----
     if (req.method === 'POST' && name === 'maint') {

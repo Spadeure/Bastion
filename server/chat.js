@@ -11,7 +11,10 @@ module.exports = function makeChat(C) {
   db.exec(`CREATE TABLE IF NOT EXISTS chat_msgs (id INTEGER PRIMARY KEY, ch TEXT NOT NULL, uid INTEGER NOT NULL, name TEXT NOT NULL, text TEXT NOT NULL, at INTEGER NOT NULL);
     CREATE INDEX IF NOT EXISTS chat_ch ON chat_msgs (ch, id);
     CREATE TABLE IF NOT EXISTS chat_ignore (uid INTEGER NOT NULL, target INTEGER NOT NULL, PRIMARY KEY (uid, target));
-    CREATE TABLE IF NOT EXISTS chat_read (uid INTEGER NOT NULL, ch TEXT NOT NULL, last INTEGER NOT NULL, PRIMARY KEY (uid, ch));`);
+    CREATE TABLE IF NOT EXISTS chat_read (uid INTEGER NOT NULL, ch TEXT NOT NULL, last INTEGER NOT NULL, PRIMARY KEY (uid, ch));
+    CREATE TABLE IF NOT EXISTS chat_mutes (uid INTEGER PRIMARY KEY, until INTEGER NOT NULL, reason TEXT, by TEXT, at INTEGER NOT NULL);
+    CREATE TABLE IF NOT EXISTS chat_reports (id INTEGER PRIMARY KEY, msg_id INTEGER NOT NULL, ch TEXT NOT NULL, reporter INTEGER NOT NULL, rname TEXT NOT NULL,
+      uid INTEGER NOT NULL, name TEXT NOT NULL, text TEXT NOT NULL, at INTEGER NOT NULL, done INTEGER NOT NULL DEFAULT 0, UNIQUE (msg_id, reporter));`);
   const M = {
     add: db.prepare('INSERT INTO chat_msgs (ch, uid, name, text, at) VALUES (?, ?, ?, ?, ?)'),
     last: db.prepare('SELECT id, uid, name, text, at FROM chat_msgs WHERE ch = ? ORDER BY id DESC LIMIT ?'),
@@ -26,6 +29,8 @@ module.exports = function makeChat(C) {
     read: db.prepare('INSERT INTO chat_read (uid, ch, last) VALUES (?, ?, ?) ON CONFLICT(uid, ch) DO UPDATE SET last = MAX(last, excluded.last)'),
     readOf: db.prepare('SELECT last FROM chat_read WHERE uid = ? AND ch = ?'),
     unread: db.prepare('SELECT COUNT(*) AS n FROM chat_msgs WHERE ch = ? AND id > ? AND uid != ?'),
+    muteOf: db.prepare('SELECT until FROM chat_mutes WHERE uid = ?'),
+    report: db.prepare('INSERT OR IGNORE INTO chat_reports (msg_id, ch, reporter, rname, uid, name, text, at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'),
     convs: db.prepare(`SELECT ch, MAX(id) AS last FROM chat_msgs WHERE ch LIKE 'p:%' AND (ch LIKE ? OR ch LIKE ?) GROUP BY ch ORDER BY last DESC LIMIT 50`),
   };
   setInterval(() => { try { M.oldPrivate.run(Date.now() - PRIVATE_DAYS * 86400_000); } catch (e) {} }, 3600_000).unref();
@@ -59,8 +64,11 @@ module.exports = function makeChat(C) {
   const spam = new Map();   // user id -> {times:[], last:{text, at}}
   setInterval(() => { const now = Date.now(); for (const [k, v] of spam) if (now - (v.times[v.times.length - 1] || 0) > 120_000) spam.delete(k); }, 300_000).unref();
 
+  // muted by the moderation: until 0 = for good; an expired mute counts for nothing
+  const mutedUntil = uid => { const r = M.muteOf.get(uid); return r && (r.until === 0 || r.until > Date.now()) ? r.until : null; };
   function send(me, P) {
     const c = resolve(me, P.ch);
+    if (mutedUntil(me.id) !== null) throw err(403, 'chat_muted');
     let text = String(P.text || '').replace(/[\u0000-\u001f\u007f​-‏‪-‮⁦-⁩]/g, ' ').replace(/\s+/g, ' ').trim();
     if (!text) throw err(400, 'chat_empty');
     if (text.length > MAX_LEN) text = text.slice(0, MAX_LEN);
@@ -96,7 +104,8 @@ module.exports = function makeChat(C) {
       const [, x, y] = c.ch.split(':').map(Number), other = x === me.id ? y : x, u = Q.user.get(other), m = M.byId.get(c.last);
       return u && !ignIds.has(other) ? { name: u.name, last: m ? pub(m) : null, unread: unread(c.ch) } : null; }).filter(Boolean);
     const g = M.last.all('g', 5).find(m => !ignIds.has(m.uid));
-    return { last: g ? pub(g) : null, ally: !!a, unreadAlly: a ? unread(a) : 0, unreadPrivate: convs.reduce((s, c) => s + c.unread, 0), convs, ignored: ign.map(i => i.name), max: MAX_LEN };
+    const mu = mutedUntil(me.id);
+    return { muted: mu === null ? null : mu, last: g ? pub(g) : null, ally: !!a, unreadAlly: a ? unread(a) : 0, unreadPrivate: convs.reduce((s, c) => s + c.unread, 0), convs, ignored: ign.map(i => i.name), max: MAX_LEN };
   }
   function act(me, P) {
     const op = String(P.op || '');
@@ -107,13 +116,50 @@ module.exports = function makeChat(C) {
       (op === 'ignore' ? M.ignore : M.unignore).run(me.id, u.id); return { ok: true };
     }
     if (op === 'report') {
-      const m = M.byId.get(Math.floor(Number(P.id) || 0)); if (!m) throw err(404, 'chat_gone');
+      const m = M.byId.get(Math.floor(Number(P.id) || 0)); if (!m || m.ch.startsWith('x:')) throw err(404, 'chat_gone');
       const where = m.ch === 'g' ? 'chat général' : m.ch.startsWith('a:') ? 'chat d\'alliance' : 'message privé';
       if (m.ch !== 'g' && !(m.ch === allyCh(me.id) || m.ch.split(':').slice(1).map(Number).includes(me.id))) throw err(403, 'bad_order');   // only a message he could see
-      log('SIGNALEMENT', `${me.name} signale ${m.name} (${where}) : « ${String(m.text).slice(0, 300)} »`);
+      if (M.report.run(m.id, m.ch, me.id, me.name, m.uid, m.name, m.text, Date.now()).changes) log('SIGNALEMENT', `${me.name} signale ${m.name} (${where}) : « ${String(m.text).slice(0, 300)} » · à traiter dans le panel, onglet Chat`);
       return { ok: true };
     }
     throw err(400, 'bad_order');
   }
-  return { act, read, summary, filter };
+  // ---------- moderation (management panel) ----------
+  const where = ch => ch === 'g' ? 'général' : ch.startsWith('a:') ? 'alliance' : 'privé';
+  const userName = id => { const u = Q.user.get(id); return u ? u.name : '?'; };
+  // a message is removed: the players who can see it lose it at once
+  function notifyDel(m) {
+    if (m.ch === 'g') broadcast('chat', { ch: 'g', del: m.id });
+    else if (m.ch.startsWith('a:')) for (const r of db.prepare('SELECT user_id FROM ally_members WHERE aid = ?').all(+m.ch.slice(2))) push(r.user_id, 'chat', { ch: 'a', del: m.id });
+    else { const [, x, y] = m.ch.split(':').map(Number); push(x, 'chat', { ch: 'p:' + userName(y), del: m.id }); push(y, 'chat', { ch: 'p:' + userName(x), del: m.id }); }
+  }
+  const mod = {
+    reports: () => db.prepare('SELECT * FROM chat_reports WHERE done = 0 ORDER BY id DESC LIMIT 100').all().map(r => ({ ...r, where: where(r.ch),
+      times: db.prepare('SELECT COUNT(*) AS n FROM chat_reports WHERE uid = ?').get(r.uid).n, gone: (M.byId.get(r.msg_id) || { ch: 'x:' }).ch.startsWith('x:') })),
+    open: () => db.prepare('SELECT COUNT(*) AS n FROM chat_reports WHERE done = 0').get().n,
+    recent: () => M.last.all('g', 50).map(m => ({ id: m.id, name: m.name, text: m.text, at: m.at })),
+    mutes: () => db.prepare('SELECT m.*, u.name FROM chat_mutes m JOIN users u ON u.id = m.uid WHERE m.until = 0 OR m.until > ? ORDER BY m.at DESC').all(Date.now()),
+    del(id, by) {
+      const m = M.byId.get(id); if (!m || m.ch.startsWith('x:')) throw err(404, 'message déjà supprimé');
+      db.prepare("UPDATE chat_msgs SET ch = 'x:' || ch WHERE id = ?").run(id);   // out of its channel, but its number is never given again
+      db.prepare('UPDATE chat_reports SET done = 1 WHERE msg_id = ?').run(id); notifyDel(m);
+      log('MODÉRATION', `${by} supprime un message de ${m.name} (${where(m.ch)}) : « ${String(m.text).slice(0, 300)} »`); return { ok: true };
+    },
+    mute(name, min, reason, by) {
+      const u = Q.userByName.get(String(name || '').trim()); if (!u) throw err(404, 'joueur inconnu');
+      const until = min > 0 ? Date.now() + min * 60_000 : 0, why = String(reason || '').replace(/[\u0000-\u001f]/g, ' ').trim().slice(0, 200);
+      db.prepare('INSERT INTO chat_mutes (uid, until, reason, by, at) VALUES (?, ?, ?, ?, ?) ON CONFLICT(uid) DO UPDATE SET until = excluded.until, reason = excluded.reason, by = excluded.by, at = excluded.at').run(u.id, until, why, by, Date.now());
+      db.prepare('UPDATE chat_reports SET done = 1 WHERE uid = ?').run(u.id);
+      push(u.id, 'chat', { ch: 'g', muted: until });
+      log('MODÉRATION', `${by} rend ${u.name} muet ${min > 0 ? 'pendant ' + (min < 60 ? min + ' min' : min < 1440 ? min / 60 + ' h' : min / 1440 + ' jour(s)') : 'définitivement'}${why ? ' · motif : ' + why : ''}`); return { ok: true };
+    },
+    unmute(name, by) {
+      const u = Q.userByName.get(String(name || '').trim()); if (!u) throw err(404, 'joueur inconnu');
+      if (!db.prepare('DELETE FROM chat_mutes WHERE uid = ?').run(u.id).changes) throw err(409, 'ce joueur n\'est pas muet');
+      push(u.id, 'chat', { ch: 'g', muted: null }); log('MODÉRATION', `${by} rend la parole à ${u.name}`); return { ok: true };
+    },
+    close(id, by) { const r = db.prepare('SELECT * FROM chat_reports WHERE id = ?').get(id); if (!r) throw err(404, 'signalement inconnu');
+      db.prepare('UPDATE chat_reports SET done = 1 WHERE msg_id = ?').run(r.msg_id); log('MODÉRATION', `${by} classe le signalement contre ${r.name} (rien à faire)`); return { ok: true }; },
+  };
+  return { act, read, summary, filter, mod };
 };

@@ -90,7 +90,7 @@ let view = 'dash', D = null, timers = [];
 const every = (ms, f) => timers.push(setInterval(f, ms));
 function stopTimers() { timers.forEach(clearInterval); timers = []; }
 let DEPLOY_DUR = 15;   // maintenance length chosen for the next deployment (minutes)
-const VIEWS = { dash: viewDash, maint: viewMaint, players: viewPlayers, ann: viewAnn, logs: viewLogs };
+const VIEWS = { dash: viewDash, maint: viewMaint, players: viewPlayers, chat: viewChat, ann: viewAnn, logs: viewLogs };
 document.querySelectorAll('#menu [data-v]').forEach(b => b.onclick = () => go(b.dataset.v));
 function go(v) {
   view = VIEWS[v] ? v : 'dash'; try { history.replaceState(null, '', '#' + view); } catch (e) {}
@@ -111,6 +111,7 @@ function paintNav() {
   document.title = (s.test ? '[TEST] ' : '') + 'Bastion · Gestion';
   const mb = $('#menu [data-v=maint]'); let d = mb.querySelector('.dot'); const want = !!(D.maint || D.plan);
   if (want && !d) { d = document.createElement('i'); d.className = 'dot'; mb.appendChild(d); } else if (!want && d) d.remove();
+  const cb = $('#menu [data-v=chat]'); if (cb) { let c = cb.querySelector('.dot'); if (D.chatReports && !c) { c = document.createElement('i'); c.className = 'dot'; cb.appendChild(c); } else if (!D.chatReports && c) c.remove(); }
 }
 async function loadDash(fresh) { D = await api('GET', 'dash' + (fresh ? '?fresh=1' : '')); D.skew = Date.now() - D.now; paintNav(); return D; }
 const now = () => Date.now() - ((D && D.skew) || 0);   // the server clock
@@ -365,9 +366,46 @@ async function viewAnn() {
   await load(); every(1000, tickCountdowns);
 }
 
+// ===== chat moderation =====
+let MUTE_MIN = 1440;   // length chosen for « Rendre muet » (minutes, 0 = for good)
+const MUTES = [[60, '1 h'], [1440, '24 h'], [10080, '7 jours'], [0, 'Définitif']];
+const muteTxt = m => m.until === 0 ? 'définitivement' : 'jusqu\'au ' + dt(m.until);
+async function viewChat() {
+  const draw = (C) => {
+    const muteBtn = n => `<button class="btn red sm" data-mute="${esc(n)}"><img src="${IMG('ui_lock')}" alt="">Rendre muet</button>`;
+    $('#main').innerHTML = top('Modération du chat') + `
+      <div class="card"><div class="ch"><img src="${IMG('ui_lock')}" alt=""><h2>Durée pour « Rendre muet »</h2></div>
+        <div class="row"><label>Durée<select id="mmin">${MUTES.map(([v, l]) => `<option value="${v}"${v === MUTE_MIN ? ' selected' : ''}>${l}</option>`).join('')}</select></label>
+          <label class="grow">Motif (facultatif, gardé dans le Journal)<input id="mwhy" maxlength="200" placeholder="Insultes, spam…"></label></div>
+        <p class="mut small">Un joueur muet peut jouer normalement, mais ne peut plus écrire dans le chat (général, alliance et privé). Il voit un message qui le lui explique.</p></div>
+      <div class="card${C.reports.length ? ' warnc' : ''}"><div class="ch"><img src="${IMG('ui_warn')}" alt=""><h2>Signalements à traiter (${C.reports.length})</h2></div>
+        ${C.reports.length ? C.reports.map(r => `<div class="err"><span class="mut mono">${dt(r.at)}</span> <b>${esc(r.rname)}</b> signale <b>${esc(r.name)}</b>
+          <span class="badge ${r.times > 2 ? 'ban' : 'admin'}">signalé ${r.times} fois au total</span> <span class="mut small">· chat ${esc(r.where)}${r.gone ? ' · message déjà supprimé' : ''}</span>
+          <div class="preview">${esc(r.text)}</div>
+          <div class="row">${r.gone ? '' : `<button class="btn sm" data-del="${r.msg_id}"><img src="${IMG('ui_close')}" alt="">Supprimer le message</button>`}${muteBtn(r.name)}
+            <button class="btn sec sm" data-close="${r.id}"><img src="${IMG('ui_ok')}" alt="">Rien à faire</button></div></div>`).join('') : '<p class="mut">Aucun signalement en attente.</p>'}</div>
+      <div class="card"><div class="ch"><img src="${IMG('ui_lock')}" alt=""><h2>Joueurs muets (${C.mutes.length})</h2></div>
+        ${C.mutes.length ? C.mutes.map(m => `<div class="err"><b>${esc(m.name)}</b> <span class="mut small">· muet ${muteTxt(m)} · par ${esc(m.by || '?')}${m.reason ? ' · ' + esc(m.reason) : ''}</span>
+          <div class="row"><button class="btn sm" data-unmute="${esc(m.name)}"><img src="${IMG('ui_ok')}" alt="">Rendre la parole</button></div></div>`).join('') : '<p class="mut">Aucun joueur muet.</p>'}</div>
+      <div class="card"><div class="ch"><img src="${IMG('messages')}" alt=""><h2>Chat général (50 derniers messages)</h2><button class="btn sec sm" id="creload"><img src="${IMG('radar')}" alt="">Actualiser</button></div>
+        ${C.recent.length ? C.recent.map(m => `<div class="err"><span class="mut mono">${dt(m.at)}</span> <b>${esc(m.name)}</b> : ${esc(m.text)}
+          <div class="row"><button class="btn sec sm" data-del="${m.id}"><img src="${IMG('ui_close')}" alt="">Supprimer</button>${muteBtn(m.name)}</div></div>`).join('') : '<p class="mut">Aucun message.</p>'}
+        <p class="mut small">Les messages privés et d'alliance ne sont visibles ici que lorsqu'ils sont signalés.</p></div>`;
+    $('#mmin').onchange = e => { MUTE_MIN = +e.target.value; };
+    $('#creload').onclick = () => load();
+    document.querySelectorAll('[data-del]').forEach(b => b.onclick = async () => { if (await confirmBox('Supprimer le message', 'Le message disparaît tout de suite chez tous les joueurs.', 'Supprimer', 'red') && await run(b, () => api('POST', 'chat', { op: 'del', id: +b.dataset.del }), 'Message supprimé')) load(); });
+    document.querySelectorAll('[data-mute]').forEach(b => b.onclick = async () => { const n = b.dataset.mute, l = (MUTES.find(x => x[0] === MUTE_MIN) || [0, ''])[1];
+      if (await confirmBox('Rendre muet', `<b>${esc(n)}</b> ne pourra plus écrire dans le chat (${MUTE_MIN ? 'pendant ' + l : 'définitivement'}).`, 'Rendre muet', 'red') && await run(b, () => api('POST', 'chat', { op: 'mute', name: n, min: MUTE_MIN, reason: $('#mwhy').value }), `${n} est muet`)) load(); });
+    document.querySelectorAll('[data-unmute]').forEach(b => b.onclick = async () => { if (await run(b, () => api('POST', 'chat', { op: 'unmute', name: b.dataset.unmute }), 'Parole rendue')) load(); });
+    document.querySelectorAll('[data-close]').forEach(b => b.onclick = async () => { if (await run(b, () => api('POST', 'chat', { op: 'close', id: +b.dataset.close }), 'Signalement classé')) load(); });
+  };
+  const load = async () => { const [, C] = await Promise.all([loadDash(), api('GET', 'chat')]).catch(e => { toast(e.message, true); return [null, null]; }); if (C) draw(C); };
+  await load();
+}
+
 // ===== 5. backups and journal =====
 let lcat = '', lq = '', lastId = 0, live = true;
-const TAGCAT = {}; for (const [c, l] of Object.entries({ triche: ['TRICHE?', 'ORDRE REFUSÉ', 'SIGNALEMENT'], blocages: ['BLOQUÉ', 'SCRIPT', 'INSCRIPTION REFUSÉE', 'CONNEXION REFUSÉE', 'PANEL REFUSÉ'], connexions: ['CONNEXION OK', 'CONNEXION ÉCHOUÉE', 'DÉCONNEXION', 'INSCRIPTION'], erreurs: ['ERREUR'], admin: ['ADMIN', 'CONSOLE', 'PANEL', 'MAINTENANCE', 'ANNONCE', 'SAUVEGARDE', 'DÉMARRAGE', 'MISE À JOUR', 'REDÉMARRAGE'] })) for (const t of l) TAGCAT[t] = c;
+const TAGCAT = {}; for (const [c, l] of Object.entries({ triche: ['TRICHE?', 'ORDRE REFUSÉ', 'SIGNALEMENT'], blocages: ['BLOQUÉ', 'SCRIPT', 'INSCRIPTION REFUSÉE', 'CONNEXION REFUSÉE', 'PANEL REFUSÉ'], connexions: ['CONNEXION OK', 'CONNEXION ÉCHOUÉE', 'DÉCONNEXION', 'INSCRIPTION'], erreurs: ['ERREUR'], admin: ['ADMIN', 'CONSOLE', 'PANEL', 'MODÉRATION', 'MAINTENANCE', 'ANNONCE', 'SAUVEGARDE', 'DÉMARRAGE', 'MISE À JOUR', 'REDÉMARRAGE'] })) for (const t of l) TAGCAT[t] = c;
 async function viewLogs() {
   const size = b => b > 1048576 ? (b / 1048576).toFixed(1) + ' Mo' : Math.round(b / 1024) + ' Ko';
   $('#main').innerHTML = top('Sauvegardes et journal') + `

@@ -902,5 +902,5 @@ const panel = require('./panel.js')({
   db, Q, log, send, readBody, broadcast, push, streams, onlineSince, lastIp, watch, cheat, clean, STAMP,
   ROOT, DATA, ADMIN_NAME, IS_TEST, GIT, PATCH_ID, VERSION, STARTED, REASON_FR, NAME_OK,
   BACKUP_DIR, backupDb: () => backupDb(true), createAccount, unbanPlayer, admin, engine, UNIT_IDS,
-  orderBucket,
+  orderBucket, chat,
 });
