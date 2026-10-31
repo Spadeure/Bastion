@@ -22,7 +22,7 @@ module.exports = function makePanel(C) {
   let maint = metaGet('maint');        // {since, dur (minutes), reason, by}: the game is closed to the players
   let plan = metaGet('maint_plan');    // {at, dur, reason, by}: maintenance announced, starts at "at"
   let ann = metaGet('announce');       // {id, text, color, at, until}: banner shown to every player
-  if (maint) log('MAINTENANCE', `Le serveur démarre EN MAINTENANCE (depuis ${STAMP.format(new Date(maint.since))}) · « Remettre en ligne » dans le panel pour rouvrir le jeu`);
+  if (maint) log('MAINTENANCE', `Le serveur démarre EN MAINTENANCE (depuis ${STAMP.format(new Date(maint.since))}) · réouverture automatique à ${STAMP.format(new Date(maint.since + maint.dur * 60000))}, ou « Remettre en ligne » dans le panel`);
   // result of the last update installed by the launcher
   let lastDeploy = null;
   try { lastDeploy = JSON.parse(fs.readFileSync(path.join(DATA, 'deploy-result.json'), 'utf8'));
@@ -52,6 +52,7 @@ module.exports = function makePanel(C) {
   setInterval(() => {
     const now = Date.now();
     if (plan && now >= plan.at) startMaint(plan.dur, plan.reason, plan.by, 'fin du compte à rebours');
+    if (maint && now >= maint.since + maint.dur * 60000) endMaint('réouverture automatique (fin de la durée prévue)');   // a forgotten maintenance never blocks the players
     if (ann && ann.until <= now) { ann = null; metaSet('announce', null); changed(); }
   }, 1000).unref();
 
@@ -153,6 +154,9 @@ module.exports = function makePanel(C) {
       }
       if (op === 'cancel') { if (!plan) return send(res, 409, { error: 'aucune maintenance annoncée' }); plan = null; metaSet('maint_plan', null); log('MAINTENANCE', `Maintenance annoncée annulée par ${by}`); changed(); return send(res, 200, { ok: true }); }
       if (op === 'now') { if (maint) return send(res, 409, { error: 'déjà en maintenance' }); const p0 = plan || {}; startMaint(P.dur || p0.dur || 15, P.reason || p0.reason, by, 'lancée à la main'); return send(res, 200, { ok: true }); }
+      if (op === 'extend') { if (!maint) return send(res, 409, { error: 'le jeu n\'est pas en maintenance' });   // more time before the automatic reopening
+        const add = int(P.add, 5, 240); maint.dur = Math.min(maint.dur + add, Math.ceil((Date.now() - maint.since) / 60000) + 1440); metaSet('maint', maint);
+        log('MAINTENANCE', `Maintenance prolongée de ${add} min par ${by} · réouverture automatique à ${STAMP.format(new Date(maint.since + maint.dur * 60000))}`); changed(); return send(res, 200, { ok: true }); }
       if (op === 'off') { if (!maint && !plan) return send(res, 409, { error: 'le jeu est déjà en ligne' }); endMaint(by); return send(res, 200, { ok: true }); }
       return send(res, 400, { error: 'action inconnue' });
     }
@@ -178,7 +182,7 @@ module.exports = function makePanel(C) {
         if (newer === null) return send(res, 409, { error: 'impossible de comparer les versions (git) : réessaie dans un instant' });
       }
       fs.writeFileSync(path.join(DATA, 'deploy.json'), JSON.stringify({ commit: t.commit, branch: 'test', by, at: Date.now() }));
-      if (!maint) startMaint(15, 'update', by, 'installation d\'une mise à jour');
+      if (!maint) startMaint(int(P.dur || 15, 5, 240), 'update', by, 'installation d\'une mise à jour');
       did(`déploiement de la version du serveur de test ${t.commit.slice(0, 7)} (${t.subject})`);
       send(res, 200, { ok: true, commit: t.commit });
       restartSoon(`Installation de la version ${t.commit.slice(0, 7)} puis redémarrage (en maintenance)`); return;

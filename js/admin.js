@@ -89,6 +89,7 @@ $('#logout').onclick = async () => {
 let view = 'dash', D = null, timers = [];
 const every = (ms, f) => timers.push(setInterval(f, ms));
 function stopTimers() { timers.forEach(clearInterval); timers = []; }
+let DEPLOY_DUR = 15;   // maintenance length chosen for the next deployment (minutes)
 const VIEWS = { dash: viewDash, maint: viewMaint, players: viewPlayers, ann: viewAnn, logs: viewLogs };
 document.querySelectorAll('#menu [data-v]').forEach(b => b.onclick = () => go(b.dataset.v));
 function go(v) {
@@ -116,7 +117,7 @@ const now = () => Date.now() - ((D && D.skew) || 0);   // the server clock
 
 function statusPills() {
   const p = [];
-  if (D.maint) p.push(`<span class="pill mt"><i></i>Maintenance</span>`);
+  if (D.maint) p.push(`<span class="pill mt"><i></i>Maintenance · réouverture dans <b data-cd="${D.maint.since + D.maint.dur * 60000}">${mmss(D.maint.since + D.maint.dur * 60000 - now())}</b></span>`);
   else if (D.plan) p.push(`<span class="pill pl"><i></i>Maintenance dans <b data-cd="${D.plan.at}">${mmss(D.plan.at - now())}</b></span>`);
   else p.push(`<span class="pill on"><i></i>En ligne</span>`);
   if (D.ann) p.push(`<span class="pill an"><i></i>Annonce en cours</span>`);
@@ -171,15 +172,17 @@ async function viewMaint() {
       <div class="card wide${t && t.ok && t.commit && t.commit !== s.commit ? ' warnc' : ''}"><div class="ch"><img src="${IMG('ui_build')}" alt=""><h2>Déployer la version testée</h2></div>
         <div class="grid"><div><h3>Installée ici (officiel)</h3>${versionKv(s)}</div>
         <div><h3>Sur le serveur de test</h3>${t && t.ok ? versionKv(t) : `<p class="warn">${esc(t ? t.error : 'inconnue')}</p>`}</div></div>
-        <div class="note">Le serveur officiel passe en maintenance (s'il n'y est pas déjà), installe exactement la version du serveur de test, puis redémarre <b>toujours en maintenance</b>. Tu vérifies, puis tu cliques « Remettre en ligne ».</div>
+        <div class="note">Le serveur officiel passe en maintenance (s'il n'y est pas déjà), installe exactement la version du serveur de test, puis redémarre <b>toujours en maintenance</b>. Tu vérifies, puis tu cliques « Remettre en ligne ». Si tu oublies, le jeu se rouvre tout seul à la fin de la durée choisie.</div>
+        <div class="row"><label>Durée de la maintenance<select id="ddur">${[15, 30, 60, 120].map(v => `<option value="${v}"${v === DEPLOY_DUR ? ' selected' : ''}>${v < 60 ? v + ' min' : v / 60 + ' h'}</option>`).join('')}</select></label></div>
         <div class="row"><button class="btn ora" id="deploy" ${t && t.ok && t.commit && t.commit !== s.commit && s.launcher ? '' : 'disabled'}><img src="${IMG('ui_build')}" alt="">Déployer ${t && t.commit ? esc(short(t.commit)) : ''}</button>
           <button class="btn sec sm" id="reloadtest"><img src="${IMG('radar')}" alt="">Relire la version du test</button></div>
         ${t && t.ok && t.commit === s.commit ? '<p class="ok small">Le serveur de test a la même version : rien à déployer.</p>' : ''}${s.launcher ? '' : '<p class="warn small">Le lanceur n\'est pas utilisé : déploiement impossible d\'ici.</p>'}</div>`;
     const plan = D.plan, m = D.maint;
     const ctrl = m ? `
-        <p>Le jeu est <b class="bad">en maintenance</b> depuis ${dt(m.since)} (durée prévue ${m.dur} min, retour annoncé vers ${HM.format(new Date(m.since + m.dur * 60000))}) · ${esc(REASON[m.reason] || '')}.</p>
+        <p>Le jeu est <b class="bad">en maintenance</b> depuis ${dt(m.since)} (durée prévue ${m.dur} min) · ${esc(REASON[m.reason] || '')}.</p>
+        <p>Réouverture automatique dans <b class="warn" data-cd="${m.since + m.dur * 60000}">${mmss(m.since + m.dur * 60000 - now())}</b> (à ${HM.format(new Date(m.since + m.dur * 60000))}) : si tu oublies de remettre en ligne, le jeu se rouvre tout seul.</p>
         <p class="mut small">Les joueurs voient l'écran de maintenance, leurs ordres sont refusés, les compteurs continuent. Toi, tu joues normalement.</p>
-        <div class="row" style="margin-top:10px"><button class="btn" id="online"><img src="${IMG('ui_ok')}" alt="">Remettre en ligne</button></div>`
+        <div class="row" style="margin-top:10px"><button class="btn" id="online"><img src="${IMG('ui_ok')}" alt="">Remettre en ligne</button><button class="btn sec" id="ext15"><img src="${IMG('ui_time')}" alt="">+15 min</button><button class="btn sec" id="ext60"><img src="${IMG('ui_time')}" alt="">+1 h</button></div>`
       : plan ? `
         <p>Maintenance annoncée : début dans <b class="warn" data-cd="${plan.at}">${mmss(plan.at - now())}</b> (à ${HM.format(new Date(plan.at))}), durée prévue ${plan.dur} min · ${esc(REASON[plan.reason] || '')}.</p>
         <p class="mut small">À zéro, le jeu passe tout seul en maintenance.</p>
@@ -206,13 +209,15 @@ async function viewMaint() {
       if (await run(b, () => api('POST', 'maint', { op: 'plan', in: mi, dur: +$('#mdur').value, reason: $('#mreason').value }), mi ? 'Maintenance annoncée' : 'Jeu en maintenance')) refresh(); });
     on('mnow', async b => { if (await confirmBox('Lancer maintenant', 'Le compte à rebours est arrêté et les joueurs sont bloqués tout de suite.', 'Lancer', 'red') && await run(b, () => api('POST', 'maint', { op: 'now' }), 'Jeu en maintenance')) refresh(); });
     on('mcancel', async b => { if (await run(b, () => api('POST', 'maint', { op: 'cancel' }), 'Annonce annulée')) refresh(); });
+    for (const [id, add] of [['ext15', 15], ['ext60', 60]]) on(id, async b => { if (await run(b, () => api('POST', 'maint', { op: 'extend', add }), `Maintenance prolongée de ${add < 60 ? add + ' min' : '1 h'}`)) refresh(); });
     on('online', async b => { if (await confirmBox('Remettre en ligne', 'Tous les joueurs connectés vont recharger le jeu et pourront rejouer.', 'Remettre en ligne') && await run(b, () => api('POST', 'maint', { op: 'off' }), 'Jeu en ligne : les joueurs rechargent')) refresh(); });
     on('reloadtest', async b => { if (await run(b, () => loadDash(true))) draw(); });
     on('restart', async b => { if (!(await confirmBox('Redémarrer', 'Le serveur s\'arrête quelques secondes puis revient tout seul.', 'Redémarrer', 'ora'))) return;
       if (await run(b, () => api('POST', 'restart', {}), 'Redémarrage en cours…')) waitBack(D.server.commit); });
+    { const dd = $('#ddur'); if (dd) dd.onchange = () => { DEPLOY_DUR = +dd.value; }; }
     on('deploy', async b => { const t = D.testServer;
-      if (!(await confirmBox('Déployer la version testée', `Installer <b class="mono">${esc(short(t.commit))}</b> — ${esc(t.subject)} (Nouveautés ${esc(t.patch)}) sur le serveur officiel ?<br><br>Le jeu passe en maintenance et redémarre ; il reste en maintenance jusqu'à ce que tu le remettes en ligne.`, 'Déployer', 'ora'))) return;
-      if (await run(b, () => api('POST', 'deploy', { commit: t.commit }), 'Installation en cours…')) waitBack(D.server.commit); });
+      if (!(await confirmBox('Déployer la version testée', `Installer <b class="mono">${esc(short(t.commit))}</b> — ${esc(t.subject)} (Nouveautés ${esc(t.patch)}) sur le serveur officiel ?<br><br>Le jeu passe en maintenance et redémarre ; il reste en maintenance jusqu'à ce que tu le remettes en ligne, ou au plus ${DEPLOY_DUR < 60 ? DEPLOY_DUR + ' min' : DEPLOY_DUR / 60 + ' h'} (réouverture automatique).`, 'Déployer', 'ora'))) return;
+      if (await run(b, () => api('POST', 'deploy', { commit: t.commit, dur: DEPLOY_DUR }), 'Installation en cours…')) waitBack(D.server.commit); });
   };
   const refresh = async () => { if (await run(null, () => loadDash())) draw(); };
   if (await run(null, () => loadDash(true))) draw();
