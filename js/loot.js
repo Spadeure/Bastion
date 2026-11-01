@@ -17,6 +17,7 @@ const LOOT = {
     [4,  'uncommon',  {k:'item', id:'truce_1h', n:[1,1]}],
     [4,  'rare',      {k:'item', id:'crate_gold_m', n:[1,1]}],
     [3,  'rare',      {k:'item', id:'speed_8h', n:[1,1]}],
+    [3,  'rare',      {k:'item', id:'demolish', n:[1,1]}],
     [1,  'epic',      {k:'item', id:'chest_silver', n:[1,1]}]
   ],
   chest_silver: [
@@ -31,6 +32,7 @@ const LOOT = {
     [6,  'rare',      {k:'item', id:'boost_atk|boost_def', n:[1,1]}],
     [5,  'rare',      {k:'item', id:'march_50', n:[1,2]}],
     [4,  'rare',      {k:'item', id:'truce_12h', n:[1,1]}],
+    [4,  'rare',      {k:'item', id:'demolish', n:[1,1]}],
     [4,  'epic',      {k:'troops', u:'apc', n:[15,40]}],
     [3,  'epic',      {k:'item', id:'speed_24h', n:[1,1]}],
     [2,  'epic',      {k:'item', id:'crate_gold_l', n:[1,1]}],
@@ -67,7 +69,7 @@ const WHEELS = {
     [12, 'common',    {k:'item', id:'speed_15m', n:[3,3]}],
     [8,  'uncommon',  {k:'troops', u:'rifleman', n:[200,300]}],
     [4,  'rare',      {k:'item', id:'speed_8h', n:[1,1]}],
-    [7,  'uncommon',  {k:'item', id:'boost_prod_*', n:[1,1]}]
+    [6,  'uncommon',  {k:'item', id:'demolish', n:[1,1]}]
   ],
   wheel_medal: [
     [9,  'epic',      {k:'troops', u:'tank', n:[40,80]}],

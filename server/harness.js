@@ -123,6 +123,7 @@ const __ACTIONS = {
     q.end = Math.max(now, q.end - Math.max(min, Math.round((q.end - q.start) * share))); }); },
   // test buttons (admin and test accounts only)
   finish(b) { return __in(b, () => { if (state.queue) complete(); }); },
+  demolish(slot, b) { if (typeof slot !== 'string' || slot.length > 8) return 'bad_order'; return __in(b, () => { const why = whyNotDemolish(slot); if (why) return why; demolish(slot); }); },
   heal(u) { if (u !== null && u !== undefined && !own(UNITS, u)) return 'bad_order'; return withBase('main', () => { const why = whyNotHeal(u || undefined); if (why) return why; heal(u || undefined); }); },
   finishTraining(bl, b) { return __in(b, () => { if (!TRAINERS.includes(bl)) return 'bad_order'; finishTraining(bl); }); },
   finishResearch() { checkResearch(true); },
