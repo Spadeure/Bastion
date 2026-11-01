@@ -27,6 +27,7 @@ function __nextEvent(limit) {
   const rc = researchState().cur; if (rc) ts.push(rc.e);
   for (const m of state.marches) ts.push(m.st === 'out' ? m.a : m.b);
   for (const k in (state.boosts || {})) ts.push(state.boosts[k]);
+  if (state.healing) ts.push(state.healing.e);
   let best = null; for (const t of ts) if (t > state.last && t < limit && (best === null || t < best)) best = t;
   return best;
 }
@@ -122,6 +123,7 @@ const __ACTIONS = {
     q.end = Math.max(now, q.end - Math.max(min, Math.round((q.end - q.start) * share))); }); },
   // test buttons (admin and test accounts only)
   finish(b) { return __in(b, () => { if (state.queue) complete(); }); },
+  heal(u) { if (u !== null && u !== undefined && !own(UNITS, u)) return 'bad_order'; return withBase('main', () => { const why = whyNotHeal(u || undefined); if (why) return why; heal(u || undefined); }); },
   finishTraining(bl, b) { return __in(b, () => { if (!TRAINERS.includes(bl)) return 'bad_order'; finishTraining(bl); }); },
   finishResearch() { checkResearch(true); },
   finishMarch(id) { finishMarch(id); },
