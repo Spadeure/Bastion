@@ -514,8 +514,11 @@ async function api(req, res, url, ip) {
       if (Q.opOf.get(me.id)) return refuse('bad_order');
     }
     if (a === 'useItem' && Array.isArray(args) && /^truce_/.test(String(args[0])) && Q.atkIncoming.all(me.id).length) return refuse('attack_incoming');
+    const qsig = st => { if (!st) return ''; const q1 = st.queue, q2 = st.op && st.op.queue; return JSON.stringify([q1 && [q1.slot, q1.type, q1.lvl, q1.start, q1.end], q2 && [q2.slot, q2.type, q2.lvl, q2.start, q2.end]]); };
+    let q0 = ''; try { q0 = qsig(b && b.state ? JSON.parse(b.state) : null); } catch (e) {}
     const r = runFor(me, b, String(a || ''), Array.isArray(args) ? args.slice(0, 5) : [], lang);
     refusedOrder(me, ip, act, args, r.error); noteOrder(me, ip, req, act);
+    if (!r.error && qsig(r.state) !== q0) ally.tellMates(me.id);   // a construction started, sped up or cancelled: the allies' Helps tab updates at once
     if (a === 'found' && !r.error && r.state.op && !Q.opOf.get(me.id)) {
       try { Q.addOp.run(me.id, 'rempart', r.state.op.x, r.state.op.y, Date.now()); loadOutposts(); log('AVANT-POSTE', `${me.name} a fondé son avant-poste Rempart en (${r.state.op.x}, ${r.state.op.y})`); }
       catch (e) { log('ERREUR', `avant-poste de ${me.name} : ${e.message}`); }

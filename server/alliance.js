@@ -326,5 +326,6 @@ module.exports = function makeAlliances(C) {
   // every player's alliance name (map and ranking)
   const namesQ = db.prepare('SELECT m.user_id AS id, a.name FROM ally_members m JOIN alliances a ON a.id = m.aid');
   const names = () => new Map(namesQ.all().map(r => [r.id, r.name]));
-  return { view, act, sameAlliance, allyName, names, reinfAt, afterFight, allHome, SERVER_ACTS: new Set(['reinforce', 'reinfBack', 'allyGive', 'allyGet', 'allyHelp']) };
+  const tellMates = uid => { const m = A.member.get(uid); if (m) tellAlly(m.aid); };   // something the allies see changed (a construction to help...)
+  return { view, act, tellMates, sameAlliance, allyName, names, reinfAt, afterFight, allHome, SERVER_ACTS: new Set(['reinforce', 'reinfBack', 'allyGive', 'allyGet', 'allyHelp']) };
 };
