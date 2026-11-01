@@ -26,7 +26,10 @@ function buildIndex(file = 'index.html') {
   const html = fs.readFileSync(path.join(ROOT, file), 'utf8')
     .replace(/(href|src)="((?:css|js)\/[^"?]+\.(?:css|js))"/g, `$1="$2?v=${VERSION}"`)
     .replace('</head>', `<script>window.BASTION_VER=${JSON.stringify(VERSION)}</script>\n</head>`);
-  const data = Buffer.from(html);
+  // the test server installs as its own app « Bastion Test » (name and icons marked TEST), next to the official game
+  const html2 = file === 'index.html' && IS_TEST ? html.replace('href="manifest.json"', 'href="manifest-test.json"').replace('<title>Bastion</title>', '<title>Bastion Test</title>')
+    .replace('content="Bastion">', 'content="Bastion Test">').replace(/assets\/app\/(apple-touch-icon|favicon)\.png/g, 'assets/app/test-$1.png') : html;
+  const data = Buffer.from(html2);
   return { data, br: zlib.brotliCompressSync(data), gz: zlib.gzipSync(data) };
 }
 const DATA = path.join(ROOT, 'data');                       // never in git: holds the database
@@ -989,7 +992,7 @@ const ally = require('./alliance.js')({ db, Q, log, clean, push, runFor, DAY_FMT
 const chat = require('./chat.js')({ db, Q, log, clean, push, broadcast, ally });
 const events = require('./event.js')({ db, Q, log, runFor, broadcast, push, engine, IS_TEST });
 // push notifications (server/notify.js): nothing is sent while the game is open
-const notify = require('./notify.js')({ db, log, engine, online: uid => streams.has(uid), Q });
+const notify = require('./notify.js')({ db, log, engine, online: uid => streams.has(uid), Q, IS_TEST });
 const kvOnce = k => { if (db.prepare('SELECT 1 FROM kv WHERE k = ?').get(k)) return false; db.prepare('INSERT OR REPLACE INTO kv (k, v) VALUES (?, ?)').run(k, '1'); return true; };
 events.hooks.start = e => { if (kvOnce('evstart_' + e.id)) notify.sendAll('evstart', {}); };
 events.hooks.last = e => { if (kvOnce('evlast_' + e.id)) notify.sendAll('evlast', {}); };

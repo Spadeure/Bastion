@@ -1,0 +1,35 @@
+{
+  "name": "Bastion Test",
+  "short_name": "Bastion Test",
+  "description": "Bastion test server: new features are tried here before the official game.",
+  "id": "./",
+  "start_url": "./?app=1",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0d1012",
+  "theme_color": "#3a1d08",
+  "categories": [
+    "games"
+  ],
+  "icons": [
+    {
+      "src": "assets/app/test-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/app/test-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/app/test-icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

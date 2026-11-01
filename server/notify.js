@@ -7,7 +7,7 @@
 // if he kept the night mode, except the attacks.
 const crypto = require('crypto');
 
-module.exports = function makeNotify({ db, log, engine, online, Q }) {
+module.exports = function makeNotify({ db, log, engine, online, Q, IS_TEST }) {
   db.exec(`CREATE TABLE IF NOT EXISTS kv (k TEXT PRIMARY KEY, v TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS push_subs (endpoint TEXT PRIMARY KEY, uid INTEGER NOT NULL, p256dh TEXT NOT NULL, auth TEXT NOT NULL, lang TEXT NOT NULL, created INTEGER NOT NULL, fails INTEGER NOT NULL DEFAULT 0);
     CREATE INDEX IF NOT EXISTS push_subs_uid ON push_subs (uid);
@@ -95,7 +95,7 @@ module.exports = function makeNotify({ db, log, engine, online, Q }) {
     const subs = N.subsOf.all(uid); if (!subs.length) return true;
     for (const s of subs) {
       let t; try { t = engine.pushText(s.lang, kind, data || {}); } catch (e) { log('ERREUR', 'texte de notification : ' + e.message); return true; }
-      deliver(s, { title: t.title, body: t.body, tag: opt.tag || kind, url: './?app=1', ts: Date.now() }, opt.ttl || (urgent ? 900 : 6 * 3600), urgent);
+      deliver(s, { title: t.title, body: t.body, tag: opt.tag || kind, url: './?app=1', ts: Date.now(), icon: IS_TEST ? 'assets/app/test-icon-192.png' : 'assets/app/icon-192.png' }, opt.ttl || (urgent ? 900 : 6 * 3600), urgent);
     }
     return true;
   }

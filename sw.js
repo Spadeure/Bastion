@@ -7,7 +7,7 @@ self.addEventListener('activate', e => e.waitUntil(self.clients.claim()));
 self.addEventListener('push', e => {
   let d = {}; try { d = e.data ? e.data.json() : {}; } catch (x) { d = { title: 'Bastion', body: e.data ? e.data.text() : '' }; }
   e.waitUntil(self.registration.showNotification(d.title || 'Bastion', {
-    body: d.body || '', tag: d.tag || 'bastion', renotify: true, icon: 'assets/app/icon-192.png', badge: 'assets/app/icon-192.png',
+    body: d.body || '', tag: d.tag || 'bastion', renotify: true, icon: d.icon || 'assets/app/icon-192.png', badge: 'assets/app/icon-192.png',
     timestamp: d.ts || Date.now(), data: { url: d.url || './?app=1' } }));
 });
 self.addEventListener('notificationclick', e => {
