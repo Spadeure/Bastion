@@ -1079,3 +1079,23 @@ button.danger{background:linear-gradient(180deg,#b8432f,#7a2416)!important;color
 .viph{display:flex;align-items:center;gap:8px;margin-bottom:4px}
 .vipimg{width:44px;height:44px;object-fit:contain;filter:drop-shadow(0 2px 3px #000a)}
 .viplv{font-size:17px}
+/* legal pages and purchase confirmation */
+#legalov,#payov{position:fixed;inset:0;z-index:300;display:flex;align-items:center;justify-content:center;padding:16px;background:#000b}
+.lgbox{position:relative;width:min(640px,100%);max-height:90vh;display:flex;flex-direction:column;border:solid transparent;border-width:40px 24px 34px;border-image:var(--fr-win) 150 95 135 95 fill / 40px 24px 34px stretch;color:#e8e2c8;padding:4px 8px 6px}
+.lgbox .lgx{position:absolute;right:-14px;top:-34px;background:none;border:0;box-shadow:none;padding:4px;cursor:pointer}
+.lgbox .lgx img{width:26px;height:26px}
+.lgtabs{display:grid;grid-template-columns:repeat(4,1fr);margin:0}
+.lgtabs .tab2{padding-left:3px;padding-right:3px;min-width:0;font-size:12.5px}
+@media (max-width:520px){ .lgtabs{grid-template-columns:repeat(2,1fr)} }
+.lgbody{overflow-y:auto;margin-top:8px;padding-right:6px;font-size:14px;line-height:1.45}
+.lgbody h3{margin:12px 0 4px;font-size:15px;color:#e0b63e}
+.lgbody ul{margin:4px 0 4px 18px;padding:0}.lgbody li{margin:3px 0}.lgbody p{margin:5px 0}
+.lmiss{color:#ff9a6a;font-weight:700}
+.lglinks{text-align:center;font-size:12px;opacity:.85;margin-top:6px;line-height:1.6}
+.lglinks a,.paychk a{color:#e0b63e}
+.paybox{max-width:440px}
+.paybox h3{margin:0 0 10px;color:#e0b63e}
+.payline{display:flex;justify-content:space-between;gap:10px;padding:10px;border-radius:8px;background:#0006;margin-bottom:10px}
+.paychk{display:flex;gap:9px;align-items:flex-start;font-size:13.5px;line-height:1.4;cursor:pointer;margin-bottom:6px}
+.paychk input{width:20px;height:20px;flex:0 0 20px;margin-top:1px}
+.paybtns{display:flex;gap:8px;margin-top:12px}.paybtns button{flex:1}

@@ -5,8 +5,15 @@
 const crypto = require('crypto');
 module.exports = function makePay({ db, engine, log, send, push, runFor, Q, IS_TEST }) {
   db.exec(`CREATE TABLE IF NOT EXISTS payments (id TEXT PRIMARY KEY, user_id INTEGER NOT NULL, prod TEXT NOT NULL, cents INTEGER NOT NULL, status TEXT NOT NULL, mode TEXT NOT NULL, created INTEGER NOT NULL, done INTEGER)`);
+  for (const [c, t] of [['cgv', 'TEXT'], ['pi', 'TEXT'], ['cr', 'INTEGER']]) if (!db.prepare("SELECT 1 FROM pragma_table_info('payments') WHERE name = ?").get(c)) db.exec(`ALTER TABLE payments ADD COLUMN ${c} ${t}`);
+  // cgv: version of the terms of sale accepted (with the waiver of the right of withdrawal) · pi: Stripe payment id · cr: War Credits given
   const P = {
-    add: db.prepare('INSERT INTO payments (id, user_id, prod, cents, status, mode, created) VALUES (?, ?, ?, ?, ?, ?, ?)'),
+    add: db.prepare('INSERT INTO payments (id, user_id, prod, cents, status, mode, created, cgv) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'),
+    pending: db.prepare("SELECT 1 FROM payments WHERE user_id = ? AND prod = ? AND status = 'pending' AND created > ?"),
+    setPi: db.prepare('UPDATE payments SET pi = ? WHERE id = ?'),
+    setCr: db.prepare('UPDATE payments SET cr = ? WHERE id = ?'),
+    byPi: db.prepare('SELECT * FROM payments WHERE pi = ?'),
+    status: db.prepare('UPDATE payments SET status = ? WHERE id = ?'),
     get: db.prepare('SELECT * FROM payments WHERE id = ?'),
     done: db.prepare("UPDATE payments SET status = 'done', done = ? WHERE id = ? AND status = 'pending'"),
     fail: db.prepare("UPDATE payments SET status = ? WHERE id = ? AND status = 'pending'"),
@@ -22,25 +29,39 @@ module.exports = function makePay({ db, engine, log, send, push, runFor, Q, IS_T
   function grant(id) {
     const row = P.get.get(id); if (!row || row.status !== 'pending') return false;
     const u = Q.user.get(row.user_id), b = Q.base.get(row.user_id); if (!u || !b) { P.fail.run('no_player', id); return false; }
+    let before = 0; try { before = Math.floor(+(JSON.parse(b.state || '{}').credits) || 0); } catch (e) {}
     const r = runFor({ ...u, role: 'server' }, b, 'payGrant', [row.prod], 'fr', true);
     if (r.error) { P.fail.run('refused:' + String(r.error).slice(0, 40), id); log('PAIEMENT', `${u.name} · ${row.prod} · REFUSÉ par le jeu (${r.error}) · ${id} : à rembourser`); return false; }
-    P.done.run(Date.now(), id); push(row.user_id, 'sync', {});
+    P.done.run(Date.now(), id); P.setCr.run(Math.max(0, Math.floor(+r.state.credits || 0) - before), id); push(row.user_id, 'sync', {});
     log('ACHAT', `${u.name} · ${names()[row.prod] || row.prod} · ${(row.cents / 100).toFixed(2)} € · ${row.mode === 'sim' ? 'SIMULÉ (serveur de test)' : 'Stripe ' + id}`);
     return r;
   }
+  // a payment refunded (by you from Stripe) or disputed (the player asked his bank): what it gave is taken back
+  function revoke(row, why) {
+    if (!row) return;
+    if (row.status !== 'done') { P.status.run(why, row.id); return; }
+    const u = Q.user.get(row.user_id), b = Q.base.get(row.user_id); P.status.run(why, row.id);
+    if (!u || !b) return;
+    const r = runFor({ ...u, role: 'server' }, b, 'payRevoke', [row.prod, row.cr || 0, row.cents], 'fr', true);
+    push(row.user_id, 'sync', {});
+    log(why === 'disputed' ? 'LITIGE' : 'REMBOURSEMENT', `${u.name} · ${names()[row.prod] || row.prod} · ${(row.cents / 100).toFixed(2)} € · ${row.cr || 0} Crédits et le contenu du pack repris${r.error ? ' (' + r.error + ')' : ''}${(r.state.credits || 0) < 0 ? ' · Crédits déjà dépensés : solde négatif ' + r.state.credits : ''}`);
+  }
+  const ONCE = prod => prod === 'starter' || /^(prog|week)_/.test(prod);   // packs bought only once: never two payments open at the same time
   async function stripe(path, form) {
     const r = await fetch('https://api.stripe.com/v1/' + path, { method: 'POST', headers: { Authorization: 'Bearer ' + KEY, 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams(form).toString() });
     const j = await r.json(); if (!r.ok) throw new Error((j.error && j.error.message) || 'stripe ' + r.status); return j;
   }
   // POST /api/pay/start {p}: opens a payment (or simulates it on the test server)
   async function start(req, res, me, P0, origin) {
-    const prod = String(P0.p || ''), c = cents(prod);
+    const prod = String(P0.p || ''), c = cents(prod), CGV = engine.shop().cgv;
     if (!c) return send(res, 400, { error: 'bad_order' });
+    if (P0.cgv !== CGV) return send(res, 400, { error: 'cgv_required' });   // the terms of sale (and the waiver of the right of withdrawal) are ticked first
     if (MODE === 'off') return send(res, 503, { error: 'pay_closed' });
     const b = Q.base.get(me.id); if (!b) return send(res, 404, { error: 'unknown_player' });
     { const chk = runFor({ ...me, role: 'server' }, b, 'payCheck', [prod], 'fr'); if (chk.error) return send(res, 409, { error: chk.error }); }   // unlocked, not bought yet, pack of this week
+    if (ONCE(prod) && P.pending.get(me.id, prod, Date.now() - 35 * 60_000)) return send(res, 409, { error: 'pay_pending' });
     if (MODE === 'sim') {
-      const id = 'sim_' + crypto.randomBytes(9).toString('hex'); P.add.run(id, me.id, prod, c, 'pending', 'sim', Date.now());
+      const id = 'sim_' + crypto.randomBytes(9).toString('hex'); P.add.run(id, me.id, prod, c, 'pending', 'sim', Date.now(), CGV);
       const r = grant(id); if (!r) return send(res, 409, { error: 'bad_order' });
       return send(res, 200, { state: r.state, events: r.events, serverTime: Date.now() });
     }
@@ -49,8 +70,8 @@ module.exports = function makePay({ db, engine, log, send, push, runFor, Q, IS_T
         mode: 'payment', 'line_items[0][quantity]': '1', 'line_items[0][price_data][currency]': 'eur',
         'line_items[0][price_data][unit_amount]': String(c), 'line_items[0][price_data][product_data][name]': 'Bastion · ' + (names()[prod] || prod),
         client_reference_id: String(me.id), 'metadata[uid]': String(me.id), 'metadata[prod]': prod,
-        success_url: origin + '/?pay=ok', cancel_url: origin + '/?pay=cancel' });
-      P.add.run(s.id, me.id, prod, c, 'pending', live ? 'live' : 'test', Date.now());
+        success_url: origin + '/?pay=ok', cancel_url: origin + '/?pay=cancel', expires_at: String(Math.floor(Date.now() / 1000) + 31 * 60) });
+      P.add.run(s.id, me.id, prod, c, 'pending', live ? 'live' : 'test', Date.now(), CGV);
       log('PAIEMENT', `${me.name} ouvre le paiement : ${names()[prod] || prod} · ${(c / 100).toFixed(2)} €`);
       return send(res, 200, { url: s.url });
     } catch (e) { log('ERREUR', `paiement Stripe pour ${me.name} : ${e.message}`); return send(res, 502, { error: 'pay_error' }); }
@@ -75,10 +96,19 @@ module.exports = function makePay({ db, engine, log, send, push, runFor, Q, IS_T
       const row = P.get.get(o.id);
       if (!row) log('PAIEMENT', `session inconnue ${o.id}`);
       else if (row.cents !== o.amount_total) { P.fail.run('bad_amount', o.id); log('TRICHE?', `paiement ${o.id} : montant ${o.amount_total} au lieu de ${row.cents}`); }
-      else grant(o.id);
+      else { if (o.payment_intent) P.setPi.run(String(o.payment_intent), o.id); grant(o.id); }
     }
     if (ev.type === 'checkout.session.expired' && o) P.fail.run('expired', o.id);
+    if (ev.type === 'charge.refunded' && o && o.payment_intent) {   // refunded from the Stripe dashboard
+      const row = P.byPi.get(String(o.payment_intent));
+      if (!row) log('PAIEMENT', `remboursement d'un paiement inconnu ${o.payment_intent}`);
+      else if (o.refunded) revoke(row, 'refunded');
+      else log('REMBOURSEMENT', `remboursement PARTIEL de ${((o.amount_refunded || 0) / 100).toFixed(2)} € sur ${row.id} : rien repris automatiquement, à voir à la main`);
+    }
+    if (ev.type === 'charge.dispute.created' && o && o.payment_intent) {   // the player disputes the payment with his bank
+      const row = P.byPi.get(String(o.payment_intent)); if (row) revoke(row, 'disputed'); else log('LITIGE', `litige sur un paiement inconnu ${o.payment_intent}`);
+    }
     return send(res, 200, { received: true });
   }
-  return { MODE, start, webhook, list: n => P.list.all(n || 100) };
+  return { MODE, start, webhook, revoke, list: n => P.list.all(n || 100) };
 };

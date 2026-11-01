@@ -137,6 +137,7 @@ const __ACTIONS = {
   vipShow(on) { vipShow(!!on); },
   vipFinish(k, b) { if (!['build', 'build2', 'research'].includes(k)) return 'bad_order'; return (k === 'research' ? vipFinish(k) : __in(b, () => vipFinish(k))) || undefined; },
   payGrant(prod) { if (!own(PAY_PRODUCTS, prod)) return 'bad_order'; return payGrant(prod) || undefined; },
+  payRevoke(prod, cr, cents) { if (!own(PAY_PRODUCTS, prod)) return 'bad_order'; return payRevoke(prod, cr, cents) || undefined; },
   heal(u) { if (u !== null && u !== undefined && !own(UNITS, u)) return 'bad_order'; return withBase('main', () => { const why = whyNotHeal(u || undefined); if (why) return why; heal(u || undefined); }); },
   finishTraining(bl, b) { return __in(b, () => { if (!TRAINERS.includes(bl)) return 'bad_order'; finishTraining(bl); }); },
   finishResearch() { checkResearch(true); },
@@ -164,7 +165,7 @@ function __run(stJson, lang, action, argsJson, role) {
     const args = JSON.parse(argsJson), f = own(__ACTIONS, action) ? __ACTIONS[action] : null;
     if (!f || !Array.isArray(args) || !__safeArgs(args, 0)) error = 'bad_order';
     else if (STAFF_ONLY.has(action) && !['admin', 'tester'].includes(role)) error = 'forbidden';
-    else if ((action === 'payGrant' || action === 'payCheck') && role !== 'server') error = 'forbidden';   // bought Credits: only the server, after a confirmed payment
+    else if ((action === 'payGrant' || action === 'payCheck' || action === 'payRevoke') && role !== 'server') error = 'forbidden';   // bought Credits: only the server, after a confirmed payment
     else { try { const r = f(...args); if (r) error = r; } catch (e) { error = 'bad_order'; } }
     __catchUp();
   }

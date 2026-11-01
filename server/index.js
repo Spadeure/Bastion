@@ -52,6 +52,9 @@ const GIT = gitInfo();
 const PATCH_ID = (/const PATCH = \[\s*\{id:'([^']+)'/.exec(fs.readFileSync(path.join(ROOT, 'js', 'game.js'), 'utf8')) || [])[1] || '';
 const IS_TEST = process.env.BASTION_TEST ? /^(1|true|on)$/i.test(process.env.BASTION_TEST) : GIT.branch === 'test';
 const STARTED = Date.now();
+// the publisher's details shown in the legal pages (Pelican variables, nothing to change in the code)
+const LEGAL = Object.fromEntries(Object.entries({ name: 'LEGAL_NAME', siret: 'LEGAL_SIRET', email: 'LEGAL_EMAIL', address: 'LEGAL_ADDRESS', mediator: 'LEGAL_MEDIATOR', mediator_url: 'LEGAL_MEDIATOR_URL' })
+  .map(([k, v]) => [k, String(process.env[v] || '').slice(0, 200)]));
 
 // ---------- console log (in French: it is read by the server owner in the Pelican console) ----------
 const STAMP = new Intl.DateTimeFormat('fr-FR', { timeZone: SERVER_TZ, day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -414,7 +417,7 @@ async function api(req, res, url, ip) {
   if (url.startsWith('/api/admin/') && !fromHome(req)) { panelOutside(ip, url); return send(res, 404, { error: 'not_found' }); }   // the panel does not exist seen from the internet
   if (url === '/api/ping') return send(res, 200, { t: Date.now(), tz: SERVER_TZ, v: VERSION, s: panel.status() });   // s: maintenance, announcement, test server
   if (url === '/api/health') return send(res, 200, { ok: true, game: 'Bastion', players: Q.count.get().n, uptime: Math.round(process.uptime()),
-    commit: GIT.commit, branch: GIT.branch, subject: GIT.subject, patch: PATCH_ID, version: VERSION, test: IS_TEST });
+    commit: GIT.commit, branch: GIT.branch, subject: GIT.subject, patch: PATCH_ID, version: VERSION, test: IS_TEST, legal: LEGAL });
 
   if (url === '/api/register' && req.method === 'POST') {
     if (isBlocked(ip)) return send(res, 429, { error: 'too_many' });
@@ -500,7 +503,7 @@ async function api(req, res, url, ip) {
   if (url === '/api/act' && req.method === 'POST') {             // one order from the player: checked and run by the server
     const { a, args = [], lang } = await readBody(req, 20_000);
     const b = Q.base.get(me.id), act = clean(a);
-    if (ally.SERVER_ACTS.has(String(a)) || String(a) === 'payGrant' || String(a) === 'payCheck') { cheat(me, ip, `ordre réservé au serveur : ${act}`); return send(res, 403, { error: 'forbidden' }); }
+    if (ally.SERVER_ACTS.has(String(a)) || ['payGrant', 'payCheck', 'payRevoke'].includes(String(a))) { cheat(me, ip, `ordre réservé au serveur : ${act}`); return send(res, 403, { error: 'forbidden' }); }
     const refuse = err => { if (err === 'bad_order') refusedOrder(me, ip, act, args, err); const r0 = runFor(me, b, null, [], lang); return send(res, 200, { state: r0.state, events: r0.events, error: err, serverTime: Date.now() }); };
     if (a === 'launch' && Array.isArray(args) && args[0] && typeof args[0] === 'object') {
       const o = args[0]; delete o.pvp;                             // only the server says that the target is a player
@@ -753,7 +756,7 @@ async function admin(req, res, me, ip, preset) {
   const now = Date.now();
   st.res = st.res || {}; st.troops = st.troops || {}; st.inv = st.inv || {}; st.slots = st.slots || {}; st.research = st.research || { lv: {}, cur: null };
   switch (action) {
-    case 'give_res': { const n = int(p.amount, 0, 1e10); if (p.res === 'credits') { st.credits = Math.max(0, Math.floor(Number(st.credits) || 0)) + Math.min(n, 1e7); break; } for (const r of (p.res === 'all' ? RESS : [p.res])) if (RESS.includes(r)) st.res[r] = (st.res[r] || 0) + n; break; }
+    case 'give_res': { const n = int(p.amount, 0, 1e10); if (p.res === 'credits') { st.credits = Math.floor(Number(st.credits) || 0) + Math.min(n, 1e7); break; } for (const r of (p.res === 'all' ? RESS : [p.res])) if (RESS.includes(r)) st.res[r] = (st.res[r] || 0) + n; break; }
     case 'give_item': { const id = String(p.id || ''); if (!gameId(id)) return send(res, 400, { error: 'bad_item' }); st.inv[id] = (st.inv[id] || 0) + int(p.n, 1, 100000); break; }
     case 'give_all_items': { for (const id of (Array.isArray(p.ids) ? p.ids : [])) if (gameId(id)) st.inv[id] = (st.inv[id] || 0) + int(p.n, 1, 1000); break; }
     case 'give_troops': { if (!UNIT_IDS.includes(p.u)) return send(res, 400, { error: 'bad_unit' }); st.troops[p.u] = (st.troops[p.u] || 0) + int(p.n, 1, 10_000_000); break; }
