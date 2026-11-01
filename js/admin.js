@@ -90,7 +90,7 @@ let view = 'dash', D = null, timers = [];
 const every = (ms, f) => timers.push(setInterval(f, ms));
 function stopTimers() { timers.forEach(clearInterval); timers = []; }
 let DEPLOY_DUR = 15;   // maintenance length chosen for the next deployment (minutes)
-const VIEWS = { dash: viewDash, maint: viewMaint, players: viewPlayers, chat: viewChat, ann: viewAnn, logs: viewLogs };
+const VIEWS = { dash: viewDash, maint: viewMaint, players: viewPlayers, chat: viewChat, ann: viewAnn, events: viewEvents, logs: viewLogs };
 document.querySelectorAll('#menu [data-v]').forEach(b => b.onclick = () => go(b.dataset.v));
 function go(v) {
   view = VIEWS[v] ? v : 'dash'; try { history.replaceState(null, '', '#' + view); } catch (e) {}
@@ -364,6 +364,39 @@ async function viewAnn() {
     const off = $('#aoff'); if (off) off.onclick = async () => { if (await run(off, () => api('POST', 'announce', { op: 'off' }), 'Annonce retirée')) load(); };
   };
   const load = async () => { const [, l] = await Promise.all([loadDash(), api('GET', 'announces')]).catch(e => { toast(e.message, true); return [null, null]; }); if (l) draw(l.list); };
+  await load(); every(1000, tickCountdowns);
+}
+
+// ===== events: the Power Tournament =====
+async function viewEvents() {
+  const ST = { planned: ['Prévu', 'admin'], running: ['En cours', 'ok'], ended: ['Terminé', ''] };
+  const draw = d => {
+    const n = now(), L = d.live, today = new Date(n + 3600_000).toISOString().slice(0, 16);
+    $('#main').innerHTML = top('Événements') + `
+      ${L ? `<div class="card warnc"><div class="ch"><img src="${IMG('power')}" alt=""><h2>Tournoi de puissance n°${L.id} · ${ST[L.status][0]}</h2></div>
+        <p>${L.status === 'planned' ? `Commence le <b>${dt(L.start)}</b> (dans <span data-cd="${L.start}">${mmss(L.start - n)}</span>)` : `Se termine le <b>${dt(L.end)}</b> (dans <span data-cd="${L.end}">${mmss(L.end - n)}</span>)`}</p>
+        <p class="mut small">Crédits du top 3 : ${L.cr.join(' / ')}</p>
+        <div class="row"><button class="btn red sm" id="evstop"><img src="${IMG('ui_close')}" alt="">${L.status === 'planned' ? 'Annuler' : 'Terminer maintenant'}</button></div></div>`
+      : `<div class="card"><div class="ch"><img src="${IMG('power')}" alt=""><h2>Lancer un Tournoi de puissance</h2></div>
+        <p class="mut small">Les joueurs gagnent des paliers selon la puissance gagnée pendant le tournoi (troupes, constructions, recherches). Les paliers ne donnent ni troupes ni Crédits. À la fin, le classement est figé et chacun récupère sa récompense dans le jeu pendant 7 jours.</p>
+        <div class="row"><label>Début<select id="evwhen"><option value="now">Tout de suite</option><option value="at">À une date</option></select></label>
+          <label id="evatl" style="display:none">Date et heure<input type="datetime-local" id="evat" value="${today}"></label>
+          <label>Durée<select id="evdays">${[1, 2, 3, 5, 7, 10, 14].map(v => `<option value="${v}"${v === 7 ? ' selected' : ''}>${v} jour${v > 1 ? 's' : ''}</option>`).join('')}</select></label></div>
+        <div class="row"><label>Crédits 1er<input type="number" id="evc1" value="150" min="0" max="5000"></label><label>Crédits 2e<input type="number" id="evc2" value="100" min="0" max="5000"></label><label>Crédits 3e<input type="number" id="evc3" value="50" min="0" max="5000"></label></div>
+        <div class="row"><button class="btn" id="evgo"><img src="${IMG('ui_ok')}" alt="">Lancer le tournoi</button></div></div>`}
+      <div class="card"><div class="ch"><img src="${IMG('reports')}" alt=""><h2>Historique</h2></div>
+        ${d.list.length ? d.list.map(e => `<div class="err"><span class="mut mono">${dt(e.start)} → ${dt(e.end)}</span> <span class="badge ${ST[e.status] ? ST[e.status][1] : ''}">${ST[e.status] ? ST[e.status][0] : e.status}</span> Tournoi n°${e.id} · ${e.n} participant(s) · Crédits ${e.cr.join(' / ')} <span class="mut small">· par ${esc(e.by || '?')}</span></div>`).join('') : '<p class="mut">Aucun événement pour l\'instant.</p>'}</div>`;
+    const w = $('#evwhen'); if (w) w.onchange = () => { $('#evatl').style.display = w.value === 'at' ? '' : 'none'; };
+    const go = $('#evgo'); if (go) go.onclick = async e => {
+      const start = w.value === 'at' ? new Date($('#evat').value).getTime() : now(), days = +$('#evdays').value, cr = [+$('#evc1').value, +$('#evc2').value, +$('#evc3').value];
+      if (w.value === 'at' && !(start > now())) return toast('Choisis une date dans le futur', true);
+      if (!await confirmBox('Lancer le tournoi', `Début : <b>${w.value === 'at' ? dt(start) : 'tout de suite'}</b> · durée <b>${days} jour(s)</b><br>Crédits du top 3 : <b>${cr.join(' / ')}</b>`, 'Lancer')) return;
+      if (await run(e.currentTarget, () => api('POST', 'event', { type: 'power', start, days, cr }), 'Tournoi lancé')) load(); };
+    const st = $('#evstop'); if (st) st.onclick = async () => {
+      if (!await confirmBox(L.status === 'planned' ? 'Annuler le tournoi' : 'Terminer le tournoi', L.status === 'planned' ? 'Le tournoi prévu est supprimé.' : 'Le classement est figé maintenant et les joueurs peuvent récupérer leurs récompenses.', 'Confirmer', 'red')) return;
+      if (await run(st, () => api('POST', 'event', { op: 'stop', id: L.id }), 'Fait')) load(); };
+  };
+  const load = async () => { try { draw(await api('GET', 'events')); } catch (e) { toast(e.message, true); } };
   await load(); every(1000, tickCountdowns);
 }
 

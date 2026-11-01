@@ -1102,3 +1102,24 @@ button.danger{background:linear-gradient(180deg,#b8432f,#7a2416)!important;color
 /* daily missions */
 .row.quest.mgot{opacity:.6}
 .sdeal.mready{outline:2px solid #e0b830;box-shadow:0 0 10px #e0b83066}
+.iti .itsz{position:absolute;left:0;right:0;bottom:-1px;text-align:center;font-size:.62em;font-weight:900;color:#fff;text-shadow:0 0 3px #000,0 0 3px #000,0 1px 2px #000;pointer-events:none;line-height:1}
+/* events: the Power Tournament */
+.evhd{border-radius:12px;padding:12px;background:linear-gradient(135deg,#5a1d10,#2a1208 60%,#121008);border:2px solid #e0b830;margin-bottom:8px}
+.evhd h2{margin:0;font-family:'Black Ops One',Impact,sans-serif;color:#f3c534;font-size:21px;letter-spacing:1px;text-shadow:0 2px 0 #000}
+.evhd .sub{color:#f0e2c0}.evtime{display:inline-block;margin-top:6px;padding:3px 9px;border-radius:7px;background:#000a;color:#ffcf6a;font-weight:800;font-size:13px}
+.evme{display:flex;gap:8px;margin:8px 0}.evme div{flex:1;text-align:center;padding:8px 4px;border-radius:9px;background:#0007;border:1px solid #5d5a3c}
+.evme b{display:block;font-size:19px;color:#ffd54a}.evme small{font-size:11px;opacity:.8}
+.evtier{padding:9px;margin-bottom:9px;border-radius:10px;background:#0006;border:2px solid #4c4a33}
+.evtier.got{border-color:#5fb04a;background:#1d2a14aa}.evtier.ready{border-color:#e0b830;box-shadow:0 0 12px #e0b83088}.evtier.next{border-color:#c8941e88}
+.evtier .pt{font-weight:900;font-size:16px;color:#ffd54a}
+.evbox{margin-top:6px;padding:5px 7px;border-radius:8px;background:#0005;border-left:4px solid var(--bc)}.evbox b.bt{color:var(--bc);font-size:13px}
+.evbox .chips{margin-top:3px;gap:4px}.evbox .chip{font-size:12px;padding:1px 5px 1px 2px}
+.bt-t{--bc:#7fd3ff}.bt-r{--bc:#8fe07a}.bt-p{--bc:#ffb36b}
+.evrank{display:flex;align-items:center;gap:8px;padding:7px 9px;margin-bottom:5px;border-radius:8px;background:#0006;font-size:14px}
+.evrank .n{min-width:28px;height:28px;padding:0 4px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-weight:900;background:#3a3a30}
+.evrank.r1 .n{background:linear-gradient(#ffe48a,#c8941e);color:#2a1d02}.evrank.r2 .n{background:linear-gradient(#eef1f3,#9aa3ab);color:#222}.evrank.r3 .n{background:linear-gradient(#ffb36b,#a8541e);color:#fff}
+.evrank.me{outline:2px solid #7fd3ff}.evrank .pw{margin-left:auto;font-weight:800;color:#ffd54a}
+.sbtn.evsb{border-color:#e0b830;box-shadow:0 0 10px #ff8a3a66}.sbtn.evsb small{display:block;font-size:10px;color:#ffcf6a;font-weight:800}
+.champb{display:inline-block;font-style:normal;font-weight:900;font-size:.7em;padding:1px 5px;margin-right:4px;border-radius:5px;vertical-align:middle;color:#2a1d02;background:linear-gradient(#ffe48a,#d1a22b);box-shadow:0 0 6px #ffd54a88;text-transform:uppercase;letter-spacing:.5px}
+.evhd{padding-right:40px}
+@media (max-width:760px){ .sbtn.evsb small{display:none} }

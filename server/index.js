@@ -493,10 +493,10 @@ async function api(req, res, url, ip) {
     return;
   }
   if (url === '/api/logout' && req.method === 'POST') { Q.delSession.run(me.token); seenAt.delete(me.token); log('DÉCONNEXION', `${me.name} · ${ip}`); return send(res, 200, { ok: true }); }
-  const ENGINE = (url === '/api/state' && req.method === 'GET') || (url === '/api/act' && req.method === 'POST') || (url === '/api/chest' && req.method === 'POST') || (url === '/api/alliance' && req.method === 'POST') || (url === '/api/chat' && req.method === 'POST');
+  const ENGINE = (url === '/api/event' && req.method === 'POST') || (url === '/api/state' && req.method === 'GET') || (url === '/api/act' && req.method === 'POST') || (url === '/api/chest' && req.method === 'POST') || (url === '/api/alliance' && req.method === 'POST') || (url === '/api/chat' && req.method === 'POST');
   // maintenance: the players can still look at their game (time goes on), but every order is refused; the administrator plays normally
   // an order from a game page that is no longer the one in use (the account opened the game elsewhere): refused
-  if ((req.method === 'POST' || req.method === 'PUT') && /^\/api\/(act|chest|alliance|chat|state)$/.test(url) && activeTok.has(me.id) && activeTok.get(me.id) !== me.token) return send(res, 409, { error: 'session_replaced' });
+  if ((req.method === 'POST' || req.method === 'PUT') && /^\/api\/(act|chest|alliance|chat|state|event)$/.test(url) && activeTok.has(me.id) && activeTok.get(me.id) !== me.token) return send(res, 409, { error: 'session_replaced' });
   if (panel.isMaint() && me.role !== 'admin' && ((url === '/api/act' || url === '/api/chest' || url === '/api/admin' || url === '/api/alliance') && req.method === 'POST')) return send(res, 503, { error: 'maintenance', srv: panel.status() });
   if (ENGINE && !checkSig(me, ip, req)) return send(res, me.banned ? 403 : 409, { error: me.banned ? 'banned' : 'old_page' });   // not from the game page
   if (ENGINE && !(await orderTurn(me))) return tooFast(me, ip, res, req);
@@ -509,7 +509,7 @@ async function api(req, res, url, ip) {
   if (url === '/api/act' && req.method === 'POST') {             // one order from the player: checked and run by the server
     const { a, args = [], lang } = await readBody(req, 20_000);
     const b = Q.base.get(me.id), act = clean(a);
-    if (ally.SERVER_ACTS.has(String(a)) || ['payGrant', 'payCheck', 'payRevoke'].includes(String(a))) { cheat(me, ip, `ordre réservé au serveur : ${act}`); return send(res, 403, { error: 'forbidden' }); }
+    if (ally.SERVER_ACTS.has(String(a)) || ['payGrant', 'payCheck', 'payRevoke', 'evGrant', 'evRank'].includes(String(a))) { cheat(me, ip, `ordre réservé au serveur : ${act}`); return send(res, 403, { error: 'forbidden' }); }
     const refuse = err => { if (err === 'bad_order') refusedOrder(me, ip, act, args, err); const r0 = runFor(me, b, null, [], lang); return send(res, 200, { state: r0.state, events: r0.events, error: err, serverTime: Date.now() }); };
     if (a === 'launch' && Array.isArray(args) && args[0] && typeof args[0] === 'object') {
       const o = args[0]; delete o.pvp;                             // only the server says that the target is a player
@@ -554,6 +554,13 @@ async function api(req, res, url, ip) {
   if (url === '/api/players' && req.method === 'GET') { const now = Date.now(), an = ally.names();
     return send(res, 200, { players: Q.players.all(me.id).map(({ uid, cos, ...p }) => ({ ...p, cos: cos ? JSON.parse(cos) : null, shield: p.shield > now ? p.shield : 0, alliance: an.get(uid) || null })), outposts: Q.allOps.all() }); }
   if (url === '/api/alliance' && req.method === 'GET') return send(res, 200, ally.view(me));
+  if (url === '/api/event' && req.method === 'GET') return send(res, 200, events.view(me));   // the tournament: tiers, my score, ranking
+  if (url === '/api/event' && req.method === 'POST') {
+    if (panel.isMaint() && me.role !== 'admin') return send(res, 503, { error: 'maintenance' });
+    const P = await readBody(req, 5_000);
+    try { const r = events.act(me, { op: String(P.op || ''), tier: P.tier, lang: LANG_OK.includes(P.lang) ? P.lang : 'fr' }); noteOrder(me, ip, req, 'event'); return send(res, 200, { ...r, view: events.view(me) }); }
+    catch (e) { if (!e.code) throw e; return send(res, e.code, { error: e.error }); }
+  }
   if (url.startsWith('/api/chat')) {   // the chat: general, alliance, private
     try {
       const qs = new URLSearchParams(req.url.split('?')[1] || '');
@@ -654,10 +661,12 @@ function pubCos(st) { const C = (st && st.cos) || {}, own = C.own || {}, V = (st
   if (C.c && own[C.c] && COS_C.has(v(C.c))) o.c = v(C.c); if (C.f && own[C.f] && COS_F.has(v(C.f))) o.f = v(C.f);
   if (C.f === 'frame_vip' && lv >= 10) o.f = 'vip';   // never sold: VIP 10 only
   if (V.show && lv) o.v = lv;   // the VIP badge, only if the player chose to show it
+  if ((+st.champ || 0) > Date.now()) o.t = 1;   // title « Champion » (1st of a tournament, 7 days)
   return Object.keys(o).length ? JSON.stringify(o) : null; }
 function saveState(uid, created, r) {
   const ss = r.state.stats || {};
   Q.saveBase.run(JSON.stringify(r.state), r.lvl, r.power, Date.now(), shieldOf(r.state, created), (+ss.pvpWins || 0) + (+ss.pvpDef || 0), +ss.wins || 0, pubCos(r.state), uid); STATS.saved++;
+  try { events.onSave(uid, r.power); } catch (e) { log('ERREUR', 'score d\'événement : ' + e.message); }
   for (const [ft, k] of Object.entries(OP_TYPES)) if (r.state[k]) { const l = ((r.state[k].slots || {}).cc || {}).lvl || 1; Q.opLvl.run(l, uid, ft, l); }   // level shown on the map
   syncAttacks(uid, r.state);
 }
@@ -972,11 +981,12 @@ catch (e) { log('ERREUR', 'console indisponible : ' + e.message); }
 const ally = require('./alliance.js')({ db, Q, log, clean, push, runFor, DAY_FMT });
 // ---------- chat ----------
 const chat = require('./chat.js')({ db, Q, log, clean, push, broadcast, ally });
+const events = require('./event.js')({ db, Q, log, runFor, broadcast, push, engine, IS_TEST });
 
 // ---------- management panel (/admin): maintenance, updates, players, announcements, backups, journal ----------
 const panel = require('./panel.js')({
   db, Q, log, send, readBody, broadcast, push, streams, onlineSince, lastIp, watch, cheat, clean, STAMP,
   ROOT, DATA, ADMIN_NAME, IS_TEST, GIT, PATCH_ID, VERSION, STARTED, REASON_FR, NAME_OK,
   BACKUP_DIR, backupDb: () => backupDb(true), createAccount, unbanPlayer, admin, engine, UNIT_IDS,
-  orderBucket, chat,
+  orderBucket, chat, events,
 });

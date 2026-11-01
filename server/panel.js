@@ -7,7 +7,7 @@ const fs = require('fs'), path = require('path');
 
 module.exports = function makePanel(C) {
   const { db, Q, log, send, readBody, broadcast, push, streams, onlineSince, lastIp, watch, cheat, clean, STAMP,
-    DATA, ADMIN_NAME, IS_TEST, GIT, PATCH_ID, VERSION, STARTED, REASON_FR, BACKUP_DIR, backupDb, createAccount, unbanPlayer, admin, engine, UNIT_IDS, orderBucket, chat } = C;
+    DATA, ADMIN_NAME, IS_TEST, GIT, PATCH_ID, VERSION, STARTED, REASON_FR, BACKUP_DIR, backupDb, createAccount, unbanPlayer, admin, engine, UNIT_IDS, orderBucket, chat, events } = C;
   const TEST_URL = (process.env.TEST_URL || 'https://bastion-test.stryxhost.fr').replace(/\/+$/, '');
   // the other server, for the link between the two panels (same computer at home, other port)
   const OTHER = IS_TEST ? { name: 'OFFICIEL', port: +process.env.OFFICIAL_PORT || 58689 } : { name: 'TEST', port: +process.env.TEST_PORT || 55000 };
@@ -142,6 +142,12 @@ module.exports = function makePanel(C) {
         chatReports: chat.mod.open(), online: streams.size, players: Q.count.get().n, banned: Q.bannedList.all().length, errors, lastDeploy, testServer: await testVersion(qs.get('fresh') === '1'), now: Date.now() });
     }
     // ----- chat moderation: reports, latest messages of the general chat, muted players -----
+    // ----- events: the Power Tournament (plan, end now, cancel) -----
+    if (req.method === 'GET' && name === 'events') return send(res, 200, events.admin.list());
+    if (req.method === 'POST' && name === 'event') {
+      try { const r = P.op === 'stop' ? events.admin.stop(P.id, by) : events.admin.create(P, by); return send(res, 200, r); }
+      catch (e) { if (!e.code) throw e; return send(res, e.code, { error: e.message }); }
+    }
     if (req.method === 'GET' && name === 'chat') return send(res, 200, { reports: chat.mod.reports(), recent: chat.mod.recent(), mutes: chat.mod.mutes() });
     if (req.method === 'POST' && name === 'chat') {
       const op = String(P.op || '');

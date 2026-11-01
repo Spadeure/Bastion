@@ -76,6 +76,6 @@ module.exports.catalog = catalog;
 // the real-money products of the shop (prices in euros, decided by the game rules, never by the browser)
 function shop() {
   if (!ctx) load();
-  return JSON.parse(vm.runInContext(`JSON.stringify({ packs: SHOP_PACKS, starter: SHOP_STARTER, pass: SHOP_PASS, prog: SHOP_PROG, weekly: SHOP_WEEKLY, products: PAY_PRODUCTS, cgv: CGV_VER })`, ctx));
+  return JSON.parse(vm.runInContext(`JSON.stringify({ packs: SHOP_PACKS, starter: SHOP_STARTER, pass: SHOP_PASS, prog: SHOP_PROG, weekly: SHOP_WEEKLY, products: PAY_PRODUCTS, cgv: CGV_VER, evTiers: EV_TIERS.map(t => t.p) })`, ctx));
 }
 module.exports.shop = shop;
