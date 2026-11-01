@@ -42,7 +42,7 @@ ICS.news='assets/img/news.webp';              // What's new (patch notes)
 ICS.alloy='assets/img/heavy_alloy.webp';      // Heavy Alloy
 ICS.napalm='assets/img/napalm.webp';         // Napalm (Brasier outpost)
 ICS.ally='assets/img/ally.webp';
-ICS.cal='assets/img/chest_silver_closed.webp';   // monthly calendar (until its own painted icon)              // Alliance
+ICS.cal='assets/img/calendar.webp';   // monthly calendar              // Alliance
 ICS.outpost='assets/img/outpost.webp';        // the Rampart outpost, as shown on the map
 const IC = {}; for(const k in ICS) IC[k]=`<img class="ic" src="${ICS[k]}" alt="">`;
 const ICON = {metal:IC.metal,wood:IC.wood,stone:IC.stone,fuel:IC.fuel,rations:IC.rations,gold:IC.gold,alloy:IC.alloy,napalm:IC.napalm};
@@ -3737,7 +3737,7 @@ const calList = i => CAL[i].filter(([id])=>id!=='__cr').map(([id,n])=>({k:'item'
 const calCr = i => (CAL[i].find(([id])=>id==='__cr')||[0,0])[1];
 const calChips = i => `<div class="chips">${CAL[i].map(([id,n])=>id==='__cr'?`<span class="chip">${crIc()} ${fmtN(n)} ${_t('Credits')}</span>`:`<span class="chip">${itemIcon(id,26)} ×${fmtN(n)}</span>`).join('')}</div>`;
 function calPanel(){ const c=calState(), t=calIdx(), now=Date.now(), left=((c.s+CAL_N-dayNum()-1)*86400)+secsToMidnight(now);
-  let h=`<div class="calhd"><h2>${_t('MONTHLY CALENDAR')}</h2><div class="sub">${_t('Come back every day to collect the gift of the day. A day without a visit: its gift is lost.')} ${_t('New calendar in {t}',{t:`<b>${fmtT(left)}</b>`})}</div></div>`;
+  let h=`<div class="calhd"><h2><img class="calic" src="${ICS.cal}" alt="">${_t('MONTHLY CALENDAR')}</h2><div class="sub">${_t('Come back every day to collect the gift of the day. A day without a visit: its gift is lost.')} ${_t('New calendar in {t}',{t:`<b>${fmtT(left)}</b>`})}</div></div>`;
   const got=!!(c.g&(1<<t));
   h+=`<div class="caltoday${got?' done':''}"><b>${_t('Day {n}',{n:t+1})} · ${_t('Gift of the day')}</b>${calChips(t)}
     ${got?`<div class="sub ok">${IC.ok} ${_t('Collected')} · ${_t('Next gift in {t}',{t:fmtT(secsToMidnight(now))})}</div>`:`<button style="width:100%" data-act="calclaim">${IC.drop} ${_t('Collect')}</button>`}</div>`;
