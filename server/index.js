@@ -27,7 +27,7 @@ function buildIndex(file = 'index.html') {
     .replace(/(href|src)="((?:css|js)\/[^"?]+\.(?:css|js))"/g, `$1="$2?v=${VERSION}"`)
     .replace('</head>', `<script>window.BASTION_VER=${JSON.stringify(VERSION)}</script>\n</head>`);
   // the test server installs as its own app « Bastion Test » (name and icons marked TEST), next to the official game
-  const html2 = file === 'index.html' && IS_TEST ? html.replace('href="manifest.json"', 'href="manifest-test.json"').replace('<title>Bastion</title>', '<title>Bastion Test</title>')
+  const html2 = file === 'index.html' && IS_TEST ? html.replace('<title>Bastion</title>', '<title>Bastion Test</title>')
     .replace('content="Bastion">', 'content="Bastion Test">').replace(/assets\/app\/(apple-touch-icon|favicon)\.png/g, 'assets/app/test-$1.png') : html;
   const data = Buffer.from(html2);
   return { data, br: zlib.brotliCompressSync(data), gz: zlib.gzipSync(data) };
@@ -851,6 +851,10 @@ const SEC_HEADERS = { 'X-Frame-Options': 'DENY', 'X-Content-Type-Options': 'nosn
 function serveFile(req, res, url) {
   const adm = url === '/admin' || url === '/admin/' || url === '/admin.html';   // the management panel: a page of its own, without the game
   if ((adm || url === '/js/admin.js' || url === '/css/admin.css') && !fromHome(req)) { panelOutside(ipOf(req), url); res.writeHead(404); return res.end('Not found'); }
+  if (url === '/manifest.json' || url === '/manifest-test.json') {   // the app's name and icons: « Bastion Test » on the test server, never kept in a cache
+    const m = fs.readFileSync(path.join(ROOT, IS_TEST ? 'manifest-test.json' : 'manifest.json'));
+    res.writeHead(200, { ...SEC_HEADERS, 'Content-Type': 'application/manifest+json; charset=utf-8', 'Cache-Control': 'no-cache, no-store, must-revalidate' }); return res.end(m);
+  }
   if (url === '/' || url === '/index.html' || adm) {   // the page itself: never kept in any cache
     if (adm && !adminPage) adminPage = buildIndex('admin.html'); else if (!adm && !indexPage) indexPage = buildIndex();
     const pg = adm ? adminPage : indexPage;
