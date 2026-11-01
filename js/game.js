@@ -140,7 +140,7 @@ const B = {
 // Building images (Gemini art, background removed)
 const IMGS={"barracks": {"img": "assets/img/barracks.webp", "imgR": 0.6534, "imgAY": 0.6028, "imgW": 175}, "command": {"img": "assets/img/command.webp", "imgR": 0.8289, "imgAY": 0.6688, "imgW": 262}, "housing": {"img": "assets/img/housing.webp", "imgR": 0.8006, "imgAY": 0.6542, "imgW": 175}, "warehouse": {"img": "assets/img/warehouse.webp", "imgR": 0.7133, "imgAY": 0.6151, "imgW": 175}, "factory": {"img": "assets/img/factory.webp", "imgR": 0.763, "imgAY": 0.6412, "imgW": 175}, "rally": {"img": "assets/img/rally.webp", "imgR": 0.7061, "imgAY": 0.6109, "imgW": 175}, "radar": {"img": "assets/img/radar.webp", "imgR": 0.9741, "imgAY": 0.717, "imgW": 175}, "garrison": {"img": "assets/img/garrison.webp", "imgR": 0.7484, "imgAY": 0.6332, "imgW": 175}, "lab": {"img": "assets/img/lab.webp", "imgR": 0.701, "imgAY": 0.6079, "imgW": 175}, "mine": {"img": "assets/img/mine.webp", "imgR": 0.9699, "imgAY": 0.6691, "imgW": 175}, "sawmill": {"img": "assets/img/sawmill.webp", "imgR": 0.7142, "imgAY": 0.5483, "imgW": 175}, "quarry": {"img": "assets/img/quarry.webp", "imgR": 0.7238, "imgAY": 0.5516, "imgW": 175}, "pump": {"img": "assets/img/pump.webp", "imgR": 0.6975, "imgAY": 0.5397, "imgW": 175}, "hangar": {"img": "assets/img/hangar.webp", "imgR": 0.784, "imgAY": 0.5862, "imgW": 205}, "titan": {"img": "assets/img/titan.webp", "imgR": 0.9423, "imgAY": 0.5306, "imgW": 210}};
 for(const t in IMGS) if(B[t]) Object.assign(B[t],IMGS[t]);
-Object.assign(B.hospital, {img:'assets/img/hospital.webp', imgW:175, imgR:0.7708, imgAY:0.62});   // levels 4-7 and 8-10 get their own pictures later
+Object.assign(B.hospital, {img:'assets/img/hospital.webp', imgW:175, imgR:0.7708, imgAY:0.62});   // levels 4-7 and 8-10: LVL_IMGS
 Object.assign(B.opcenter, {img:"assets/img/op_outpost_center.webp", imgW:262, imgR:0.8156, imgAY:0.68});   // levels 1-3 (levels 4-7 and 8-10: LVL_IMGS)
 Object.assign(B.alloy, {img:"assets/img/op_alloy.webp", imgW:175, imgR:0.9062, imgAY:0.71});
 Object.assign(B.ophangar, {img:"assets/img/op_hangar.webp", imgW:205, imgR:0.7766, imgAY:0.582});   // the Rampart Hangar (snowy version of the Titan Hangar)
@@ -185,6 +185,7 @@ OP_IMG.warehouse={img:"assets/img/op_warehouse.webp", imgW:175, imgR:0.7125, img
 OP_IMG.warehouse_2={img:"assets/img/op_warehouse_2.webp", imgW:175, imgR:0.7922, imgAY:0.6524};
 OP_IMG.warehouse_3={img:"assets/img/op_warehouse_3.webp", imgW:175, imgR:0.8906, imgAY:0.6912};
 LVL_IMGS.opcenter=[[4,{img:"assets/img/op_outpost_center_2.webp", imgW:262, imgR:0.8266, imgAY:0.6842}],[8,{img:"assets/img/op_outpost_center_3.webp", imgW:262, imgR:0.8953, imgAY:0.7085}]];
+LVL_IMGS.hospital=[[4,{img:"assets/img/hospital_2.webp", imgW:175, imgR:0.8313, imgAY:0.65}],[8,{img:"assets/img/hospital_3.webp", imgW:175, imgR:0.8896, imgAY:0.673}]];
 LVL_IMGS.alloy=[[4,{img:"assets/img/op_alloy_2.webp", imgW:175, imgR:0.9062, imgAY:0.71}],[8,{img:"assets/img/op_alloy_3.webp", imgW:175, imgR:1.0479, imgAY:0.7492}]];
 LVL_IMGS.ophangar=[[4,{img:"assets/img/op_hangar_2.webp", imgW:205, imgR:0.8531, imgAY:0.6227}],[8,{img:"assets/img/op_hangar_3.webp", imgW:205, imgR:0.9203, imgAY:0.6515}]];
 LVL_IMGS.napalm=[[4,{img:"assets/img/brasier_oilwell_2.webp", imgW:175, imgR:0.7458, imgAY:0.71}],[8,{img:"assets/img/brasier_oilwell_3.webp", imgW:175, imgR:0.8583, imgAY:0.7492}]];
