@@ -146,6 +146,7 @@ const __ACTIONS = {
   payGrant(prod) { if (!own(PAY_PRODUCTS, prod)) return 'bad_order'; return payGrant(prod) || undefined; },
   evGrant(i) { return evGrant(__int(i, 0, 20)) || undefined; },   // event tier (server only, after checking the score)
   evFinal(mask, rank, cr, id) { return evFinal(__int(mask, 0, 1 << 20), __int(rank, 0, 1e9), __int(cr, 0, 100000), __int(id, 0, 1e9)) || undefined; },   // end of an event: everything sent at once (server only)
+  alFinal(mask, rank, id) { return alFinal(__int(mask, 0, 1 << 20), __int(rank, 0, 1e9), __int(id, 0, 1e9)) || undefined; },   // end of an Alliance Challenge (server only)
   evRank(rank, cr) { return evRank(__int(rank, 1, 1e9), __int(cr, 0, 100000)) || undefined; },   // event ranking reward (server only)
   payRevoke(prod, cr, cents) { if (!own(PAY_PRODUCTS, prod)) return 'bad_order'; return payRevoke(prod, cr, cents) || undefined; },
   heal(u) { if (u !== null && u !== undefined && !own(UNITS, u)) return 'bad_order'; return withBase('main', () => { const why = whyNotHeal(u || undefined); if (why) return why; heal(u || undefined); }); },
@@ -175,7 +176,7 @@ function __run(stJson, lang, action, argsJson, role) {
     const args = JSON.parse(argsJson), f = own(__ACTIONS, action) ? __ACTIONS[action] : null;
     if (!f || !Array.isArray(args) || !__safeArgs(args, 0)) error = 'bad_order';
     else if (STAFF_ONLY.has(action) && !['admin', 'tester'].includes(role)) error = 'forbidden';
-    else if (['payGrant', 'payCheck', 'payRevoke', 'evGrant', 'evRank', 'evFinal', 'missionChat'].includes(action) && role !== 'server') error = 'forbidden';   // bought Credits: only the server, after a confirmed payment
+    else if (['payGrant', 'payCheck', 'payRevoke', 'evGrant', 'evRank', 'evFinal', 'alFinal', 'missionChat'].includes(action) && role !== 'server') error = 'forbidden';   // bought Credits: only the server, after a confirmed payment
     else { try { const r = f(...args); if (r) error = r; } catch (e) { error = 'bad_order'; } }
     __catchUp();
   }

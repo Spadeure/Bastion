@@ -370,30 +370,36 @@ async function viewAnn() {
 // ===== events: the Power Tournament =====
 async function viewEvents() {
   const ST = { planned: ['Prévu', 'admin'], running: ['En cours', 'ok'], ended: ['Terminé', ''] };
+  const NM = { power: 'Tournoi de puissance', ally: "Défi d'alliance" }, ICO = { power: 'power', ally: 'ally' };
+  let kind = 'power';
   const draw = d => {
     const n = now(), L = d.live, today = new Date(n + 3600_000).toISOString().slice(0, 16);
     $('#main').innerHTML = top('Événements') + `
-      ${L ? `<div class="card warnc"><div class="ch"><img src="${IMG('power')}" alt=""><h2>Tournoi de puissance n°${L.id} · ${ST[L.status][0]}</h2></div>
+      ${L ? `<div class="card warnc"><div class="ch"><img src="${IMG(ICO[L.type] || 'power')}" alt=""><h2>${NM[L.type] || 'Événement'} n°${L.id} · ${ST[L.status][0]}</h2></div>
         <p>${L.status === 'planned' ? `Commence le <b>${dt(L.start)}</b> (dans <span data-cd="${L.start}">${mmss(L.start - n)}</span>)` : `Se termine le <b>${dt(L.end)}</b> (dans <span data-cd="${L.end}">${mmss(L.end - n)}</span>)`}</p>
-        <p class="mut small">Crédits du top 3 : ${L.cr.join(' / ')}</p>
+        ${L.type === 'power' ? `<p class="mut small">Crédits du top 3 : ${L.cr.join(' / ')}</p>` : '<p class="mut small">Sans Crédits · récompenses pour chaque membre qui a marqué au moins 1 000 points</p>'}
+        <p class="mut small">Un seul événement à la fois : il faut attendre la fin de celui-ci pour en lancer un autre.</p>
         <div class="row"><button class="btn red sm" id="evstop"><img src="${IMG('ui_close')}" alt="">${L.status === 'planned' ? 'Annuler' : 'Terminer maintenant'}</button></div></div>`
-      : `<div class="card"><div class="ch"><img src="${IMG('power')}" alt=""><h2>Lancer un Tournoi de puissance</h2></div>
-        <p class="mut small">Les joueurs gagnent des paliers selon la puissance gagnée pendant le tournoi (troupes, constructions, recherches). Les paliers ne donnent ni troupes ni Crédits. À la fin, le classement est figé et chacun récupère sa récompense dans le jeu pendant 7 jours.</p>
+      : `<div class="card"><div class="ch"><img src="${IMG(ICO[kind])}" alt=""><h2>Lancer un événement</h2></div>
+        <div class="row"><label>Type<select id="evtype"><option value="power"${kind === 'power' ? ' selected' : ''}>Tournoi de puissance</option><option value="ally"${kind === 'ally' ? ' selected' : ''}>Défi d'alliance</option></select></label></div>
+        <p class="mut small">${kind === 'power' ? 'Les joueurs gagnent des paliers selon la puissance gagnée pendant le tournoi (troupes, constructions, recherches). Les paliers ne donnent ni troupes ni Crédits. À la fin, le classement est figé et tout est envoyé automatiquement dans les inventaires.'
+          : "Chaque alliance marque des points ensemble : puissance gagnée (1 pt / 100), victoires sur la carte (camp +50, Montagne fortifiée +300, joueur +500), aide aux constructions (+20, 10 par jour), renforts (+100, une fois par allié et par jour). Paliers communs et classement des alliances, pour chaque membre qui a marqué au moins 1 000 points. Pas de Crédits. Tout est envoyé automatiquement à la fin."}</p>
         <div class="row"><label>Début<select id="evwhen"><option value="now">Tout de suite</option><option value="at">À une date</option></select></label>
           <label id="evatl" style="display:none">Date et heure<input type="datetime-local" id="evat" value="${today}"></label>
-          <label>Durée<select id="evdays">${[1, 2, 3, 5, 7, 10, 14].map(v => `<option value="${v}"${v === 7 ? ' selected' : ''}>${v} jour${v > 1 ? 's' : ''}</option>`).join('')}</select></label></div>
-        <div class="row"><label>Crédits 1er<input type="number" id="evc1" value="150" min="0" max="5000"></label><label>Crédits 2e<input type="number" id="evc2" value="100" min="0" max="5000"></label><label>Crédits 3e<input type="number" id="evc3" value="50" min="0" max="5000"></label></div>
-        <div class="row"><button class="btn" id="evgo"><img src="${IMG('ui_ok')}" alt="">Lancer le tournoi</button></div></div>`}
+          <label>Durée<select id="evdays">${[1, 2, 3, 5, 7, 10, 14].map(v => `<option value="${v}"${v === (kind === 'ally' ? 5 : 7) ? ' selected' : ''}>${v} jour${v > 1 ? 's' : ''}</option>`).join('')}</select></label></div>
+        ${kind === 'power' ? `<div class="row"><label>Crédits 1er<input type="number" id="evc1" value="150" min="0" max="5000"></label><label>Crédits 2e<input type="number" id="evc2" value="100" min="0" max="5000"></label><label>Crédits 3e<input type="number" id="evc3" value="50" min="0" max="5000"></label></div>` : ''}
+        <div class="row"><button class="btn" id="evgo"><img src="${IMG('ui_ok')}" alt="">Lancer ${kind === 'power' ? 'le tournoi' : 'le défi'}</button></div></div>`}
       <div class="card"><div class="ch"><img src="${IMG('reports')}" alt=""><h2>Historique</h2></div>
-        ${d.list.length ? d.list.map(e => `<div class="err"><span class="mut mono">${dt(e.start)} → ${dt(e.end)}</span> <span class="badge ${ST[e.status] ? ST[e.status][1] : ''}">${ST[e.status] ? ST[e.status][0] : e.status}</span> Tournoi n°${e.id} · ${e.n} participant(s) · Crédits ${e.cr.join(' / ')} <span class="mut small">· par ${esc(e.by || '?')}</span></div>`).join('') : '<p class="mut">Aucun événement pour l\'instant.</p>'}</div>`;
+        ${d.list.length ? d.list.map(e => `<div class="err"><span class="mut mono">${dt(e.start)} → ${dt(e.end)}</span> <span class="badge ${ST[e.status] ? ST[e.status][1] : ''}">${ST[e.status] ? ST[e.status][0] : e.status}</span> ${NM[e.type] || 'Événement'} n°${e.id} · ${e.n} participant(s)${e.type === 'power' ? ' · Crédits ' + e.cr.join(' / ') : ''} <span class="mut small">· par ${esc(e.by || '?')}</span></div>`).join('') : '<p class="mut">Aucun événement pour l\'instant.</p>'}</div>`;
+    const ty = $('#evtype'); if (ty) ty.onchange = () => { kind = ty.value; draw(d); };
     const w = $('#evwhen'); if (w) w.onchange = () => { $('#evatl').style.display = w.value === 'at' ? '' : 'none'; };
     const go = $('#evgo'); if (go) go.onclick = async e => {
-      const start = w.value === 'at' ? new Date($('#evat').value).getTime() : now(), days = +$('#evdays').value, cr = [+$('#evc1').value, +$('#evc2').value, +$('#evc3').value];
+      const start = w.value === 'at' ? new Date($('#evat').value).getTime() : now(), days = +$('#evdays').value, cr = kind === 'power' ? [+$('#evc1').value, +$('#evc2').value, +$('#evc3').value] : [0, 0, 0];
       if (w.value === 'at' && !(start > now())) return toast('Choisis une date dans le futur', true);
-      if (!await confirmBox('Lancer le tournoi', `Début : <b>${w.value === 'at' ? dt(start) : 'tout de suite'}</b> · durée <b>${days} jour(s)</b><br>Crédits du top 3 : <b>${cr.join(' / ')}</b>`, 'Lancer')) return;
-      if (await run(e.currentTarget, () => api('POST', 'event', { type: 'power', start, days, cr }), 'Tournoi lancé')) load(); };
+      if (!await confirmBox('Lancer : ' + NM[kind], `Début : <b>${w.value === 'at' ? dt(start) : 'tout de suite'}</b> · durée <b>${days} jour(s)</b>${kind === 'power' ? `<br>Crédits du top 3 : <b>${cr.join(' / ')}</b>` : '<br>Sans Crédits'}`, 'Lancer')) return;
+      if (await run(e.currentTarget, () => api('POST', 'event', { type: kind, start, days, cr }), NM[kind] + ' lancé')) load(); };
     const st = $('#evstop'); if (st) st.onclick = async () => {
-      if (!await confirmBox(L.status === 'planned' ? 'Annuler le tournoi' : 'Terminer le tournoi', L.status === 'planned' ? 'Le tournoi prévu est supprimé.' : 'Le classement est figé maintenant et les joueurs peuvent récupérer leurs récompenses.', 'Confirmer', 'red')) return;
+      if (!await confirmBox(L.status === 'planned' ? 'Annuler' : 'Terminer maintenant', L.status === 'planned' ? "L'événement prévu est supprimé." : 'Le classement est figé maintenant et les récompenses sont envoyées automatiquement.', 'Confirmer', 'red')) return;
       if (await run(st, () => api('POST', 'event', { op: 'stop', id: L.id }), 'Fait')) load(); };
   };
   const load = async () => { try { draw(await api('GET', 'events')); } catch (e) { toast(e.message, true); } };

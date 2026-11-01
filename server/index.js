@@ -512,7 +512,7 @@ async function api(req, res, url, ip) {
   if (url === '/api/act' && req.method === 'POST') {             // one order from the player: checked and run by the server
     const { a, args = [], lang } = await readBody(req, 20_000);
     const b = Q.base.get(me.id), act = clean(a);
-    if (ally.SERVER_ACTS.has(String(a)) || ['payGrant', 'payCheck', 'payRevoke', 'evGrant', 'evRank', 'evFinal', 'missionChat'].includes(String(a))) { cheat(me, ip, `ordre réservé au serveur : ${act}`); return send(res, 403, { error: 'forbidden' }); }
+    if (ally.SERVER_ACTS.has(String(a)) || ['payGrant', 'payCheck', 'payRevoke', 'evGrant', 'evRank', 'evFinal', 'alFinal', 'missionChat'].includes(String(a))) { cheat(me, ip, `ordre réservé au serveur : ${act}`); return send(res, 403, { error: 'forbidden' }); }
     const refuse = err => { if (err === 'bad_order') refusedOrder(me, ip, act, args, err); const r0 = runFor(me, b, null, [], lang); return send(res, 200, { state: r0.state, events: r0.events, error: err, serverTime: Date.now() }); };
     if (a === 'launch' && Array.isArray(args) && args[0] && typeof args[0] === 'object') {
       const o = args[0]; delete o.pvp;                             // only the server says that the target is a player
@@ -662,12 +662,13 @@ function pubCos(st) { const C = (st && st.cos) || {}, own = C.own || {}, V = (st
   if (C.c && own[C.c] && COS_C.has(v(C.c))) o.c = v(C.c); if (C.f && own[C.f] && COS_F.has(v(C.f))) o.f = v(C.f);
   if (C.f === 'frame_vip' && lv >= 10) o.f = 'vip';   // never sold: VIP 10 only
   if (V.show && lv) o.v = lv;   // the VIP badge, only if the player chose to show it
-  if ((+st.champ || 0) > Date.now()) o.t = 1;   // title « Champion » (1st of a tournament, 7 days)
+  if ((+st.champ || 0) > Date.now()) o.t = 1;
+  if ((+st.champA || 0) > Date.now()) o.a = 1;   // title « Champion alliance » (1st alliance of a challenge, 7 days)   // title « Champion » (1st of a tournament, 7 days)
   return Object.keys(o).length ? JSON.stringify(o) : null; }
 function saveState(uid, created, r) {
   const ss = r.state.stats || {};
   Q.saveBase.run(JSON.stringify(r.state), r.lvl, r.power, Date.now(), shieldOf(r.state, created), (+ss.pvpWins || 0) + (+ss.pvpDef || 0), +ss.wins || 0, pubCos(r.state), uid); STATS.saved++;
-  try { events.onSave(uid, r.power); } catch (e) { log('ERREUR', 'score d\'événement : ' + e.message); }
+  try { events.onSave(uid, r.power, r.state); } catch (e) { log('ERREUR', 'score d\'événement : ' + e.message); }
   try { if (typeof notify !== 'undefined') notify.onSave(uid, r.state, shieldOf(r.state, created)); } catch (e) { log('ERREUR', 'notifications : ' + e.message); }
   for (const [ft, k] of Object.entries(OP_TYPES)) if (r.state[k]) { const l = ((r.state[k].slots || {}).cc || {}).lvl || 1; Q.opLvl.run(l, uid, ft, l); }   // level shown on the map
   syncAttacks(uid, r.state);
@@ -992,14 +993,15 @@ catch (e) { log('ERREUR', 'console indisponible : ' + e.message); }
 
 // ---------- alliances ----------
 const ally = require('./alliance.js')({ db, Q, log, clean, push, runFor, DAY_FMT });
+ally.hooks.act = (uid, kind, other) => { try { events.onAct(uid, kind, other); } catch (e) { log('ERREUR', 'défi d\'alliance : ' + e.message); } };   // help and reinforcements count for the Alliance Challenge
 // ---------- chat ----------
 const chat = require('./chat.js')({ db, Q, log, clean, push, broadcast, ally });
 const events = require('./event.js')({ db, Q, log, runFor, broadcast, push, engine, IS_TEST });
 // push notifications (server/notify.js): nothing is sent while the game is open
 const notify = require('./notify.js')({ db, log, engine, online: uid => streams.has(uid), Q, IS_TEST });
 const kvOnce = k => { if (db.prepare('SELECT 1 FROM kv WHERE k = ?').get(k)) return false; db.prepare('INSERT OR REPLACE INTO kv (k, v) VALUES (?, ?)').run(k, '1'); return true; };
-events.hooks.start = e => { if (kvOnce('evstart_' + e.id)) notify.sendAll('evstart', {}); };
-events.hooks.last = e => { if (kvOnce('evlast_' + e.id)) notify.sendAll('evlast', {}); };
+events.hooks.start = e => { if (kvOnce('evstart_' + e.id)) notify.sendAll(e.type === 'ally' ? 'alstart' : 'evstart', {}); };
+events.hooks.last = e => { if (kvOnce('evlast_' + e.id)) notify.sendAll(e.type === 'ally' ? 'allast' : 'evlast', {}); };
 
 // ---------- management panel (/admin): maintenance, updates, players, announcements, backups, journal ----------
 const panel = require('./panel.js')({

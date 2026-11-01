@@ -10,6 +10,7 @@ module.exports = function makeAlliances(C) {
   const MAX_MEMBERS = 50, LEAVE_WAIT = 24 * 3600_000, LEADER_AWAY = 7 * 86400_000;
   const SEND_DAY_MAX = 15_000_000_000;                     // resources a player can send to his allies per day (all together)
   const SEND_RES = ['metal', 'wood', 'stone', 'fuel', 'rations'];   // gold and Heavy Alloy stay personal
+  const hooks = {};   // hooks.act(uid, kind, other): help and reinforcements (Alliance Challenge)
   const HELP_MAX = 10, HELP_SHARE = 0.02, HELP_MIN = 60_000;   // each help: 2 % of the construction time (1 minute at least), 10 helps max
   const RALLY_TROOPS = [0, 2000, 4000, 7000, 12000, 25000, 40000, 60000, 90000, 140000, 200000];   // room for reinforcements by Rally Point level (same as one march)
   const UNITS = new Set(['recruit', 'rifleman', 'sniper', 'assault', 'truck', 'drone', 'apc', 'tank', 'artillery', 'heli', 'gunship', 'mastodon']);
@@ -280,7 +281,7 @@ module.exports = function makeAlliances(C) {
         if (A.helped.get(u.id, key, me.id)) throw err(409, 'ally_helped');
         if (A.helps.get(u.id, key).n >= HELP_MAX) throw err(409, 'ally_help_max');
         const r = game(u.id, 'allyHelp', [bs, key, HELP_SHARE, HELP_MIN]); if (r.error) throw err(409, r.error === 'bad_order' ? 'ally_help_over' : r.error);
-        A.helpAdd.run(u.id, key, me.id, now); push(u.id, 'sync', {}); tellAlly(al.a.id);
+        A.helpAdd.run(u.id, key, me.id, now); push(u.id, 'sync', {}); tellAlly(al.a.id); hooks.act && hooks.act(me.id, 'help', u.id);
         return { ok: true };
       }
       // ----- reinforcements -----
@@ -291,7 +292,7 @@ module.exports = function makeAlliances(C) {
         const r = game(me.id, 'reinforce', [hb.x, hb.y, q], P.lang); if (r.error) throw err(409, r.error);
         const ev = r.events.find(e => e.t === 'reinf'); if (!ev) throw err(409, 'bad_order');
         A.rAdd.run(me.id, u.id, JSON.stringify(q), 'go', now + ev.secs * 1000, ev.secs, now);
-        note(al.a.id, 'reinf', { n: me.name, t: u.name, c: n }); push(u.id, 'ally', {}); tellAlly(al.a.id);
+        note(al.a.id, 'reinf', { n: me.name, t: u.name, c: n }); push(u.id, 'ally', {}); tellAlly(al.a.id); hooks.act && hooks.act(me.id, 'reinf', u.id);
         return { ok: true, state: r.state, secs: ev.secs };
       }
       case 'recall': case 'sendback': {
@@ -328,5 +329,5 @@ module.exports = function makeAlliances(C) {
   const namesQ = db.prepare('SELECT m.user_id AS id, a.name FROM ally_members m JOIN alliances a ON a.id = m.aid');
   const names = () => new Map(namesQ.all().map(r => [r.id, r.name]));
   const tellMates = uid => { const m = A.member.get(uid); if (m) tellAlly(m.aid); };   // something the allies see changed (a construction to help...)
-  return { view, act, tellMates, sameAlliance, allyName, names, reinfAt, afterFight, allHome, SERVER_ACTS: new Set(['reinforce', 'reinfBack', 'allyGive', 'allyGet', 'allyHelp']) };
+  return { hooks, view, act, tellMates, sameAlliance, allyName, names, reinfAt, afterFight, allHome, SERVER_ACTS: new Set(['reinforce', 'reinfBack', 'allyGive', 'allyGet', 'allyHelp']) };
 };
