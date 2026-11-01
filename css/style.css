@@ -448,8 +448,9 @@ p{font-size:15px;color:#d6d6ca;line-height:1.35;font-weight:500}
 /* mystery chests */
 .chances{margin-top:6px;font-size:13px}
 .chances summary{cursor:pointer;color:#e0b63e;font-weight:700}
-.chances .chr{margin:6px 0 2px}
-.chances .chr div{display:flex;justify-content:space-between;gap:10px;padding:1px 0 1px 10px;opacity:.9}
+.chances .chr{margin:8px 0 2px;border-left:4px solid var(--rc,#888);border-radius:3px;background:color-mix(in srgb,var(--rc,#888) 10%,transparent);padding:4px 8px 4px 10px;text-align:left}
+.chances .chr b{display:block;color:var(--rc,#e0b63e);text-shadow:0 1px 2px #000;margin-bottom:2px}
+.chances .chr div{display:flex;justify-content:space-between;gap:10px;padding:1px 0;opacity:.95}
 .chances .chr span{opacity:.75;white-space:nowrap}
 #chestfx{position:fixed;inset:0;z-index:90;display:flex;flex-direction:column;align-items:center;justify-content:center;background:radial-gradient(circle at 50% 45%,#1d2418ee,#050705f5);overflow:hidden;padding:16px}
 .cfx-rays{position:absolute;left:50%;top:42%;width:160vmax;height:160vmax;margin:-80vmax 0 0 -80vmax;opacity:0;transition:opacity .5s;
