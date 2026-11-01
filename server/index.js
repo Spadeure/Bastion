@@ -389,6 +389,12 @@ const OP_TYPES = { rempart: 'op', brasier: 'br' };   // outpost type -> its key 
 function loadOutposts() { engine.setOutposts(Q.allOps.all()); }
 loadOutposts();
 const NAME_OK = /^[\p{L}\p{N}_\- ]{3,16}$/u;
+// a name may not mix alphabets (no "Spаdeure" with a Russian "а"), and may not look like a name already taken
+const SCRIPTS = [/\p{Script=Latin}/u, /\p{Script=Cyrillic}/u, /\p{Script=Greek}/u, /\p{Script=Arabic}/u, /\p{Script=Han}/u, /\p{Script=Hiragana}|\p{Script=Katakana}/u, /\p{Script=Hangul}/u, /\p{Script=Hebrew}/u, /\p{Script=Thai}/u];
+const oneScript = n => { const used = new Set(); for (const ch of n) if (/\p{L}/u.test(ch)) { const i = SCRIPTS.findIndex(r => r.test(ch)); used.add(i); if (i < 0) return false; } return used.size <= 1 || (used.size === 2 && used.has(5) && used.has(4)); };
+const LOOK = { 'а': 'a', 'е': 'e', 'о': 'o', 'р': 'p', 'с': 'c', 'у': 'y', 'х': 'x', 'ѕ': 's', 'і': 'i', 'ј': 'j', 'к': 'k', 'м': 'm', 'т': 't', 'в': 'b', 'н': 'h', 'г': 'r', 'ԁ': 'd', 'ɡ': 'g', 'ο': 'o', 'α': 'a', 'ρ': 'p', 'ν': 'v', 'ι': 'i', 'κ': 'k', 'τ': 't', 'υ': 'u', 'χ': 'x', 'ε': 'e', 'β': 'b', 'η': 'n', 'μ': 'm', 'ω': 'w' };
+const skeleton = n => [...n.normalize('NFKD').replace(/[̀-ͯ]/g, '').toLowerCase()].map(c => LOOK[c] || c).join('').replace(/[\s_\-]+/g, '').replace(/0/g, 'o').replace(/[1l|]/g, 'i').replace(/4/g, 'a').replace(/5/g, 's').replace(/3/g, 'e').replace(/7/g, 't').replace(/rn/g, 'm');
+function nameLooksTaken(n) { const k = skeleton(n); for (const u of db.prepare('SELECT name FROM users').all()) if (skeleton(u.name) === k) return true; return false; }
 // behind the Cloudflare tunnel every request comes from the tunnel: the real player address is in CF-Connecting-IP
 function ipOf(req) {
   const r = (req.socket.remoteAddress || '?').replace(/^::ffff:/, '');
@@ -428,9 +434,9 @@ async function api(req, res, url, ip) {
     if (panel.isMaint() && String(name).trim().toLowerCase() !== ADMIN_NAME.toLowerCase()) return send(res, 503, { error: 'maintenance' });
     if (accountsToday(ip) >= ACCOUNTS_PER_DAY) { log('INSCRIPTION REFUSÉE', `${clean(String(name).trim())} · ${ip} · déjà ${ACCOUNTS_PER_DAY} comptes créés aujourd'hui depuis cette adresse`); return send(res, 429, { error: 'too_many_accounts' }); }
     const n = String(name).trim();
-    if (!NAME_OK.test(n)) return send(res, 400, { error: 'bad_name' });
+    if (!NAME_OK.test(n) || !oneScript(n)) return send(res, 400, { error: 'bad_name' });
     if (String(password).length < 6 || String(password).length > 100) return send(res, 400, { error: 'bad_password' });
-    if (Q.userByName.get(n)) return send(res, 409, { error: 'name_taken' });
+    if (Q.userByName.get(n) || nameLooksTaken(n) || (skeleton(n) === skeleton(ADMIN_NAME) && n.toLowerCase() !== ADMIN_NAME.toLowerCase())) return send(res, 409, { error: 'name_taken' });
     const salt = crypto.randomBytes(16).toString('hex'), now = Date.now();
     const id = Number(Q.addUser.run(n, salt, hashPass(String(password), salt), now).lastInsertRowid);
     if (Q.count.get().n === 1) { Q.setRole.run('admin', id); log('ADMIN', `Administrateur : ${n}`); }
@@ -821,6 +827,9 @@ function loadFile(file, cb) {
     });
   });
 }
+// the browser's own protections: the game cannot be shown inside another site, files keep their type, no address leaks to other sites
+const SEC_HEADERS = { 'X-Frame-Options': 'DENY', 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'same-origin',
+  'Content-Security-Policy': "frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'", 'Permissions-Policy': 'camera=(), microphone=(), geolocation=(), payment=()' };
 function serveFile(req, res, url) {
   const adm = url === '/admin' || url === '/admin/' || url === '/admin.html';   // the management panel: a page of its own, without the game
   if ((adm || url === '/js/admin.js' || url === '/css/admin.css') && !fromHome(req)) { panelOutside(ipOf(req), url); res.writeHead(404); return res.end('Not found'); }
@@ -828,7 +837,8 @@ function serveFile(req, res, url) {
     if (adm && !adminPage) adminPage = buildIndex('admin.html'); else if (!adm && !indexPage) indexPage = buildIndex();
     const pg = adm ? adminPage : indexPage;
     const ae = String(req.headers['accept-encoding'] || ''), h = { 'Content-Type': TYPES['.html'], 'Cache-Control': 'no-store', 'Vary': 'Accept-Encoding' };
-    if (adm) { h['X-Robots-Tag'] = 'noindex'; h['X-Frame-Options'] = 'DENY'; }
+    if (adm) h['X-Robots-Tag'] = 'noindex';
+    Object.assign(h, SEC_HEADERS);
     let body = pg.data;
     if (/\bbr\b/.test(ae)) { body = pg.br; h['Content-Encoding'] = 'br'; } else if (/\bgzip\b/.test(ae)) { body = pg.gz; h['Content-Encoding'] = 'gzip'; }
     h['Content-Length'] = body.length; res.writeHead(200, h); return res.end(req.method === 'HEAD' ? undefined : body);
@@ -839,7 +849,7 @@ function serveFile(req, res, url) {
   if (file !== ROOT && !file.startsWith(ROOT + path.sep) || ['server', 'data', '.git', 'node_modules', 'package.json'].includes(rel)) { res.writeHead(403); return res.end('Forbidden'); }
   loadFile(file, (err, e) => {
     if (err) { res.writeHead(404); return res.end('Not found'); }
-    const h = { 'Content-Type': e.type, 'ETag': e.etag, 'Vary': 'Accept-Encoding', 'Cache-Control': stamped ? 'public, max-age=31536000, immutable' : /\.(webp|jpg|png|woff2)$/.test(file) ? 'public, max-age=86400' : 'no-cache' };   // a stamped file never changes: a new version has a new address
+    const h = { ...SEC_HEADERS, 'Content-Type': e.type, 'ETag': e.etag, 'Vary': 'Accept-Encoding', 'Cache-Control': stamped ? 'public, max-age=31536000, immutable' : /\.(webp|jpg|png|woff2)$/.test(file) ? 'public, max-age=86400' : 'no-cache' };   // a stamped file never changes: a new version has a new address
     if (req.headers['if-none-match'] === e.etag) { res.writeHead(304, h); return res.end(); }
     const ae = String(req.headers['accept-encoding'] || '');
     let body = e.data;

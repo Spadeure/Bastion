@@ -1099,3 +1099,6 @@ button.danger{background:linear-gradient(180deg,#b8432f,#7a2416)!important;color
 .paychk{display:flex;gap:9px;align-items:flex-start;font-size:13.5px;line-height:1.4;cursor:pointer;margin-bottom:6px}
 .paychk input{width:20px;height:20px;flex:0 0 20px;margin-top:1px}
 .paybtns{display:flex;gap:8px;margin-top:12px}.paybtns button{flex:1}
+/* daily missions */
+.row.quest.mgot{opacity:.6}
+.sdeal.mready{outline:2px solid #e0b830;box-shadow:0 0 10px #e0b83066}

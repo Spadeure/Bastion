@@ -11,6 +11,7 @@ lootFx = got => { __events.push({ t: 'loot', got }); };
 openChest = function (id, count) {
   if (!ITEMS[id] || ITEMS[id].kind !== 'chest' || !invN(id)) return;
   count = Math.max(1, Math.min(count || 1, invN(id), 50)); const rewards = [];
+  missionCount('chest', count);
   for (let i = 0; i < count; i++) { takeItem(id); const r = rollLoot(id, __rnd); rewards.push(r);
     if (r.k === 'item') addItem(r.id, r.n); else if (r.k === 'troops') state.troops[r.u] = (state.troops[r.u] || 0) + r.n; }
   __events.push({ t: 'chest', id, rewards });
@@ -132,6 +133,10 @@ const __ACTIONS = {
   payCheck(prod) { return whyNotPay(prod) || undefined; },   // the server, before opening a payment (changes nothing)
   buyPerk(k) { if (!own(SHOP_PERKS, k)) return 'bad_order'; return buyPerk(k) || undefined; },
   passClaim() { return passClaim() || undefined; },
+  // daily and weekly missions
+  claimMission(k) { if (!own(MISSIONS, k)) return 'bad_order'; return claimMission(k) || undefined; },
+  claimMissionBonus() { return claimMissionBonus() || undefined; },
+  claimMissionWeek(i) { return claimMissionWeek(__int(i, 0, 9)) || undefined; },
   // VIP: the daily reward, the badge shown or hidden, and the free finish of the last minutes (checked by vipFinish)
   vipClaim() { return vipClaim() || undefined; },
   vipShow(on) { vipShow(!!on); },
@@ -169,6 +174,7 @@ function __run(stJson, lang, action, argsJson, role) {
     else { try { const r = f(...args); if (r) error = r; } catch (e) { error = 'bad_order'; } }
     __catchUp();
   }
+  try { missionDay(); } catch (e) {}   // the missions of the day are chosen by the server, at the first visit of the day
   if (state.vip) state.vip.lv = vipLvl();   // the level of today (after the losses), read by the server for the badge seen by the others
   return JSON.stringify({ state, events: __events, error, lvl: playerLevel(totalPower()), power: totalPower() });
 }
