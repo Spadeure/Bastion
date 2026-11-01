@@ -781,7 +781,7 @@ const vipFreeBtn = (k, b, big) => vipFreeJob(k) ? `<button class="${big?'':'sm '
 let vipFreeK='';
 function vipFreeTick(){ if(!vipFreePct()) return; let k=''; for(const b of baseList()) withBase(b, ()=>{ k+=(vipFreeJob('build')?1:0)+''+(vipFreeJob('build2')?1:0); }); k+=vipFreeJob('research')?1:0;
   if(k!==vipFreeK){ vipFreeK=k; renderQueue(); if(cur) renderSheet(); } }
-const vipBadge = l => l>0 ? `<i class="vipb vip${l>=10?'x':l>=7?'h':l>=4?'m':'l'}">VIP ${l}</i>` : '';
+const vipBadge = l => l>0 ? `<i class="vipb v${l}" title="VIP ${l}"><img src="assets/img/vip_${l}.webp" alt="VIP"><b>${l}</b></i>` : '';   // the painted shield + the level in its colours
 const vipLim = id => SHOP_LIMIT[id] ? SHOP_LIMIT[id]+Math.floor(vipLvl()/2) : 0;
 const dealCap = () => DEAL_CAP+Math.floor(vipLvl()/2);
 const dealCount = () => vipLvl()>=5 ? 4 : 3;
@@ -912,7 +912,7 @@ const vipChips = it => `<div class="chips">${Object.entries(it).map(([id,n])=>`<
 function vipWarnBox(V){ const d=Math.max(0,Math.ceil((V.next-Date.now())/864e5));
   return `<div class="vipwarn${V.warn?' hot':''}">${IC.warn} ${_t('Without a purchase, you will lose {n} VIP level(s) in {d} day(s) ({date}).',{n:V.lose,d,date:new Date(V.next).toLocaleDateString(LANG)})} ${_t('Any purchase stops it.')}</div>`; }
 function vipTab(){ const V=vipInfo(), v=vipState(), L=V.lvl, nx=Math.min(VIP_MAX,L+1), a=VIP_PTS[L], b=VIP_PTS[nx];
-  let h=`<div class="row vipcard"><div class="viptop"><div class="vipbig vip${L>=10?'x':L>=7?'h':L>=4?'m':'l'}"><small>VIP</small>${L}</div><div style="flex:1;min-width:0">
+  let h=`<div class="row vipcard"><div class="viptop">${L?`<img class="vipbig" src="assets/img/vip_${L}.webp" alt="VIP ${L}">`:`<div class="vipbig vip0"><small>VIP</small>0</div>`}<div style="flex:1;min-width:0">
     ${L<VIP_MAX?`<div class="sub">${_t('{n} points to VIP {l}',{n:fmtN(b-V.pts),l:nx})}</div><div class="prog"><i style="width:${Math.min(100,(V.pts-a)/(b-a)*100)}%"></i></div>`:`<b>${_t('Highest VIP level!')}</b>`}
     <div class="sub">${_t('{n} VIP points',{n:fmtN(V.pts)})} · ${_t('1 point for each euro cent spent in the shop.')}</div></div></div>
     ${V.next?vipWarnBox(V):''}
@@ -925,7 +925,7 @@ function vipTab(){ const V=vipInfo(), v=vipState(), L=V.lvl, nx=Math.min(VIP_MAX
     if(l>=2) ex.push(_t('Daily shop limits +{n}',{n:Math.floor(l/2)}));
     if(l>=5) ex.push(_t('4th deal of the day'));
     if(l>=10) ex.push(_t('Exclusive VIP frame'));
-    h+=`<div class="row viprow${l===L?' on':''}${l>L?' slock':''}"><div class="viph">${vipBadge(l)}<span class="sub">${_t('From {n} points',{n:fmtI(VIP_PTS[l])})}</span></div><div>
+    h+=`<div class="row viprow${l===L?' on':''}${l>L?' slock':''}"><div class="viph"><img class="vipimg" src="assets/img/vip_${l}.webp" alt=""><b class="viplv v${l}">VIP ${l}</b><span class="sub">${_t('From {n} points',{n:fmtI(VIP_PTS[l])})}</span></div><div>
       <div class="chips"><span class="chip pw">${_t('Construction and research +{p}%',{p:l})}</span><span class="chip pw">${_t('Free finish: last {p}% of the time',{p:l})}</span>${ex.map(x=>`<span class="chip">${x}</span>`).join('')}</div>
       <div class="sub">${_t('Daily reward:')}</div>${vipChips(VIP_DAILY[l])}</div></div></div>`; }
   h+=`<p class="sub" style="margin-top:10px">${_t('The free finish grows with the level: the longer the construction or research, the more time you save. Without any purchase for 2 months you lose 1 VIP level, the month after 2 more, then 3 more... You are warned 7 days before. The free points are never lost.')}</p>`;
