@@ -1019,3 +1019,19 @@ button.danger{background:linear-gradient(180deg,#b8432f,#7a2416)!important;color
 .rwi>b{position:absolute;top:2px;right:3px;font-size:11px;color:#fff;text-shadow:0 1px 2px #000}
 .rwbtns{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin-top:8px}
 .wtab .iti{flex:none!important;width:30px!important;height:30px!important;min-width:0!important}
+/* ----- shop ----- */
+.crn{color:#7fd3ff}
+.spacks{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin-top:6px}
+.spack{position:relative;text-align:center;border:1px solid #4a3c1c;background:#12171999;border-radius:10px;padding:14px 8px 8px}
+.spack.best{border-color:#e0b830;box-shadow:0 0 12px #e0b83055}
+.spack>img{width:92px;height:92px;object-fit:contain;display:block;margin:0 auto 2px}
+.spack b{font-size:17px}
+.spack .scr{color:#7fd3ff;font-weight:800;font-size:18px;margin:2px 0}
+.spack .scr .ic{vertical-align:-3px}
+.sbest{position:absolute;top:-9px;left:50%;transform:translateX(-50%);background:#e0b830;color:#2a1d05;font-weight:800;font-size:11px;font-style:normal;padding:1px 6px;border-radius:5px;white-space:nowrap}
+.sbonus{position:absolute;top:6px;right:6px;background:#2f7a3a;color:#fff;font-size:12px;font-style:normal;font-weight:700;padding:1px 6px;border-radius:5px}
+.row.sgold{border-color:#e0b830}
+.row.srow{margin-top:6px;padding:8px}
+.trow2.sbuy{margin-top:6px}
+.trow2.sbuy input{width:70px}
+.sbuy button{white-space:nowrap}

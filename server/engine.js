@@ -69,7 +69,13 @@ function catalog() {
     try { return JSON.stringify({
       items: ITEM_ORDER.map(id => ({ id, name: itemName(id), img: itemArt(id) || ICS.drop || '' })),
       units: Object.keys(UNITS).map(id => ({ id, name: _t(UNITS[id].name), img: UNITS[id].img || '' })),
-      res: ['metal', 'wood', 'stone', 'fuel', 'rations', 'gold', 'alloy', 'napalm'].map(id => ({ id, name: _t(id), img: ICS[id] || '' })) }); }
+      res: [...['metal', 'wood', 'stone', 'fuel', 'rations', 'gold', 'alloy', 'napalm'].map(id => ({ id, name: _t(id), img: ICS[id] || '' })), { id: 'credits', name: 'Crédits de guerre', img: ICS.credits }] }); }
     finally { LANG = L0; } })()`, ctx));
 }
 module.exports.catalog = catalog;
+// the real-money products of the shop (prices in euros, decided by the game rules, never by the browser)
+function shop() {
+  if (!ctx) load();
+  return JSON.parse(vm.runInContext(`JSON.stringify({ packs: SHOP_PACKS, starter: SHOP_STARTER, pass: SHOP_PASS, products: PAY_PRODUCTS })`, ctx));
+}
+module.exports.shop = shop;

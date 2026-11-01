@@ -124,6 +124,11 @@ const __ACTIONS = {
   // test buttons (admin and test accounts only)
   finish(b) { return __in(b, () => { if (state.queue) complete(); }); },
   demolish(slot, b) { if (typeof slot !== 'string' || slot.length > 8) return 'bad_order'; return __in(b, () => { const why = whyNotDemolish(slot); if (why) return why; demolish(slot); }); },
+  // the shop: Credits are spent here; Credits only ever come from payGrant (the server, after a confirmed payment) or from the game
+  shopBuy(id, n) { if (!own(SHOP_ITEMS, id)) return 'bad_order'; n = __int(n, 1, 100); return shopBuy(id, n) || undefined; },
+  buyPerk(k) { if (!own(SHOP_PERKS, k)) return 'bad_order'; return buyPerk(k) || undefined; },
+  passClaim() { return passClaim() || undefined; },
+  payGrant(prod) { if (!own(PAY_PRODUCTS, prod)) return 'bad_order'; if (prod === 'starter' && (state.shopOnce || {}).starter) return 'already_bought'; return payGrant(prod) || undefined; },
   heal(u) { if (u !== null && u !== undefined && !own(UNITS, u)) return 'bad_order'; return withBase('main', () => { const why = whyNotHeal(u || undefined); if (why) return why; heal(u || undefined); }); },
   finishTraining(bl, b) { return __in(b, () => { if (!TRAINERS.includes(bl)) return 'bad_order'; finishTraining(bl); }); },
   finishResearch() { checkResearch(true); },
@@ -151,6 +156,7 @@ function __run(stJson, lang, action, argsJson, role) {
     const args = JSON.parse(argsJson), f = own(__ACTIONS, action) ? __ACTIONS[action] : null;
     if (!f || !Array.isArray(args) || !__safeArgs(args, 0)) error = 'bad_order';
     else if (STAFF_ONLY.has(action) && !['admin', 'tester'].includes(role)) error = 'forbidden';
+    else if (action === 'payGrant' && role !== 'server') error = 'forbidden';   // bought Credits: only the server, after a confirmed payment
     else { try { const r = f(...args); if (r) error = r; } catch (e) { error = 'bad_order'; } }
     __catchUp();
   }

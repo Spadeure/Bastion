@@ -461,6 +461,7 @@ async function api(req, res, url, ip) {
     log('CONNEXION OK', `${u.name} · ${ip}${u.role !== 'player' ? ' · ' + u.role : ''}${fromPanel ? ' · panel' : ''}${others ? ' · déconnecté de son autre appareil' : ''}`);
     return send(res, 200, { token, name: u.name });
   }
+  if (url === '/api/pay/webhook' && req.method === 'POST') return pay().webhook(req, res);   // Stripe confirms a payment (signed, no player login)
   const me = auth(req);
   if (me && me.replaced) return send(res, 401, { error: 'session_replaced' });
   if (!me) return send(res, 401, { error: 'not_logged_in' });
@@ -492,13 +493,13 @@ async function api(req, res, url, ip) {
   if (me.banned) return send(res, 403, { error: 'banned' });   // the game engine runs for these: one line per player
   if (url === '/api/state' && req.method === 'GET') {
     const b = Q.base.get(me.id), r = runFor(me, b, null, [], langOf(req));
-    return send(res, 200, { name: me.name, role: me.role, pos: { x: b.x, y: b.y }, state: r.state, events: r.events, serverTime: Date.now(),
+    return send(res, 200, { name: me.name, role: me.role, pos: { x: b.x, y: b.y }, state: r.state, events: r.events, serverTime: Date.now(), pay: pay().MODE,
       beginner: beginnerEnd(r.state, me.created), incoming: incomingFor(me.id, r.state) });
   }
   if (url === '/api/act' && req.method === 'POST') {             // one order from the player: checked and run by the server
     const { a, args = [], lang } = await readBody(req, 20_000);
     const b = Q.base.get(me.id), act = clean(a);
-    if (ally.SERVER_ACTS.has(String(a))) { cheat(me, ip, `ordre réservé au serveur : ${act}`); return send(res, 403, { error: 'forbidden' }); }
+    if (ally.SERVER_ACTS.has(String(a)) || String(a) === 'payGrant') { cheat(me, ip, `ordre réservé au serveur : ${act}`); return send(res, 403, { error: 'forbidden' }); }
     const refuse = err => { if (err === 'bad_order') refusedOrder(me, ip, act, args, err); const r0 = runFor(me, b, null, [], lang); return send(res, 200, { state: r0.state, events: r0.events, error: err, serverTime: Date.now() }); };
     if (a === 'launch' && Array.isArray(args) && args[0] && typeof args[0] === 'object') {
       const o = args[0]; delete o.pvp;                             // only the server says that the target is a player
@@ -529,6 +530,13 @@ async function api(req, res, url, ip) {
     if (a === 'reset' && !r.state.op && !r.state.br && Q.opOf.get(me.id)) { Q.delOp.run(me.id); loadOutposts(); }   // test button: the base starts again from zero, outpost included
     if (me.banned) return send(res, 403, { error: 'banned' });
     return send(res, 200, { state: r.state, events: r.events, error: r.error, serverTime: Date.now() });
+  }
+  if (url === '/api/pay/start' && req.method === 'POST') {   // a real-money purchase: the server opens the Stripe payment page (test server: simulated)
+    if (panel.isMaint() && me.role !== 'admin') return send(res, 503, { error: 'maintenance' });
+    if (activeTok.has(me.id) && activeTok.get(me.id) !== me.token) return send(res, 409, { error: 'session_replaced' });
+    const P0 = await readBody(req, 5_000);
+    const origin = process.env.PUBLIC_URL ? process.env.PUBLIC_URL.replace(/\/$/, '') : `${req.headers['x-forwarded-proto'] || (req.socket.encrypted ? 'https' : 'http')}://${req.headers.host}`;
+    return pay().start(req, res, me, P0, origin);
   }
   if (url === '/api/state' && req.method === 'PUT') { cheat(me, ip, 'tentative d\'envoyer une partie modifiée (PUT /api/state)'); return send(res, 403, { error: 'forbidden' }); }
   if (url === '/api/admin' && req.method === 'POST') return admin(req, res, me, ip);
@@ -645,6 +653,9 @@ function runFor(me, b, action, args, lang, force) {
   else STATS.skipped++;
   return r;
 }
+// payments of the shop (server/pay.js), started on first use
+let PAY = null;
+const pay = () => PAY || (PAY = require('./pay')({ db, engine, log, send, push, runFor, Q, IS_TEST }));
 // arrival of an attack or a spy mission: both bases are read, resolved together and saved
 function resolveAttack(row) {
   const ab = Q.base.get(row.att), dbs = Q.base.get(row.def), au = Q.user.get(row.att), du = Q.user.get(row.def);
@@ -732,7 +743,7 @@ async function admin(req, res, me, ip, preset) {
   const now = Date.now();
   st.res = st.res || {}; st.troops = st.troops || {}; st.inv = st.inv || {}; st.slots = st.slots || {}; st.research = st.research || { lv: {}, cur: null };
   switch (action) {
-    case 'give_res': { const n = int(p.amount, 0, 1e10); for (const r of (p.res === 'all' ? RESS : [p.res])) if (RESS.includes(r)) st.res[r] = (st.res[r] || 0) + n; break; }
+    case 'give_res': { const n = int(p.amount, 0, 1e10); if (p.res === 'credits') { st.credits = Math.max(0, Math.floor(Number(st.credits) || 0)) + Math.min(n, 1e7); break; } for (const r of (p.res === 'all' ? RESS : [p.res])) if (RESS.includes(r)) st.res[r] = (st.res[r] || 0) + n; break; }
     case 'give_item': { const id = String(p.id || ''); if (!gameId(id)) return send(res, 400, { error: 'bad_item' }); st.inv[id] = (st.inv[id] || 0) + int(p.n, 1, 100000); break; }
     case 'give_all_items': { for (const id of (Array.isArray(p.ids) ? p.ids : [])) if (gameId(id)) st.inv[id] = (st.inv[id] || 0) + int(p.n, 1, 1000); break; }
     case 'give_troops': { if (!UNIT_IDS.includes(p.u)) return send(res, 400, { error: 'bad_unit' }); st.troops[p.u] = (st.troops[p.u] || 0) + int(p.n, 1, 10_000_000); break; }
