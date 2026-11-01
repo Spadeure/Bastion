@@ -1141,3 +1141,4 @@ button.danger{background:linear-gradient(180deg,#b8432f,#7a2416)!important;color
 @media (max-width:420px){ .calgrid{gap:3px}.cald{min-height:70px}.cald .q{font-size:10px} }
 .sbtn.protsb{border-color:#4aa8ff}.sbtn.protsb small{display:block;font-size:10px;color:#9fd3ff;font-weight:800}
 .calhd h2 .calic{width:46px;height:46px;vertical-align:middle;margin:-8px 8px -6px -4px;filter:drop-shadow(0 2px 3px #000)}
+.evrank.off{opacity:.75;border-style:dashed}

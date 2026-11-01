@@ -28,7 +28,7 @@ module.exports = function makeEvents({ db, Q, log, runFor, broadcast, push, engi
     setRank: db.prepare('UPDATE event_scores SET rank = ? WHERE eid = ? AND uid = ?'),
     setRclaimed: db.prepare('UPDATE event_scores SET rclaimed = 1 WHERE eid = ? AND uid = ? AND rclaimed = 0'),
     // the ranking: banned accounts never count; on the official server the administrator does not take part
-    top: db.prepare(`SELECT s.uid, s.best, u.name, b.cos FROM event_scores s JOIN users u ON u.id = s.uid LEFT JOIN bases b ON b.user_id = s.uid
+    top: db.prepare(`SELECT s.uid, s.best, u.name, u.role, b.cos FROM event_scores s JOIN users u ON u.id = s.uid LEFT JOIN bases b ON b.user_id = s.uid
       WHERE s.eid = ? AND s.best > 0 AND u.banned = 0 AND (? OR u.role != 'admin') ORDER BY s.best DESC, s.uid LIMIT ?`),
     above: db.prepare(`SELECT COUNT(*) AS n FROM event_scores s JOIN users u ON u.id = s.uid WHERE s.eid = ? AND u.banned = 0 AND (? OR u.role != 'admin') AND (s.best > ? OR (s.best = ? AND s.uid < ?))`),
     count: db.prepare(`SELECT COUNT(*) AS n FROM event_scores s JOIN users u ON u.id = s.uid WHERE s.eid = ? AND s.best > 0 AND u.banned = 0 AND (? OR u.role != 'admin')`),
@@ -91,16 +91,26 @@ module.exports = function makeEvents({ db, Q, log, runFor, broadcast, push, engi
     try { if (e.status === 'planned' && now >= e.start) start(e); else if (e.status === 'running' && now >= e.end) finish(e, now); }
     catch (x) { log('ERREUR', 'événement : ' + x.message); } }, 20_000).unref();
 
+  // the ranking shown: every player who gained power (up to 50 ranked); on the official server the administrators appear without a rank
+  function listTop(eid, me) {
+    let n = 0; const out = [];
+    for (const r of E.top.all(eid, 1, 80)) {
+      const off = !IS_TEST && r.role === 'admin'; if (!off && n >= 50) continue; if (!off) n++;
+      out.push({ r: off ? null : n, name: r.name, best: r.best, cos: r.cos ? JSON.parse(r.cos) : null, me: r.uid === me.id });
+    }
+    return out;
+  }
   // what the game shows: the running (or planned) event, else the last one ended less than 7 days ago
   function view(me) {
     const now = Date.now(), e = E.live.get() || E.last.get(now - KEEP);
     if (!e) return { ev: null };
     const s = E.score.get(e.id, me.id), T = tiers();
     let mine = null;
+    const out = !IS_TEST && me.role === 'admin';   // the administrator of the official server plays, but is never ranked
     if (s) { const p = (E.power.get(me.id) || {}).power || 0;
-      mine = { best: s.best, gain: e.status === 'running' ? Math.max(0, p - s.p0) : s.best, claimed: s.claimed, rank: e.status === 'ended' ? s.rank || null : (s.best > 0 ? E.above.get(e.id, TEST, s.best, s.best, me.id).n + 1 : null), rclaimed: !!s.rclaimed, sent: !!e.sent }; }
+      mine = { best: s.best, gain: e.status === 'running' ? Math.max(0, p - s.p0) : s.best, claimed: s.claimed, rank: out ? null : e.status === 'ended' ? s.rank || null : (s.best > 0 ? E.above.get(e.id, TEST, s.best, s.best, me.id).n + 1 : null), out, rclaimed: !!s.rclaimed, sent: !!e.sent }; }
     return { ev: pub(e), tiers: T, me: mine, n: E.count.get(e.id, TEST).n,
-      top: e.status === 'planned' ? [] : E.top.all(e.id, TEST, 50).map((r, i) => ({ r: i + 1, name: r.name, best: r.best, cos: r.cos ? JSON.parse(r.cos) : null, me: r.uid === me.id })), now };
+      top: e.status === 'planned' ? [] : listTop(e.id, me), now };
   }
   // ---------- management panel ----------
   const admin = {
