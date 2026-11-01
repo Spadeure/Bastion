@@ -226,10 +226,19 @@ function readBody(req, max = 1_000_000) {
     req.on('end', () => { try { const v = parts.length ? JSON.parse(Buffer.concat(parts).toString('utf8')) : {}; ok(v && typeof v === 'object' ? v : {}); } catch (e) { ko(badBody()); } });
     req.on('error', ko); });
 }
+try { db.exec('ALTER TABLE sessions ADD COLUMN panel INTEGER NOT NULL DEFAULT 0'); } catch (e) {}   // 1 = opened from the management panel (never replaced by a game login)
+// one game at a time per account: a new login, or a game page opening its live line, replaces the older one (the older page is told why)
+const replaced = new Map(), activeTok = new Map();   // token replaced -> time (kept 1 h) · user id -> token of the game page in use
+setInterval(() => { const old = Date.now() - 3600_000; for (const [k, v] of replaced) if (v < old) replaced.delete(k); }, 600_000).unref();
+function replaceGames(uid, keepRes) {   // the other open game pages of this account are closed, with the reason
+  const set = streams.get(uid); if (!set) return 0; let n = 0;
+  for (const r of [...set]) if (r !== keepRes) { try { r.write(`event: kick\ndata: ${JSON.stringify({ why: 'elsewhere' })}\n\n`); r.end(); } catch (e) {} set.delete(r); n++; }
+  return n;
+}
 const seenAt = new Map();   // the "last seen" time of a session is written at most once a minute (fewer database writes)
 function auth(req) {
   const m = /^Bearer ([a-f0-9]{64})$/.exec(req.headers.authorization || ''); if (!m) return null;
-  const s = Q.session.get(m[1]); if (!s) return null;
+  const s = Q.session.get(m[1]); if (!s) return replaced.has(m[1]) ? { replaced: true } : null;
   const now = Date.now(); if (now - (seenAt.get(m[1]) || 0) > 60_000) { seenAt.set(m[1], now); Q.seen.run(now, m[1]); Q.userSeen.run(now, s.id); }
   return s;
 }
@@ -428,7 +437,7 @@ async function api(req, res, url, ip) {
   }
   if (url === '/api/login' && req.method === 'POST') {
     if (isBlocked(ip)) return send(res, 429, { error: 'too_many' });
-    const { name = '', password = '' } = await readBody(req, 10_000);
+    const { name = '', password = '', panel: fromPanel = false } = await readBody(req, 10_000);
     const u = Q.userByName.get(String(name).trim());
     if (!u || !crypto.timingSafeEqual(Buffer.from(hashPass(String(password), u.salt), 'hex'), Buffer.from(u.hash, 'hex'))) {
       STATS.loginFail++;
@@ -439,11 +448,19 @@ async function api(req, res, url, ip) {
     }
     if (u.banned) { const be = banError(u.id); log('CONNEXION REFUSÉE', `${u.name} · ${ip} · compte bloqué (${be.error === 'banned_admin' ? 'par l\'administrateur' : 'script'})`); return send(res, 403, be); }
     const token = crypto.randomBytes(32).toString('hex'), now = Date.now(); Q.addSession.run(token, u.id, now, now); Q.userSeen.run(now, u.id); lastIp.set(u.id, ip);
+    let others = 0;
+    if (fromPanel) db.prepare('UPDATE sessions SET panel = 1 WHERE token = ?').run(token);
+    else {   // a game login: the account is logged out everywhere else (other computer, phone...)
+      for (const o of db.prepare('SELECT token FROM sessions WHERE user_id = ? AND token != ? AND panel = 0').all(u.id, token)) { replaced.set(o.token, now); seenAt.delete(o.token); others++; }
+      db.prepare('DELETE FROM sessions WHERE user_id = ? AND token != ? AND panel = 0').run(u.id, token);
+      others = Math.max(others ? 1 : 0, replaceGames(u.id)); activeTok.set(u.id, token);
+    }
     STATS.loginOk++; STATS.players.add(u.name);
-    log('CONNEXION OK', `${u.name} · ${ip}${u.role !== 'player' ? ' · ' + u.role : ''}`);
+    log('CONNEXION OK', `${u.name} · ${ip}${u.role !== 'player' ? ' · ' + u.role : ''}${fromPanel ? ' · panel' : ''}${others ? ' · déconnecté de son autre appareil' : ''}`);
     return send(res, 200, { token, name: u.name });
   }
   const me = auth(req);
+  if (me && me.replaced) return send(res, 401, { error: 'session_replaced' });
   if (!me) return send(res, 401, { error: 'not_logged_in' });
   if (url.startsWith('/api/admin/') && me.role === 'admin') { lastIp.set(me.id, ip); return panel.route(req, res, url, me, ip); }   // the management panel (administrator only)
   if (me.banned) return send(res, 403, banError(me.id));   // blocked for using a script, or by the administrator
@@ -455,7 +472,7 @@ async function api(req, res, url, ip) {
   if (url === '/api/stream' && req.method === 'GET') {   // the live line (kept open)
     res.writeHead(200, { 'Content-Type': 'text/event-stream; charset=utf-8', 'Cache-Control': 'no-cache, no-transform', 'Connection': 'keep-alive', 'X-Accel-Buffering': 'no' });
     let set = streams.get(me.id); if (!set) streams.set(me.id, set = new Set());
-    if (set.size >= 5) { const old = set.values().next().value; set.delete(old); try { old.end(); } catch (e) {} }   // 5 open games max per player
+    replaceGames(me.id, res); activeTok.set(me.id, me.token);   // one game page at a time: the older ones (other tab, other device) are closed
     set.add(res); if (!onlineSince.has(me.id)) onlineSince.set(me.id, Date.now());
     const b = Q.base.get(me.id); res.write(`retry: 3000\nevent: incoming\ndata: ${JSON.stringify({ incoming: incomingFor(me.id, b && b.state ? JSON.parse(b.state) : {}) })}\n\nevent: srv\ndata: ${JSON.stringify(panel.status())}\n\n`);
     req.on('close', () => { set.delete(res); if (!set.size && streams.get(me.id) === set) { streams.delete(me.id); Q.userSeen.run(Date.now(), me.id);
@@ -465,6 +482,8 @@ async function api(req, res, url, ip) {
   if (url === '/api/logout' && req.method === 'POST') { Q.delSession.run(me.token); seenAt.delete(me.token); log('DÉCONNEXION', `${me.name} · ${ip}`); return send(res, 200, { ok: true }); }
   const ENGINE = (url === '/api/state' && req.method === 'GET') || (url === '/api/act' && req.method === 'POST') || (url === '/api/chest' && req.method === 'POST') || (url === '/api/alliance' && req.method === 'POST') || (url === '/api/chat' && req.method === 'POST');
   // maintenance: the players can still look at their game (time goes on), but every order is refused; the administrator plays normally
+  // an order from a game page that is no longer the one in use (the account opened the game elsewhere): refused
+  if ((req.method === 'POST' || req.method === 'PUT') && /^\/api\/(act|chest|alliance|chat|state)$/.test(url) && activeTok.has(me.id) && activeTok.get(me.id) !== me.token) return send(res, 409, { error: 'session_replaced' });
   if (panel.isMaint() && me.role !== 'admin' && ((url === '/api/act' || url === '/api/chest' || url === '/api/admin' || url === '/api/alliance') && req.method === 'POST')) return send(res, 503, { error: 'maintenance', srv: panel.status() });
   if (ENGINE && !checkSig(me, ip, req)) return send(res, me.banned ? 403 : 409, { error: me.banned ? 'banned' : 'old_page' });   // not from the game page
   if (ENGINE && !(await orderTurn(me))) return tooFast(me, ip, res, req);

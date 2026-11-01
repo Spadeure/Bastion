@@ -62,7 +62,7 @@ function showLogin(msg) {
     <p id="le" class="bad small">${esc(msg || '')}</p><button id="lg" class="btn wide" style="margin-top:8px"><img src="${IMG('ui_ok')}" alt="">Se connecter</button></div>`;
   const go = async () => {
     const b = $('#lg'); b.disabled = true;
-    try { const r = await fetch('api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: $('#ln').value.trim(), password: $('#lp').value }) });
+    try { const r = await fetch('api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: $('#ln').value.trim(), password: $('#lp').value, panel: true }) });
       const j = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error({ bad_login: 'Nom ou mot de passe incorrect.', too_many: 'Trop d\'essais : attends quelques minutes.', banned: 'Compte bloqué.', banned_admin: 'Compte bloqué.' }[j.error] || 'Connexion impossible.');
       token = j.token; try { localStorage.setItem(KEY, token); } catch (e) {}
