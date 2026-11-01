@@ -77,6 +77,7 @@ db.exec(`PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL;
   CREATE INDEX IF NOT EXISTS attacks_def ON attacks (def, status);`);
 // shield: end of the beginner protection or of the truce (0 = can be attacked)
 if (!db.prepare("SELECT 1 FROM pragma_table_info('bases') WHERE name = 'shield'").get()) db.exec("ALTER TABLE bases ADD COLUMN shield INTEGER NOT NULL DEFAULT 0");
+if (!db.prepare("SELECT 1 FROM pragma_table_info('bases') WHERE name = 'cos'").get()) db.exec("ALTER TABLE bases ADD COLUMN cos TEXT");   // shop cosmetics seen by the others
 // ranking: PvP victories (attacks + defenses won) and battles won, copied from the saved game at each save (read by the ranking)
 if (!db.prepare("SELECT 1 FROM pragma_table_info('bases') WHERE name = 'pvp'").get()) {
   db.exec("ALTER TABLE bases ADD COLUMN pvp INTEGER NOT NULL DEFAULT 0; ALTER TABLE bases ADD COLUMN wins INTEGER NOT NULL DEFAULT 0");
@@ -162,11 +163,11 @@ const Q = {
   oldSessions: db.prepare('DELETE FROM sessions WHERE seen < ?'),
   base: db.prepare('SELECT * FROM bases WHERE user_id = ?'),
   addBase: db.prepare('INSERT INTO bases (user_id, x, y, updated) VALUES (?, ?, ?, ?)'),
-  saveBase: db.prepare('UPDATE bases SET state = ?, lvl = ?, power = ?, updated = ?, shield = ?, pvp = ?, wins = ? WHERE user_id = ?'),
+  saveBase: db.prepare('UPDATE bases SET state = ?, lvl = ?, power = ?, updated = ?, shield = ?, pvp = ?, wins = ?, cos = ? WHERE user_id = ?'),
   allPos: db.prepare('SELECT x, y FROM bases'),
   baseAt: db.prepare('SELECT user_id FROM bases WHERE x = ? AND y = ?'),
   // alliance: always empty until alliances exist (the map already shows it, so nothing changes on the player side then)
-  players: db.prepare('SELECT u.id AS uid, u.name, b.x, b.y, b.lvl, b.power, b.shield FROM bases b JOIN users u ON u.id = b.user_id WHERE b.user_id != ?'),
+  players: db.prepare('SELECT u.id AS uid, u.name, b.x, b.y, b.lvl, b.power, b.shield, b.cos FROM bases b JOIN users u ON u.id = b.user_id WHERE b.user_id != ?'),
   target: db.prepare('SELECT b.user_id, b.lvl, b.shield, u.name FROM bases b JOIN users u ON u.id = b.user_id WHERE b.x = ? AND b.y = ?'),
   atkByMarch: db.prepare('SELECT id, status, arrive FROM attacks WHERE att = ? AND mid = ?'),
   atkAdd: db.prepare('INSERT INTO attacks (att, def, kind, mid, launched, eta0, arrive, troops, titan) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'),
@@ -499,7 +500,7 @@ async function api(req, res, url, ip) {
   if (url === '/api/act' && req.method === 'POST') {             // one order from the player: checked and run by the server
     const { a, args = [], lang } = await readBody(req, 20_000);
     const b = Q.base.get(me.id), act = clean(a);
-    if (ally.SERVER_ACTS.has(String(a)) || String(a) === 'payGrant') { cheat(me, ip, `ordre réservé au serveur : ${act}`); return send(res, 403, { error: 'forbidden' }); }
+    if (ally.SERVER_ACTS.has(String(a)) || String(a) === 'payGrant' || String(a) === 'payCheck') { cheat(me, ip, `ordre réservé au serveur : ${act}`); return send(res, 403, { error: 'forbidden' }); }
     const refuse = err => { if (err === 'bad_order') refusedOrder(me, ip, act, args, err); const r0 = runFor(me, b, null, [], lang); return send(res, 200, { state: r0.state, events: r0.events, error: err, serverTime: Date.now() }); };
     if (a === 'launch' && Array.isArray(args) && args[0] && typeof args[0] === 'object') {
       const o = args[0]; delete o.pvp;                             // only the server says that the target is a player
@@ -518,7 +519,7 @@ async function api(req, res, url, ip) {
       if (!OP_TYPES[ft] || Q.opOfT.get(me.id, ft)) return refuse('bad_order');
     }
     if (a === 'useItem' && Array.isArray(args) && /^truce_/.test(String(args[0])) && Q.atkIncoming.all(me.id).length) return refuse('attack_incoming');
-    const qsig = st => { if (!st) return ''; const qs = [st.queue, st.op && st.op.queue, st.br && st.br.queue]; return JSON.stringify(qs.map(q => q && [q.slot, q.type, q.lvl, q.start, q.end])); };
+    const qsig = st => { if (!st) return ''; const qs = [st.queue, st.op && st.op.queue, st.br && st.br.queue, st.queue2, st.op && st.op.queue2, st.br && st.br.queue2]; return JSON.stringify(qs.map(q => q && [q.slot, q.type, q.lvl, q.start, q.end])); };
     let q0 = ''; try { q0 = qsig(b && b.state ? JSON.parse(b.state) : null); } catch (e) {}
     const r = runFor(me, b, String(a || ''), Array.isArray(args) ? args.slice(0, 5) : [], lang);
     refusedOrder(me, ip, act, args, r.error); noteOrder(me, ip, req, act);
@@ -542,7 +543,7 @@ async function api(req, res, url, ip) {
   if (url === '/api/admin' && req.method === 'POST') return admin(req, res, me, ip);
   if (url === '/api/chest' && req.method === 'POST') return openChest(req, res, me, ip);
   if (url === '/api/players' && req.method === 'GET') { const now = Date.now(), an = ally.names();
-    return send(res, 200, { players: Q.players.all(me.id).map(({ uid, ...p }) => ({ ...p, shield: p.shield > now ? p.shield : 0, alliance: an.get(uid) || null })), outposts: Q.allOps.all() }); }
+    return send(res, 200, { players: Q.players.all(me.id).map(({ uid, cos, ...p }) => ({ ...p, cos: cos ? JSON.parse(cos) : null, shield: p.shield > now ? p.shield : 0, alliance: an.get(uid) || null })), outposts: Q.allOps.all() }); }
   if (url === '/api/alliance' && req.method === 'GET') return send(res, 200, ally.view(me));
   if (url.startsWith('/api/chat')) {   // the chat: general, alliance, private
     try {
@@ -636,9 +637,15 @@ function syncAttacks(uid, st) {
   }
   for (const r of Q.atkOutOf.all(uid)) if (!seen.has(r.mid)) { Q.atkStatus.run('gone', null, r.id); pushIncoming(r.def); }
 }
+// the cosmetics the other players see (name colour, frame): only the ids the game knows, checked again by the browsers that show them
+const COS_C = new Set(['#ffd54a', '#7fd3ff', '#ff7a66', '#8fe07a', '#c9a2ff']), COS_F = new Set(['steel', 'gold', 'elite']);
+function pubCos(st) { const C = st && st.cos, o = {}; if (!C || !C.own) return null;
+  const v = id => { const m = { color_gold: '#ffd54a', color_cyan: '#7fd3ff', color_red: '#ff7a66', color_green: '#8fe07a', color_violet: '#c9a2ff', frame_steel: 'steel', frame_gold: 'gold', frame_elite: 'elite' }; return m[id]; };
+  if (C.c && C.own[C.c] && COS_C.has(v(C.c))) o.c = v(C.c); if (C.f && C.own[C.f] && COS_F.has(v(C.f))) o.f = v(C.f);
+  return Object.keys(o).length ? JSON.stringify(o) : null; }
 function saveState(uid, created, r) {
   const ss = r.state.stats || {};
-  Q.saveBase.run(JSON.stringify(r.state), r.lvl, r.power, Date.now(), shieldOf(r.state, created), (+ss.pvpWins || 0) + (+ss.pvpDef || 0), +ss.wins || 0, uid); STATS.saved++;
+  Q.saveBase.run(JSON.stringify(r.state), r.lvl, r.power, Date.now(), shieldOf(r.state, created), (+ss.pvpWins || 0) + (+ss.pvpDef || 0), +ss.wins || 0, pubCos(r.state), uid); STATS.saved++;
   for (const [ft, k] of Object.entries(OP_TYPES)) if (r.state[k]) { const l = ((r.state[k].slots || {}).cc || {}).lvl || 1; Q.opLvl.run(l, uid, ft, l); }   // level shown on the map
   syncAttacks(uid, r.state);
 }
@@ -748,8 +755,8 @@ async function admin(req, res, me, ip, preset) {
     case 'give_all_items': { for (const id of (Array.isArray(p.ids) ? p.ids : [])) if (gameId(id)) st.inv[id] = (st.inv[id] || 0) + int(p.n, 1, 1000); break; }
     case 'give_troops': { if (!UNIT_IDS.includes(p.u)) return send(res, 400, { error: 'bad_unit' }); st.troops[p.u] = (st.troops[p.u] || 0) + int(p.n, 1, 10_000_000); break; }
     case 'finish_all': {
-      if (st.queue) st.queue.end = now;
-      for (const k of ['op', 'br']) { const o = st[k]; if (!o) continue; if (o.queue) o.queue.end = now; for (const bl in (o.training || {})) for (const j of o.training[bl]) { j.s = now; j.e = now; } }
+      if (st.queue) st.queue.end = now; if (st.queue2) st.queue2.end = now;
+      for (const k of ['op', 'br']) { const o = st[k]; if (!o) continue; if (o.queue) o.queue.end = now; if (o.queue2) o.queue2.end = now; for (const bl in (o.training || {})) for (const j of o.training[bl]) { j.s = now; j.e = now; } }
       if (st.research.cur) st.research.cur.e = now;
       for (const bl in (st.training || {})) for (const j of st.training[bl]) { j.s = now; j.e = now; }
       for (const m of (st.marches || [])) { if (m.st === 'out') { m.a = now; m.b = now + 1000; } else m.b = now; }

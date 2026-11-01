@@ -23,7 +23,7 @@ levelUpShow = (from, to, rew) => { __events.push({ t: 'levelup', from, to, rew }
 function __nextEvent(limit) {
   const ts = [];
   for (const b of baseList()) { const q = queueOf(b), T = trainingOf(b) || {};   // main base and outpost
-    if (q) ts.push(q.end); for (const bl in T) for (const j of T[bl]) ts.push(j.e); }
+    if (q) ts.push(q.end); const q2 = dataOf(b, 'queue2'); if (q2) ts.push(q2.end); for (const bl in T) for (const j of T[bl]) ts.push(j.e); }
   const rc = researchState().cur; if (rc) ts.push(rc.e);
   for (const m of state.marches) ts.push(m.st === 'out' ? m.a : m.b);
   for (const k in (state.boosts || {})) ts.push(state.boosts[k]);
@@ -54,11 +54,12 @@ const __ACTIONS = {
     const s = SLOTS.find(x => x.id === slot); l = __int(l, 1, MAX);
     if (!s || !slotUsable(s) || !own(B, t) || !baseAllows(t)) return 'bad_order';
     const cur = state.slots[slot];
+    if (queueAt(slot)) return 'bad_order';   // already under construction (first or second queue)
     if (cur) { if (cur.type !== t || l !== cur.lvl + 1) return 'bad_order'; }
-    else if (l !== 1 || !canPlace(s, t) || (state.queue && state.queue.slot === slot)) return 'bad_order';
+    else if (l !== 1 || !canPlace(s, t)) return 'bad_order';
     const why = whyNot(t, l); if (why) return why;
     startBuild(slot, t, l); }); },
-  cancel(b) { return __in(b, () => { if (!state.queue) return 'bad_order'; cancel(); }); },
+  cancel(b, two) { return __in(b, () => { if (two) return withQ2(() => { if (!state.queue) return 'bad_order'; cancel(); }); if (!state.queue) return 'bad_order'; cancel(); }); },
   cancelTrain(bl, i, b) { return __in(b, () => { i = __int(i, 0, 10); if (!TRAINERS.includes(bl) || !(state.training[bl] || [])[i]) return 'bad_order'; cancelTrain(bl, i); }); },
   train(u, n, b) { return __in(b, () => { n = __int(n, 0, 1e7); if (!own(UNITS, u)) return 'bad_order'; const why = whyNotTrain(u, n); if (why) return why; train(u, n); }); },
   // found the outpost on a free mountain (the server has already checked that no base stands on this tile)
@@ -122,13 +123,16 @@ const __ACTIONS = {
     if (!q || q.end <= now || `${b}|${q.slot}|${q.type}|${q.lvl}|${q.start}` !== key) return 'bad_order';
     q.end = Math.max(now, q.end - Math.max(min, Math.round((q.end - q.start) * share))); }); },
   // test buttons (admin and test accounts only)
-  finish(b) { return __in(b, () => { if (state.queue) complete(); }); },
+  finish(b, two) { return __in(b, () => { if (two) withQ2(() => { if (state.queue) complete(); }); else if (state.queue) complete(); }); },
   demolish(slot, b) { if (typeof slot !== 'string' || slot.length > 8) return 'bad_order'; return __in(b, () => { const why = whyNotDemolish(slot); if (why) return why; demolish(slot); }); },
   // the shop: Credits are spent here; Credits only ever come from payGrant (the server, after a confirmed payment) or from the game
-  shopBuy(id, n) { if (!own(SHOP_ITEMS, id)) return 'bad_order'; n = __int(n, 1, 100); return shopBuy(id, n) || undefined; },
+  shopBuy(id, n, deal) { if (!own(SHOP_ITEMS, id)) return 'bad_order'; n = __int(n, 1, 100); return shopBuy(id, n, !!deal) || undefined; },
+  cosBuy(id) { if (!own(COSMETICS, id)) return 'bad_order'; return cosBuy(id) || undefined; },
+  cosSet(k, id) { if (id !== null && !own(COSMETICS, id)) return 'bad_order'; return cosSet(k, id) || undefined; },
+  payCheck(prod) { return whyNotPay(prod) || undefined; },   // the server, before opening a payment (changes nothing)
   buyPerk(k) { if (!own(SHOP_PERKS, k)) return 'bad_order'; return buyPerk(k) || undefined; },
   passClaim() { return passClaim() || undefined; },
-  payGrant(prod) { if (!own(PAY_PRODUCTS, prod)) return 'bad_order'; if (prod === 'starter' && (state.shopOnce || {}).starter) return 'already_bought'; return payGrant(prod) || undefined; },
+  payGrant(prod) { if (!own(PAY_PRODUCTS, prod)) return 'bad_order'; return payGrant(prod) || undefined; },
   heal(u) { if (u !== null && u !== undefined && !own(UNITS, u)) return 'bad_order'; return withBase('main', () => { const why = whyNotHeal(u || undefined); if (why) return why; heal(u || undefined); }); },
   finishTraining(bl, b) { return __in(b, () => { if (!TRAINERS.includes(bl)) return 'bad_order'; finishTraining(bl); }); },
   finishResearch() { checkResearch(true); },
@@ -156,7 +160,7 @@ function __run(stJson, lang, action, argsJson, role) {
     const args = JSON.parse(argsJson), f = own(__ACTIONS, action) ? __ACTIONS[action] : null;
     if (!f || !Array.isArray(args) || !__safeArgs(args, 0)) error = 'bad_order';
     else if (STAFF_ONLY.has(action) && !['admin', 'tester'].includes(role)) error = 'forbidden';
-    else if (action === 'payGrant' && role !== 'server') error = 'forbidden';   // bought Credits: only the server, after a confirmed payment
+    else if ((action === 'payGrant' || action === 'payCheck') && role !== 'server') error = 'forbidden';   // bought Credits: only the server, after a confirmed payment
     else { try { const r = f(...args); if (r) error = r; } catch (e) { error = 'bad_order'; } }
     __catchUp();
   }

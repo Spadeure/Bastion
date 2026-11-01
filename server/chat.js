@@ -17,8 +17,8 @@ module.exports = function makeChat(C) {
       uid INTEGER NOT NULL, name TEXT NOT NULL, text TEXT NOT NULL, at INTEGER NOT NULL, done INTEGER NOT NULL DEFAULT 0, UNIQUE (msg_id, reporter));`);
   const M = {
     add: db.prepare('INSERT INTO chat_msgs (ch, uid, name, text, at) VALUES (?, ?, ?, ?, ?)'),
-    last: db.prepare('SELECT id, uid, name, text, at FROM chat_msgs WHERE ch = ? ORDER BY id DESC LIMIT ?'),
-    after: db.prepare('SELECT id, uid, name, text, at FROM chat_msgs WHERE ch = ? AND id > ? ORDER BY id LIMIT 100'),
+    last: db.prepare('SELECT m.id, m.uid, m.name, m.text, m.at, b.cos FROM chat_msgs m LEFT JOIN bases b ON b.user_id = m.uid WHERE m.ch = ? ORDER BY m.id DESC LIMIT ?'),
+    after: db.prepare('SELECT m.id, m.uid, m.name, m.text, m.at, b.cos FROM chat_msgs m LEFT JOIN bases b ON b.user_id = m.uid WHERE m.ch = ? AND m.id > ? ORDER BY m.id LIMIT 100'),
     byId: db.prepare('SELECT * FROM chat_msgs WHERE id = ?'),
     trim: db.prepare('DELETE FROM chat_msgs WHERE ch = ? AND id <= (SELECT id FROM chat_msgs WHERE ch = ? ORDER BY id DESC LIMIT 1 OFFSET ?)'),
     oldPrivate: db.prepare("DELETE FROM chat_msgs WHERE ch LIKE 'p:%' AND at < ?"),
@@ -52,7 +52,7 @@ module.exports = function makeChat(C) {
   const err = (code, error) => Object.assign(new Error(error), { code, error });
   const pch = (a, b) => `p:${Math.min(a, b)}:${Math.max(a, b)}`;
   const allyCh = uid => { const m = db.prepare('SELECT aid FROM ally_members WHERE user_id = ?').get(uid); return m ? 'a:' + m.aid : null; };
-  const pub = m => ({ id: m.id, name: m.name, text: filter(m.text), at: m.at });   // filtered again when read: old messages follow the current list of words
+  const pub = m => { let cos = null; try { cos = m.cos ? JSON.parse(m.cos) : null; } catch (e) {} return { id: m.id, name: m.name, text: filter(m.text), at: m.at, cos }; };   // cos: the writer's name colour and frame (shop)   // filtered again when read: old messages follow the current list of words
   // which channel a player asks for: 'g', 'a' (his alliance) or 'p:<name>' (private with that player)
   function resolve(me, ch) {
     ch = String(ch || '');
@@ -82,7 +82,8 @@ module.exports = function makeChat(C) {
     const id = Number(M.add.run(c.ch, me.id, me.name, text, now).lastInsertRowid);
     if (!c.ch.startsWith('p:')) M.trim.run(c.ch, c.ch, KEEP);
     M.read.run(me.id, c.ch, id);
-    const msg = { id, name: me.name, text, at: now };
+    let cos = null; try { const r = db.prepare('SELECT cos FROM bases WHERE user_id = ?').get(me.id); cos = r && r.cos ? JSON.parse(r.cos) : null; } catch (e) {}
+    const msg = { id, name: me.name, text, at: now, cos };   // cos: the writer's name colour and frame (shop)
     if (c.ch === 'g') broadcast('chat', { ch: 'g', msg });
     else if (c.ch.startsWith('a:')) for (const m of db.prepare('SELECT user_id FROM ally_members WHERE aid = ?').all(+c.ch.slice(2))) push(m.user_id, 'chat', { ch: 'a', msg });
     else { push(me.id, 'chat', { ch: 'p:' + c.to.name, msg }); if (!M.ignoredBy.get(c.to.id, me.id)) push(c.to.id, 'chat', { ch: 'p:' + me.name, msg }); }

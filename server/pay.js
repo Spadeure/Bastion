@@ -16,7 +16,7 @@ module.exports = function makePay({ db, engine, log, send, push, runFor, Q, IS_T
   const MODE = KEY && HOOK ? 'stripe' : IS_TEST ? 'sim' : 'off';
   const live = /^sk_live_/.test(KEY);
   if (MODE === 'stripe') log('PAIEMENT', `Stripe branché (${live ? 'paiements RÉELS' : 'mode test, fausses cartes'})`);
-  const names = () => { const s = engine.shop(), o = {}; for (const p of s.packs) o[p.id] = `${p.cr} Crédits de guerre`; o[s.starter.id] = 'Pack de départ'; o[s.pass.id] = `Pass de commandement (${s.pass.days} jours)`; return o; };
+  const names = () => { const s = engine.shop(), o = {}; for (const p of s.packs) o[p.id] = `${p.cr} Crédits de guerre`; o[s.starter.id] = 'Pack de départ'; o[s.pass.id] = `Pass de commandement (${s.pass.days} jours)`; for (const p of s.prog) o[p.id] = `Pack Centre niveau ${p.lvl}`; for (const p of s.weekly) o[p.id] = `Pack de la semaine (${p.id.slice(5)})`; return o; };
   const cents = prod => { const p = engine.shop().products[prod]; return p ? Math.round(p.eur * 100) : 0; };
   // gives what was bought (once): the game engine runs the order 'payGrant' for this player
   function grant(id) {
@@ -38,7 +38,7 @@ module.exports = function makePay({ db, engine, log, send, push, runFor, Q, IS_T
     if (!c) return send(res, 400, { error: 'bad_order' });
     if (MODE === 'off') return send(res, 503, { error: 'pay_closed' });
     const b = Q.base.get(me.id); if (!b) return send(res, 404, { error: 'unknown_player' });
-    if (prod === 'starter') { const st = b.state ? JSON.parse(b.state) : {}; if ((st.shopOnce || {}).starter) return send(res, 409, { error: 'already_bought' }); }
+    { const chk = runFor({ ...me, role: 'server' }, b, 'payCheck', [prod], 'fr'); if (chk.error) return send(res, 409, { error: chk.error }); }   // unlocked, not bought yet, pack of this week
     if (MODE === 'sim') {
       const id = 'sim_' + crypto.randomBytes(9).toString('hex'); P.add.run(id, me.id, prod, c, 'pending', 'sim', Date.now());
       const r = grant(id); if (!r) return send(res, 409, { error: 'bad_order' });
