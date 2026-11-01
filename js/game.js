@@ -570,7 +570,7 @@ function itemArt(id){ const it=ITEMS[id];
   if(it.kind==='wheel') return id==='wheel_ticket' ? 'assets/img/item_ticket.webp' : 'assets/img/item_medal.webp';
   if(it.kind==='truce') return `assets/img/item_${id}.webp`;
   if(it.kind==='plans') return id==='plans_brasier' ? 'assets/img/brasier_plans.webp' : ICS.plans;
-  if(it.kind==='demolish') return 'assets/img/ui_build.webp';   // until its own painted picture (item_demolish) arrives
+  if(it.kind==='demolish') return 'assets/img/item_demolish.webp';
   return ITEM_ART[id.startsWith('boost_prod_')?'boost_prod':id]; }
 // short duration label: 1 min · 2 h 30 · 2.5 d
 function durLab(s){ if(s<3600) return _t('{n} min',{n:Math.round(s/60)}); if(s<172800){ const h=Math.floor(s/3600), m=Math.round(s%3600/60); return m?_t('{h} h {m}',{h,m}):_t('{h} h',{h}); } return _t('{n} d',{n:s/86400}); }
