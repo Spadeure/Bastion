@@ -493,7 +493,7 @@ async function api(req, res, url, ip) {
     return;
   }
   if (url === '/api/logout' && req.method === 'POST') { Q.delSession.run(me.token); seenAt.delete(me.token); log('DÉCONNEXION', `${me.name} · ${ip}`); return send(res, 200, { ok: true }); }
-  const ENGINE = (url === '/api/event' && req.method === 'POST') || (url === '/api/state' && req.method === 'GET') || (url === '/api/act' && req.method === 'POST') || (url === '/api/chest' && req.method === 'POST') || (url === '/api/alliance' && req.method === 'POST') || (url === '/api/chat' && req.method === 'POST');
+  const ENGINE = (url === '/api/state' && req.method === 'GET') || (url === '/api/act' && req.method === 'POST') || (url === '/api/chest' && req.method === 'POST') || (url === '/api/alliance' && req.method === 'POST') || (url === '/api/chat' && req.method === 'POST');
   // maintenance: the players can still look at their game (time goes on), but every order is refused; the administrator plays normally
   // an order from a game page that is no longer the one in use (the account opened the game elsewhere): refused
   if ((req.method === 'POST' || req.method === 'PUT') && /^\/api\/(act|chest|alliance|chat|state|event)$/.test(url) && activeTok.has(me.id) && activeTok.get(me.id) !== me.token) return send(res, 409, { error: 'session_replaced' });
@@ -509,7 +509,7 @@ async function api(req, res, url, ip) {
   if (url === '/api/act' && req.method === 'POST') {             // one order from the player: checked and run by the server
     const { a, args = [], lang } = await readBody(req, 20_000);
     const b = Q.base.get(me.id), act = clean(a);
-    if (ally.SERVER_ACTS.has(String(a)) || ['payGrant', 'payCheck', 'payRevoke', 'evGrant', 'evRank'].includes(String(a))) { cheat(me, ip, `ordre réservé au serveur : ${act}`); return send(res, 403, { error: 'forbidden' }); }
+    if (ally.SERVER_ACTS.has(String(a)) || ['payGrant', 'payCheck', 'payRevoke', 'evGrant', 'evRank', 'evFinal'].includes(String(a))) { cheat(me, ip, `ordre réservé au serveur : ${act}`); return send(res, 403, { error: 'forbidden' }); }
     const refuse = err => { if (err === 'bad_order') refusedOrder(me, ip, act, args, err); const r0 = runFor(me, b, null, [], lang); return send(res, 200, { state: r0.state, events: r0.events, error: err, serverTime: Date.now() }); };
     if (a === 'launch' && Array.isArray(args) && args[0] && typeof args[0] === 'object') {
       const o = args[0]; delete o.pvp;                             // only the server says that the target is a player
@@ -555,12 +555,6 @@ async function api(req, res, url, ip) {
     return send(res, 200, { players: Q.players.all(me.id).map(({ uid, cos, ...p }) => ({ ...p, cos: cos ? JSON.parse(cos) : null, shield: p.shield > now ? p.shield : 0, alliance: an.get(uid) || null })), outposts: Q.allOps.all() }); }
   if (url === '/api/alliance' && req.method === 'GET') return send(res, 200, ally.view(me));
   if (url === '/api/event' && req.method === 'GET') return send(res, 200, events.view(me));   // the tournament: tiers, my score, ranking
-  if (url === '/api/event' && req.method === 'POST') {
-    if (panel.isMaint() && me.role !== 'admin') return send(res, 503, { error: 'maintenance' });
-    const P = await readBody(req, 5_000);
-    try { const r = events.act(me, { op: String(P.op || ''), tier: P.tier, lang: LANG_OK.includes(P.lang) ? P.lang : 'fr' }); noteOrder(me, ip, req, 'event'); return send(res, 200, { ...r, view: events.view(me) }); }
-    catch (e) { if (!e.code) throw e; return send(res, e.code, { error: e.error }); }
-  }
   if (url.startsWith('/api/chat')) {   // the chat: general, alliance, private
     try {
       const qs = new URLSearchParams(req.url.split('?')[1] || '');

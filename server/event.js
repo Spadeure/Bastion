@@ -2,14 +2,16 @@
 // Bastion · events (the Power Tournament), on the server side.
 // The administrator plans an event from the management panel (start, length, Credits of the top 3).
 // When it starts, the power of every base is noted (p0); then each save of a game updates the player's best gain (best = power - p0).
-// Tiers: collected by the player once reached (the server checks the score, the game engine gives the items).
-// End: the ranking is fixed (rank of each player) and the ranking rewards can be collected for 7 days.
+// Tiers: validated as soon as they are reached; nothing is given during the tournament.
+// End: the ranking is fixed (rank of each player), then the server sends everything automatically to the inventories
+// (every tier reached + the ranking reward). The results stay visible in the game for 7 days.
 module.exports = function makeEvents({ db, Q, log, runFor, broadcast, push, engine, IS_TEST }) {
   db.exec(`CREATE TABLE IF NOT EXISTS events (id INTEGER PRIMARY KEY, type TEXT NOT NULL, start INTEGER NOT NULL, end INTEGER NOT NULL, cr TEXT NOT NULL,
       status TEXT NOT NULL DEFAULT 'planned', by TEXT, created INTEGER NOT NULL);
     CREATE TABLE IF NOT EXISTS event_scores (eid INTEGER NOT NULL, uid INTEGER NOT NULL, p0 INTEGER NOT NULL, best INTEGER NOT NULL DEFAULT 0,
       claimed INTEGER NOT NULL DEFAULT 0, rank INTEGER, rclaimed INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (eid, uid));
     CREATE INDEX IF NOT EXISTS event_best ON event_scores (eid, best);`);
+  try { db.exec('ALTER TABLE events ADD COLUMN sent INTEGER NOT NULL DEFAULT 0'); } catch (e) {}   // 1 = the rewards of this ended event were sent
   const KEEP = 7 * 86400_000, TYPES = ['power'];
   const E = {
     byId: db.prepare('SELECT * FROM events WHERE id = ?'),
@@ -31,6 +33,9 @@ module.exports = function makeEvents({ db, Q, log, runFor, broadcast, push, engi
     above: db.prepare(`SELECT COUNT(*) AS n FROM event_scores s JOIN users u ON u.id = s.uid WHERE s.eid = ? AND u.banned = 0 AND (? OR u.role != 'admin') AND (s.best > ? OR (s.best = ? AND s.uid < ?))`),
     count: db.prepare(`SELECT COUNT(*) AS n FROM event_scores s JOIN users u ON u.id = s.uid WHERE s.eid = ? AND s.best > 0 AND u.banned = 0 AND (? OR u.role != 'admin')`),
     allBases: db.prepare('SELECT user_id, power FROM bases'),
+    unsent: db.prepare("SELECT * FROM events WHERE status = 'ended' AND sent = 0 ORDER BY end LIMIT 1"),
+    setSent: db.prepare('UPDATE events SET sent = 1 WHERE id = ?'),
+    toSend: db.prepare('SELECT s.*, u.banned FROM event_scores s JOIN users u ON u.id = s.uid WHERE s.eid = ? AND s.best > 0'),
     power: db.prepare('SELECT power FROM bases WHERE user_id = ?'),
   };
   const TEST = IS_TEST ? 1 : 0;
@@ -55,10 +60,34 @@ module.exports = function makeEvents({ db, Q, log, runFor, broadcast, push, engi
   function finish(e, now) {
     const list = E.top.all(e.id, TEST, 1e9);
     db.exec('BEGIN'); try { list.forEach((r, i) => E.setRank.run(i + 1, e.id, r.uid)); E.status.run('ended', Math.min(e.end, now), e.id); db.exec('COMMIT'); } catch (x) { db.exec('ROLLBACK'); throw x; }
-    log('ÉVÉNEMENT', `Tournoi de puissance n°${e.id} terminé · ${list.length} participant(s)${list.length ? ' · 1er : ' + list[0].name + ' (+' + list[0].best.toLocaleString('fr-FR') + ')' : ''} · récompenses à récupérer pendant 7 jours`);
+    log('ÉVÉNEMENT', `Tournoi de puissance n°${e.id} terminé · ${list.length} participant(s)${list.length ? ' · 1er : ' + list[0].name + ' (+' + list[0].best.toLocaleString('fr-FR') + ')' : ''}`);
+    send(E.byId.get(e.id));
+  }
+  // the rewards of an ended event, sent to every inventory (each player only once: claimed and rclaimed are marked first)
+  function send(e) {
+    const T = tiers(), cr = JSON.parse(e.cr || '[]');
+    let n = 0, bad = 0;
+    for (const s of E.toSend.all(e.id)) {
+      if (s.banned) continue;
+      let mask = 0; T.forEach((p, i) => { if (s.best >= p && !(s.claimed & (1 << i))) mask |= 1 << i; });
+      const rank = s.rank && !s.rclaimed && (s.rank <= 50 || s.best >= T[0]) ? s.rank : 0;
+      if (!mask && !rank) continue;
+      const u = Q.user.get(s.uid), b = Q.base.get(s.uid); if (!u || !b) continue;
+      E.setClaimed.run(s.claimed | mask, e.id, s.uid); if (rank) E.setRclaimed.run(e.id, s.uid);
+      try {
+        const r = runFor({ ...u, role: 'server' }, b, 'evFinal', [mask, rank, rank ? cr[rank - 1] || 0 : 0, e.id], 'fr', true);
+        if (r.error) throw new Error(r.error);
+        push(s.uid, 'sync', {}); n++;
+      } catch (x) { bad++; E.setClaimed.run(s.claimed, e.id, s.uid); db.prepare('UPDATE event_scores SET rclaimed = ? WHERE eid = ? AND uid = ?').run(s.rclaimed, e.id, s.uid);
+        log('ERREUR', `tournoi n°${e.id} : récompenses de ${u.name} non envoyées (${x.message})`); }
+    }
+    if (!bad) E.setSent.run(e.id);
+    log('ÉVÉNEMENT', `Tournoi de puissance n°${e.id} : récompenses envoyées automatiquement à ${n} joueur(s)${bad ? ` · ${bad} échec(s), nouvel essai dans 20 secondes` : ''}`);
     broadcast('ev', {});
   }
-  setInterval(() => { const now = Date.now(), e = E.live.get(); if (!e) return;
+  setInterval(() => { const now = Date.now(), e = E.live.get();
+    try { const u = E.unsent.get(); if (u) send(u); } catch (x) { log('ERREUR', 'envoi des récompenses du tournoi : ' + x.message); }
+    if (!e) return;
     try { if (e.status === 'planned' && now >= e.start) start(e); else if (e.status === 'running' && now >= e.end) finish(e, now); }
     catch (x) { log('ERREUR', 'événement : ' + x.message); } }, 20_000).unref();
 
@@ -69,38 +98,9 @@ module.exports = function makeEvents({ db, Q, log, runFor, broadcast, push, engi
     const s = E.score.get(e.id, me.id), T = tiers();
     let mine = null;
     if (s) { const p = (E.power.get(me.id) || {}).power || 0;
-      mine = { best: s.best, gain: e.status === 'running' ? Math.max(0, p - s.p0) : s.best, claimed: s.claimed, rank: e.status === 'ended' ? s.rank || null : (s.best > 0 ? E.above.get(e.id, TEST, s.best, s.best, me.id).n + 1 : null), rclaimed: !!s.rclaimed }; }
+      mine = { best: s.best, gain: e.status === 'running' ? Math.max(0, p - s.p0) : s.best, claimed: s.claimed, rank: e.status === 'ended' ? s.rank || null : (s.best > 0 ? E.above.get(e.id, TEST, s.best, s.best, me.id).n + 1 : null), rclaimed: !!s.rclaimed, sent: !!e.sent }; }
     return { ev: pub(e), tiers: T, me: mine, n: E.count.get(e.id, TEST).n,
       top: e.status === 'planned' ? [] : E.top.all(e.id, TEST, 50).map((r, i) => ({ r: i + 1, name: r.name, best: r.best, cos: r.cos ? JSON.parse(r.cos) : null, me: r.uid === me.id })), now };
-  }
-  // the player collects a tier, or his ranking reward
-  function act(me, P) {
-    const err = (code, error) => Object.assign(new Error(error), { code, error });
-    const now = Date.now(), e = E.live.get() || E.last.get(now - KEEP);
-    if (!e || e.status === 'planned') throw err(409, 'no_event');
-    const s = E.score.get(e.id, me.id); if (!s) throw err(409, 'no_event');
-    const u = Q.user.get(me.id), b = Q.base.get(me.id); if (!u || !b) throw err(404, 'unknown_player');
-    if (P.op === 'claim') {
-      const i = Math.floor(Number(P.tier)), T = tiers();
-      if (!(i >= 0 && i < T.length)) throw err(400, 'bad_order');
-      if (s.claimed & (1 << i)) throw err(409, 'already_claimed');
-      if (s.best < T[i]) throw err(409, 'not_reached');
-      E.setClaimed.run(s.claimed | (1 << i), e.id, me.id);   // marked first: a second click can never give it twice
-      const r = runFor({ ...u, role: 'server' }, b, 'evGrant', [i], P.lang || 'fr', true);
-      if (r.error) { E.setClaimed.run(s.claimed, e.id, me.id); throw err(409, r.error); }
-      return { ok: true, state: r.state };
-    }
-    if (P.op === 'rank') {
-      if (e.status !== 'ended' || !s.rank) throw err(409, 'not_ranked');
-      if (s.rank > 50 && s.best < tiers()[0]) throw err(409, 'not_ranked');   // beyond the 50th: only the players who reached the first tier
-      if (!E.setRclaimed.run(e.id, me.id).changes) throw err(409, 'already_claimed');
-      const cr = JSON.parse(e.cr || '[]')[s.rank - 1] || 0;
-      const r = runFor({ ...u, role: 'server' }, b, 'evRank', [s.rank, cr], P.lang || 'fr', true);
-      if (r.error) { db.prepare('UPDATE event_scores SET rclaimed = 0 WHERE eid = ? AND uid = ?').run(e.id, me.id); throw err(409, r.error); }
-      log('ÉVÉNEMENT', `${u.name} récupère sa récompense de classement (${s.rank === 1 ? '1er' : s.rank + 'e'}${cr ? ', ' + cr + ' Crédits' : ''})`);
-      return { ok: true, state: r.state };
-    }
-    throw err(400, 'bad_order');
   }
   // ---------- management panel ----------
   const admin = {
@@ -121,5 +121,5 @@ module.exports = function makeEvents({ db, Q, log, runFor, broadcast, push, engi
       if (e.status === 'running') { log('ÉVÉNEMENT', `${by} termine maintenant le Tournoi de puissance n°${e.id}`); finish(e, Date.now()); return { ok: true }; }
       throw Object.assign(new Error('Cet événement est déjà terminé'), { code: 409 });
     } };
-  return { onSave, view, act, admin };
+  return { onSave, view, admin };
 };
