@@ -2,7 +2,7 @@
 // Turns every display function off, collects the messages, and exposes __run() for the server.
 let __events = [];
 renderAll = renderRes = renderQueue = renderSlots = renderSheet = liveSheet = updateRepBadge = requestDraw = drawMap = buildWorld = () => {};
-closeSheet = openPanel = openSlot = chestShow = renderTuto = drawClock = () => {};
+closeSheet = openPanel = openSlot = chestShow = renderTuto = drawClock = vipFreeTick = () => {};
 save = () => {};
 toast = m => { __events.push({ t: 'toast', m: String(m) }); };
 powerGain = n => { if (n > 0) __events.push({ t: 'power', n }); };
@@ -132,6 +132,10 @@ const __ACTIONS = {
   payCheck(prod) { return whyNotPay(prod) || undefined; },   // the server, before opening a payment (changes nothing)
   buyPerk(k) { if (!own(SHOP_PERKS, k)) return 'bad_order'; return buyPerk(k) || undefined; },
   passClaim() { return passClaim() || undefined; },
+  // VIP: the daily reward, the badge shown or hidden, and the free finish of the last minutes (checked by vipFinish)
+  vipClaim() { return vipClaim() || undefined; },
+  vipShow(on) { vipShow(!!on); },
+  vipFinish(k, b) { if (!['build', 'build2', 'research'].includes(k)) return 'bad_order'; return (k === 'research' ? vipFinish(k) : __in(b, () => vipFinish(k))) || undefined; },
   payGrant(prod) { if (!own(PAY_PRODUCTS, prod)) return 'bad_order'; return payGrant(prod) || undefined; },
   heal(u) { if (u !== null && u !== undefined && !own(UNITS, u)) return 'bad_order'; return withBase('main', () => { const why = whyNotHeal(u || undefined); if (why) return why; heal(u || undefined); }); },
   finishTraining(bl, b) { return __in(b, () => { if (!TRAINERS.includes(bl)) return 'bad_order'; finishTraining(bl); }); },
@@ -164,6 +168,7 @@ function __run(stJson, lang, action, argsJson, role) {
     else { try { const r = f(...args); if (r) error = r; } catch (e) { error = 'bad_order'; } }
     __catchUp();
   }
+  if (state.vip) state.vip.lv = vipLvl();   // the level of today (after the losses), read by the server for the badge seen by the others
   return JSON.stringify({ state, events: __events, error, lvl: playerLevel(totalPower()), power: totalPower() });
 }
 // every outpost of the map, from the database (the Fortified Mountains move away from them)

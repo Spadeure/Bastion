@@ -1049,3 +1049,24 @@ button.danger{background:linear-gradient(180deg,#b8432f,#7a2416)!important;color
 .cosn.fr-gold{border:2px solid #e0b830;box-shadow:0 0 6px #e0b83088}
 .cosn.fr-elite{border:2px solid #7fd3ff;box-shadow:0 0 8px #7fd3ffaa,inset 0 0 6px #7fd3ff55;animation:cosglow 2.4s ease-in-out infinite}
 @keyframes cosglow{50%{box-shadow:0 0 14px #7fd3ffdd,inset 0 0 8px #7fd3ff88}}
+/* VIP */
+.vipb{display:inline-block;font-style:normal;font-weight:800;font-size:.72em;line-height:1.35;padding:0 5px;margin-right:4px;border-radius:5px;vertical-align:middle;color:#1b1406;letter-spacing:.3px;text-shadow:none}
+.vipb.vipl{background:linear-gradient(#d9dde2,#9aa3ab)}
+.vipb.vipm{background:linear-gradient(#ffe48a,#d1a22b)}
+.vipb.viph{background:linear-gradient(#ffb36b,#e0592b);color:#fff}
+.vipb.vipx{background:linear-gradient(#e2c3ff,#8a4fe0);color:#fff;box-shadow:0 0 6px #b98bffaa}
+.vipcard .viptop{display:flex;gap:12px;align-items:center}
+.vipbig{width:70px;height:70px;flex:0 0 70px;border-radius:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:30px;font-weight:900;line-height:1;color:#1b1406;border:2px solid #0006;box-shadow:inset 0 2px 0 #fff6,0 2px 6px #0008;background:linear-gradient(#5b6168,#33383d)}
+.vipbig small{font-size:12px;letter-spacing:1px}
+.vipbig.vipl{background:linear-gradient(#d9dde2,#9aa3ab)}.vipbig.vipm{background:linear-gradient(#ffe48a,#d1a22b)}
+.vipbig.viph{background:linear-gradient(#ffb36b,#e0592b);color:#fff}.vipbig.vipx{background:linear-gradient(#e2c3ff,#8a4fe0);color:#fff}
+.vipwarn{margin:8px 0;padding:7px 9px;border-radius:7px;background:#e0b8301f;border:1px solid #e0b83066;font-size:13px}
+.vipwarn.hot{background:#d9483b26;border-color:#d9483b99;color:#ffd2cc}
+.vipshow{display:flex;align-items:center;gap:6px;margin-top:8px;font-size:13px;cursor:pointer}
+.viprow.on{outline:2px solid #e0b830;outline-offset:-2px}
+.vipfree{background:linear-gradient(#c9a2ff,#7b45d6)!important;color:#fff!important;border-color:#4a2390!important;font-weight:800;white-space:nowrap}
+.cosn.fr-vip{border:2px solid #c9a2ff;box-shadow:0 0 8px #b98bffcc,inset 0 0 6px #c9a2ff66;animation:cosglow 2.4s ease-in-out infinite}
+.tab2 .rdot{margin-left:4px}
+.viph{display:flex;align-items:center;gap:8px;margin-bottom:4px}.viph .vipb{font-size:15px}
+.stabs{display:grid;grid-template-columns:repeat(6,1fr)}.stabs .tab2{padding-left:4px;padding-right:4px;min-width:0}
+@media (max-width:520px){ .stabs{grid-template-columns:repeat(3,1fr)} }

@@ -639,9 +639,12 @@ function syncAttacks(uid, st) {
 }
 // the cosmetics the other players see (name colour, frame): only the ids the game knows, checked again by the browsers that show them
 const COS_C = new Set(['#ffd54a', '#7fd3ff', '#ff7a66', '#8fe07a', '#c9a2ff']), COS_F = new Set(['steel', 'gold', 'elite']);
-function pubCos(st) { const C = st && st.cos, o = {}; if (!C || !C.own) return null;
+function pubCos(st) { const C = (st && st.cos) || {}, own = C.own || {}, V = (st && st.vip) || {}, o = {};
+  const lv = Number.isInteger(V.lv) && V.lv >= 1 && V.lv <= 10 ? V.lv : 0;   // the VIP level computed by the engine (after the losses)
   const v = id => { const m = { color_gold: '#ffd54a', color_cyan: '#7fd3ff', color_red: '#ff7a66', color_green: '#8fe07a', color_violet: '#c9a2ff', frame_steel: 'steel', frame_gold: 'gold', frame_elite: 'elite' }; return m[id]; };
-  if (C.c && C.own[C.c] && COS_C.has(v(C.c))) o.c = v(C.c); if (C.f && C.own[C.f] && COS_F.has(v(C.f))) o.f = v(C.f);
+  if (C.c && own[C.c] && COS_C.has(v(C.c))) o.c = v(C.c); if (C.f && own[C.f] && COS_F.has(v(C.f))) o.f = v(C.f);
+  if (C.f === 'frame_vip' && lv >= 10) o.f = 'vip';   // never sold: VIP 10 only
+  if (V.show && lv) o.v = lv;   // the VIP badge, only if the player chose to show it
   return Object.keys(o).length ? JSON.stringify(o) : null; }
 function saveState(uid, created, r) {
   const ss = r.state.stats || {};
