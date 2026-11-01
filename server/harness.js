@@ -135,6 +135,8 @@ const __ACTIONS = {
   passClaim() { return passClaim() || undefined; },
   // daily and weekly missions
   claimMission(k) { if (!own(MISSIONS, k)) return 'bad_order'; return claimMission(k) || undefined; },
+  calClaim() { return calClaim() || undefined; },   // the gift of the day of the monthly calendar (the day is the server's)
+  missionChat() { missionCount('chat', 1); },   // a message sent in the chat (server only: called by the chat)
   claimMissionBonus() { return claimMissionBonus() || undefined; },
   claimMissionWeek(i) { return claimMissionWeek(__int(i, 0, 9)) || undefined; },
   // VIP: the daily reward, the badge shown or hidden, and the free finish of the last minutes (checked by vipFinish)
@@ -173,11 +175,12 @@ function __run(stJson, lang, action, argsJson, role) {
     const args = JSON.parse(argsJson), f = own(__ACTIONS, action) ? __ACTIONS[action] : null;
     if (!f || !Array.isArray(args) || !__safeArgs(args, 0)) error = 'bad_order';
     else if (STAFF_ONLY.has(action) && !['admin', 'tester'].includes(role)) error = 'forbidden';
-    else if (['payGrant', 'payCheck', 'payRevoke', 'evGrant', 'evRank', 'evFinal'].includes(action) && role !== 'server') error = 'forbidden';   // bought Credits: only the server, after a confirmed payment
+    else if (['payGrant', 'payCheck', 'payRevoke', 'evGrant', 'evRank', 'evFinal', 'missionChat'].includes(action) && role !== 'server') error = 'forbidden';   // bought Credits: only the server, after a confirmed payment
     else { try { const r = f(...args); if (r) error = r; } catch (e) { error = 'bad_order'; } }
     __catchUp();
   }
-  try { missionDay(); } catch (e) {}   // the missions of the day are chosen by the server, at the first visit of the day
+  try { missionDay(); } catch (e) {}
+  try { calState(); } catch (e) {}   // the monthly calendar starts at the first visit   // the missions of the day are chosen by the server, at the first visit of the day
   if (state.vip) state.vip.lv = vipLvl();   // the level of today (after the losses), read by the server for the badge seen by the others
   return JSON.stringify({ state, events: __events, error, lvl: playerLevel(totalPower()), power: totalPower() });
 }

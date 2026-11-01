@@ -1122,4 +1122,21 @@ button.danger{background:linear-gradient(180deg,#b8432f,#7a2416)!important;color
 .sbtn.evsb{border-color:#e0b830;box-shadow:0 0 10px #ff8a3a66}.sbtn.evsb small{display:block;font-size:10px;color:#ffcf6a;font-weight:800}
 .champb{display:inline-block;font-style:normal;font-weight:900;font-size:.7em;padding:1px 5px;margin-right:4px;border-radius:5px;vertical-align:middle;color:#2a1d02;background:linear-gradient(#ffe48a,#d1a22b);box-shadow:0 0 6px #ffd54a88;text-transform:uppercase;letter-spacing:.5px}
 .evhd{padding-right:40px}
-@media (max-width:760px){ .sbtn.evsb small{display:none} }
+@media (max-width:760px){ .sbtn.evsb small,.sbtn.protsb small{display:none} }
+
+/* monthly calendar */
+.calhd{position:relative;padding:12px 44px 12px 14px;border-radius:12px;background:linear-gradient(135deg,#3b2a0c,#1d1a12);border:2px solid #e0b830;margin-bottom:10px}
+.calhd h2{margin:0;color:#ffd54a;letter-spacing:1px}.calhd .sub{color:#e8dcc0}
+.calhd.prot{background:linear-gradient(135deg,#103a5a,#0d1d29);border-color:#4aa8ff}.calhd.prot h2{color:#9fd3ff}
+.caltoday{margin:0 0 8px;padding:10px;border-radius:10px;border:2px solid #6fe06a;background:#1f3a1a88}.caltoday .chips{margin:6px 0}.caltoday.done{border-color:#ffffff33;background:#0005}
+.calleg{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:#cfc6b0;margin:4px 0 8px}.calleg .ok{color:#6fe06a}.calleg .bad{color:#ff7a6a}.calleg .gold{color:#ffd54a}
+.calgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
+.cald{position:relative;cursor:pointer;border-radius:9px;background:#0007;border:2px solid #ffffff22;padding:3px 1px 4px;text-align:center;min-height:76px;display:flex;flex-direction:column;align-items:center;justify-content:space-between}
+.cald .dn{font-size:11px;font-weight:900;color:#cfc6b0}.cald .mi .iti{width:34px!important;height:34px!important}
+.cald .q{font-size:11px;font-weight:800;color:#fff;text-shadow:0 0 3px #000;line-height:1.1}.cald .plus{position:absolute;bottom:17px;right:1px;font-size:10px;color:#ffd54a;font-weight:900;display:flex;align-items:center;gap:1px;text-shadow:0 0 3px #000}.cald .plus img{width:12px;height:12px}
+.cald.big{border-color:#e0b830;background:linear-gradient(180deg,#5a420f88,#0008)}
+.cald.got .mi,.cald.got .q,.cald.got .plus,.cald.got .dn{opacity:.4}.cald.got::after{content:'';position:absolute;inset:0;z-index:5;background:url(../assets/img/ui_ok.webp) center 55%/40px no-repeat;filter:drop-shadow(0 0 3px #000) drop-shadow(0 0 2px #000)}
+.cald.miss{filter:grayscale(1);opacity:.4}.cald.miss::before{content:'';position:absolute;z-index:5;left:50%;top:50%;width:70%;height:4px;background:#ff5a4a;transform:translate(-50%,-50%) rotate(-35deg);border-radius:2px;box-shadow:0 0 4px #000}
+.cald.today{border-color:#6fe06a;box-shadow:0 0 12px #6fe06a99}
+@media (max-width:420px){ .calgrid{gap:3px}.cald{min-height:70px}.cald .q{font-size:10px} }
+.sbtn.protsb{border-color:#4aa8ff}.sbtn.protsb small{display:block;font-size:10px;color:#9fd3ff;font-weight:800}

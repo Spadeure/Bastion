@@ -509,7 +509,7 @@ async function api(req, res, url, ip) {
   if (url === '/api/act' && req.method === 'POST') {             // one order from the player: checked and run by the server
     const { a, args = [], lang } = await readBody(req, 20_000);
     const b = Q.base.get(me.id), act = clean(a);
-    if (ally.SERVER_ACTS.has(String(a)) || ['payGrant', 'payCheck', 'payRevoke', 'evGrant', 'evRank', 'evFinal'].includes(String(a))) { cheat(me, ip, `ordre réservé au serveur : ${act}`); return send(res, 403, { error: 'forbidden' }); }
+    if (ally.SERVER_ACTS.has(String(a)) || ['payGrant', 'payCheck', 'payRevoke', 'evGrant', 'evRank', 'evFinal', 'missionChat'].includes(String(a))) { cheat(me, ip, `ordre réservé au serveur : ${act}`); return send(res, 403, { error: 'forbidden' }); }
     const refuse = err => { if (err === 'bad_order') refusedOrder(me, ip, act, args, err); const r0 = runFor(me, b, null, [], lang); return send(res, 200, { state: r0.state, events: r0.events, error: err, serverTime: Date.now() }); };
     if (a === 'launch' && Array.isArray(args) && args[0] && typeof args[0] === 'object') {
       const o = args[0]; delete o.pvp;                             // only the server says that the target is a player
@@ -560,7 +560,7 @@ async function api(req, res, url, ip) {
       const qs = new URLSearchParams(req.url.split('?')[1] || '');
       if (url === '/api/chat/sum' && req.method === 'GET') return send(res, 200, chat.summary(me));
       if (url === '/api/chat' && req.method === 'GET') return send(res, 200, chat.read(me, qs.get('ch'), qs.get('after')));
-      if (url === '/api/chat' && req.method === 'POST') { const P = await readBody(req, 10_000); return send(res, 200, chat.act(me, P)); }
+      if (url === '/api/chat' && req.method === 'POST') { const P = await readBody(req, 10_000); const r = chat.act(me, P); if (String(P.op || '') === 'send') chatMission(me); return send(res, 200, r); }
     } catch (e) { if (!e.code) throw e; return send(res, e.code, { error: e.error }); }
   }
   if (url === '/api/alliance' && req.method === 'POST') {
@@ -674,6 +674,13 @@ function runFor(me, b, action, args, lang, force) {
   if (force || action || r.events.length || !b.state || shape(r.state) !== before || b.lvl !== r.lvl || b.shield !== shieldOf(r.state, me.created)) saveState(me.id, me.created, r);
   else STATS.skipped++;
   return r;
+}
+// the 'send a message in the chat' mission: counted once a day per player (the game engine decides if it is a mission of his day)
+const chatMis = new Map();
+function chatMission(me) {
+  const day = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Paris' }).format(Date.now()), k = me.id + ':' + day; if (chatMis.get(me.id) === k) return; chatMis.set(me.id, k);
+  try { const u = Q.user.get(me.id), b = Q.base.get(me.id); if (!u || !b || !b.state) return;
+    const r = runFor({ ...u, role: 'server' }, b, 'missionChat', [], 'fr', true); if (!r.error) push(me.id, 'sync', {}); } catch (e) { log('ERREUR', 'mission du chat : ' + e.message); }
 }
 // payments of the shop (server/pay.js), started on first use
 let PAY = null;
