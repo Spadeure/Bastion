@@ -960,3 +960,62 @@ button.danger{background:linear-gradient(180deg,#b8432f,#7a2416)!important;color
 #pmaint .mtm{margin-top:8px;color:#fff}
 #pmaint .msm{margin-top:6px;font-size:13px;color:var(--mut)}
 @media (max-width:760px){#testbar{font-size:9px;letter-spacing:1.5px;padding:0 10px 1px;line-height:12px}}
+
+/* ===== « My bases »: one button for the main base and the outposts ===== */
+.tab .ic.bsel{width:28px;height:24px;object-fit:contain;vertical-align:-7px}
+.tab .bcar{font-style:normal;font-size:10px;margin-left:4px;opacity:.85}
+.nicon{position:relative}
+.nicon .ic.bsel{width:100%!important;height:100%!important;object-fit:contain}
+.nicon .bcar{position:absolute;right:-3px;bottom:-3px;background:#f3c534;color:#2a1d02;border-radius:5px;font:800 8px/1 sans-serif;padding:2px 3px}
+#baseTag{position:fixed;z-index:25;left:50%;transform:translateX(-50%);top:62px;display:flex;align-items:center;gap:6px;padding:3px 14px 3px 8px;border-radius:8px;
+  background:#1c1a10e6;border:2px solid #f3c534;color:#f3c534;font-weight:800;font-size:11px;letter-spacing:1.5px;cursor:pointer;white-space:nowrap;box-shadow:0 3px 8px #0009}
+#baseTag img{width:22px;height:20px;object-fit:contain}
+@media (min-width:761px){ #baseTag{display:none!important} }
+.bases{display:flex;flex-direction:column;gap:8px;margin-top:8px}
+.bcard{display:flex;gap:10px;align-items:center;padding:8px;border-radius:10px;background:#0006;border:2px solid #5d5a3c;cursor:pointer}
+.bcard.on{border-color:#f3c534;background:#3a3412aa;box-shadow:0 0 0 2px #f3c53433 inset}
+.bcard.lock{opacity:.6;filter:grayscale(.5);cursor:default}.bcard.lock[data-act]{cursor:pointer;opacity:.85;filter:none}
+.bcard>img{width:64px;height:56px;object-fit:contain;flex:none}
+.bcard .bmid{flex:1;min-width:0}.bcard b{font-size:15px}
+.bcard .l2{font-size:12px;opacity:.85}.bcard .l3{font-size:11.5px;color:#9fd27a}.bcard .l3.w{color:#ffb35a}
+.bcard .l3 .ic{width:14px;height:14px;vertical-align:-2px}
+.bcard .bgo{flex:none;padding:6px 10px;border-radius:8px;background:linear-gradient(#f3c534,#c8941e);color:#2a1d02;font-weight:800;font-size:12px}
+.bcard .bhere{flex:none;font-size:11px;color:#f3c534;font-weight:800}
+.resbar.hasop2{grid-template-columns:repeat(9,minmax(0,1fr))!important}
+@media (max-width:760px){ .resbar.hasop2{grid-template-columns:repeat(5,minmax(0,1fr))!important} }
+@media (max-width:760px){ .resbar.hasop2 .res .v{font-size:12px!important} .resbar.hasop2 .res small{font-size:8.5px!important;white-space:nowrap} .resbar.hasop2 .res .ri{width:20px!important;height:20px!important} }
+
+/* ===== wheel of fortune (new look): alternating faces, rarity rim, upright prizes, brass ring with bulbs ===== */
+.nwheel{position:relative;width:min(330px,80vw);aspect-ratio:1;margin:16px auto 4px;border-radius:50%;box-shadow:0 0 0 6px #7a5a1c,0 0 0 9px #e9c25a,0 0 0 12px #5a3d0c,0 8px 22px #000c}
+.wspin2{position:absolute;inset:0;border-radius:50%}
+.wrim{position:absolute;inset:0;border-radius:50%}
+.wface2{position:absolute;inset:7%;border-radius:50%;box-shadow:inset 0 0 0 3px #3b2e10,inset 0 0 30px #000b}
+.wlines{position:absolute;inset:7%;border-radius:50%;-webkit-mask:radial-gradient(circle,#0000 22%,#000 23%);mask:radial-gradient(circle,#0000 22%,#000 23%)}
+.wico{position:absolute;display:flex;flex-direction:column;align-items:center;gap:1px;pointer-events:none}
+.wico img{width:min(40px,10.5vw);height:min(40px,10.5vw);object-fit:contain;filter:drop-shadow(0 2px 2px #000)}
+.wico b{font:800 11px/1 sans-serif;color:#fff;background:#000b;border:1px solid #e9c25a88;border-radius:6px;padding:1px 4px;white-space:nowrap}
+.wbulb{position:absolute;width:9px;height:9px;margin:-4.5px;border-radius:50%;background:radial-gradient(#fff6c8,#e9b23a 60%,#7a5a1c);box-shadow:0 0 6px #ffd76a;z-index:1}
+.whub2{position:absolute;left:50%;top:50%;width:22%;height:22%;transform:translate(-50%,-50%);border-radius:50%;background:radial-gradient(#f3d27a,#b07d1e 60%,#5a3d0c);box-shadow:0 0 0 3px #3b2e10,0 3px 8px #000;display:flex;align-items:center;justify-content:center;z-index:2}
+.whub2 img{width:75%;height:75%;object-fit:contain}
+.wptr{position:absolute;left:50%;top:-22px;transform:translateX(-50%);width:34px;height:44px;z-index:3;background:linear-gradient(#ffe38a,#c8941e);clip-path:polygon(50% 100%,0 0,100% 0);filter:drop-shadow(0 3px 2px #000)}
+.wleg{display:flex;justify-content:center;gap:10px;font-size:11px;margin:8px 0;flex-wrap:wrap}
+.wleg span{display:flex;align-items:center;gap:4px}.wleg i{width:10px;height:10px;border-radius:3px;display:inline-block}
+.wtabs{display:flex;gap:6px;margin:6px 0}
+.wtab{flex:1;display:flex!important;align-items:center;gap:6px;padding:6px 8px!important;border-radius:10px!important;border:2px solid #5d5a3c!important;background:#0006!important;color:#e8e2c8!important;font-weight:700;font-size:13px;text-align:left}
+.wtab.on{border-color:#f3c534!important;background:#3a3412cc!important}.wtab span{flex:1;line-height:1.1}
+.wtab small{background:#f3c534;color:#2a1d02;border-radius:8px;padding:0 6px;font-weight:800}
+/* « Rewards » window */
+#rwfx{position:fixed;inset:0;z-index:120;display:flex;align-items:center;justify-content:center;padding:12px;background:#000b}
+#rwfx .rwbox{width:min(460px,96vw);max-height:92vh;display:flex;flex-direction:column;border:solid transparent;border-width:40px 24px 34px;border-image:var(--fr-win) 150 95 135 95 fill / 40px 24px 34px stretch;color:#e8e2c8;padding:0 4px}
+#rwfx h2{margin:-22px 0 0;text-align:center;font-family:'Black Ops One',Impact,sans-serif;color:#f3c534;font-size:26px;letter-spacing:1px}
+#rwfx .sub{text-align:center;margin:2px 0 8px}
+#rwfx .rwlist{overflow:auto;flex:1;min-height:0}
+.rwcat{border-radius:10px;background:#0006;border:2px solid #5d5a3c;padding:6px 8px;margin-bottom:8px}
+.rwh{display:flex;align-items:center;gap:8px;font-weight:800;color:#f3c534;font-size:14px}
+.rwh img{width:26px;height:26px;object-fit:contain}.rwh small{margin-left:auto;color:#e8e2c8;font-weight:700;font-size:12px;background:#0008;border-radius:7px;padding:1px 7px}
+.rwg{display:grid;grid-template-columns:repeat(auto-fill,minmax(70px,1fr));gap:6px;margin-top:6px}
+.rwi{position:relative;display:flex;flex-direction:column;align-items:center;padding:4px 2px;border-radius:8px;background:#1b1f15;border:2px solid var(--rc);font-size:10px;text-align:center;line-height:1.1}
+.rwi .iti{border:0!important;background:none!important}
+.rwi>b{position:absolute;top:2px;right:3px;font-size:11px;color:#fff;text-shadow:0 1px 2px #000}
+.rwbtns{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin-top:8px}
+.wtab .iti{flex:none!important;width:30px!important;height:30px!important;min-width:0!important}

@@ -316,7 +316,8 @@ async function openPlayer(name) {
       <div class="gift"><h3><img src="${IMG('troops')}" alt="">Troupes</h3><div class="row"><select id="gunit">${opts(CAT.units)}</select></div>
         <div class="row"><input id="gunitn" type="number" min="1" value="1000"><button class="btn sm" data-give="unit">Donner</button></div></div>
       <div class="gift"><h3><img src="${IMG('titan_1')}" alt="">Pièces du Titan</h3><div class="parts">${parts('', k => IMG('eq_' + k + '_1'))}</div>
-        <h3><img src="${IMG('rempart_titan_1')}" alt="">Pièces du Titan Rempart</h3><div class="parts">${parts('r_', k => IMG('rempart_eq_' + k))}</div></div>
+        <h3><img src="${IMG('rempart_titan_1')}" alt="">Pièces du Titan Rempart</h3><div class="parts">${parts('r_', k => IMG('rempart_eq_' + k))}</div>
+        <h3><img src="${IMG('brasier_titan_1')}" alt="">Pièces du Titan Brasier</h3><div class="parts">${parts('b_', k => IMG('brasier_eq_' + k))}</div></div>
     </div>` : '<p class="mut small">Serveur officiel : pas de dons, tout le monde joue normalement. Les dons se font sur le serveur de test.</p>'}
     <h3>Rapport anti-triche</h3>
     ${p.bans.length ? p.bans.map(b => `<div class="ban"><b>${b.active ? 'Blocage en cours' : 'Ancien blocage'}</b> · ${dt(b.at)}<br>${esc(b.text)}${b.ip ? `<br><span class="mut small">Adresse ${esc(b.ip)}${b.ua ? ' · ' + esc(b.ua) : ''}</span>` : ''}

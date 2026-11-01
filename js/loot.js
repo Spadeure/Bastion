@@ -53,34 +53,35 @@ const LOOT = {
   ]
 };
 // Wheels of fortune: 12 segments each, same line format. Spun with a ticket (wheel_ticket) or a medal (wheel_medal).
+// segments in wheel order: two neighbours never have the same rarity (the colours of the rim alternate)
 const WHEELS = {
   wheel_ticket: [
-    [14, 'common',    {k:'item', id:'crate_*_s', n:[2,2]}],
+    [1,  'legendary', {k:'item', id:'chest_gold', n:[1,1]}],
     [14, 'common',    {k:'item', id:'speed_5m', n:[3,3]}],
-    [12, 'common',    {k:'troops', u:'recruit', n:[200,400]}],
-    [10, 'uncommon',  {k:'item', id:'crate_*_m', n:[1,1]}],
-    [12, 'common',    {k:'item', id:'speed_15m', n:[2,2]}],
-    [8,  'uncommon',  {k:'item', id:'boost_prod_*', n:[1,1]}],
-    [8,  'uncommon',  {k:'item', id:'speed_1h', n:[1,1]}],
-    [7,  'uncommon',  {k:'troops', u:'rifleman', n:[100,200]}],
+    [10, 'uncommon',  {k:'item', id:'crate_*_m', n:[2,2]}],
+    [13, 'common',    {k:'troops', u:'recruit', n:[400,600]}],
     [6,  'rare',      {k:'item', id:'chest_bronze', n:[1,1]}],
+    [14, 'common',    {k:'item', id:'crate_*_s', n:[3,3]}],
+    [8,  'uncommon',  {k:'item', id:'speed_1h', n:[2,2]}],
+    [3,  'epic',      {k:'item', id:'chest_silver', n:[1,1]}],
+    [12, 'common',    {k:'item', id:'speed_15m', n:[3,3]}],
+    [8,  'uncommon',  {k:'troops', u:'rifleman', n:[200,300]}],
     [4,  'rare',      {k:'item', id:'speed_8h', n:[1,1]}],
-    [4,  'epic',      {k:'item', id:'chest_silver', n:[1,1]}],
-    [1,  'legendary', {k:'item', id:'chest_gold', n:[1,1]}]
+    [7,  'uncommon',  {k:'item', id:'boost_prod_*', n:[1,1]}]
   ],
   wheel_medal: [
-    [14, 'rare',      {k:'item', id:'crate_*_l', n:[2,2]}],
-    [12, 'rare',      {k:'item', id:'speed_8h', n:[2,2]}],
-    [9,  'epic',      {k:'troops', u:'tank', n:[20,50]}],
-    [10, 'rare',      {k:'item', id:'boost_atk|boost_def', n:[1,1]}],
+    [9,  'epic',      {k:'troops', u:'tank', n:[40,80]}],
+    [14, 'rare',      {k:'item', id:'crate_*_l', n:[3,3]}],
     [9,  'epic',      {k:'item', id:'speed_24h', n:[1,1]}],
-    [10, 'rare',      {k:'item', id:'truce_12h', n:[1,1]}],
+    [5,  'legendary', {k:'item', id:'chest_gold', n:[1,1]}],
+    [7,  'epic',      {k:'troops', u:'gunship', n:[30,60]}],
+    [12, 'rare',      {k:'item', id:'speed_8h', n:[2,2]}],
     [8,  'epic',      {k:'item', id:'chest_silver', n:[1,1]}],
-    [7,  'epic',      {k:'troops', u:'gunship', n:[15,40]}],
-    [7,  'epic',      {k:'troops', u:'artillery', n:[15,40]}],
-    [5,  'legendary', {k:'item', id:'speed_96h', n:[1,1]}],
     [4,  'legendary', {k:'item', id:'truce_3d', n:[1,1]}],
-    [5,  'legendary', {k:'item', id:'chest_gold', n:[1,1]}]
+    [10, 'rare',      {k:'item', id:'boost_atk|boost_def', n:[1,1]}],
+    [7,  'epic',      {k:'troops', u:'artillery', n:[30,60]}],
+    [10, 'rare',      {k:'item', id:'truce_12h', n:[1,1]}],
+    [5,  'legendary', {k:'item', id:'speed_96h', n:[1,1]}]
   ]
 };
 const LOOT_RES = ['metal','wood','stone','fuel','rations'], LOOT_PARTS = ['armor','weapon','reactor','legs'];

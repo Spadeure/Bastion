@@ -69,7 +69,7 @@ function catalog() {
     try { return JSON.stringify({
       items: ITEM_ORDER.map(id => ({ id, name: itemName(id), img: itemArt(id) || ICS.drop || '' })),
       units: Object.keys(UNITS).map(id => ({ id, name: _t(UNITS[id].name), img: UNITS[id].img || '' })),
-      res: ['metal', 'wood', 'stone', 'fuel', 'rations', 'gold', 'alloy'].map(id => ({ id, name: _t(id), img: ICS[id] || '' })) }); }
+      res: ['metal', 'wood', 'stone', 'fuel', 'rations', 'gold', 'alloy', 'napalm'].map(id => ({ id, name: _t(id), img: ICS[id] || '' })) }); }
     finally { LANG = L0; } })()`, ctx));
 }
 module.exports.catalog = catalog;

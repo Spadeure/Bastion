@@ -155,7 +155,8 @@ module.exports = function makeAlliances(C) {
       if (m.id === me.id) continue;
       const b = Q.base.get(m.id); if (!b || !b.state) continue;
       const st = parse(b.state);
-      for (const [bs, q] of [['main', st._b === 'op' ? (st.op || {}).queue : st.queue], ['op', st._b === 'op' ? st.queue : (st.op || {}).queue]]) {
+      const cb = st._b || 'main', qOf = k => k === cb ? st.queue : k === 'main' ? (st[cb] || {}).queue : (st[k] || {}).queue;   // where each base's queue is stored
+      for (const [bs, q] of ['main', 'op', 'br'].filter(k => k === 'main' || (st[k] && typeof st[k] === 'object')).map(k => [k, qOf(k)])) {
         if (!q || !q.end || q.end <= now) continue;
         const key = `${bs}|${q.slot}|${q.type}|${q.lvl}|${q.start}`;
         helps.push({ name: m.name, base: bs, type: q.type, lvl: q.lvl, end: q.end, n: A.helps.get(m.id, key).n, max: HELP_MAX, done: !!A.helped.get(m.id, key, me.id), key });
@@ -275,7 +276,7 @@ module.exports = function makeAlliances(C) {
       // ----- help an ally's construction -----
       case 'help': {
         const u = mate(), key = String(P.key || '').slice(0, 120), bs = key.split('|')[0];
-        if (bs !== 'main' && bs !== 'op') throw err(400, 'bad_order');
+        if (!['main', 'op', 'br'].includes(bs)) throw err(400, 'bad_order');
         if (A.helped.get(u.id, key, me.id)) throw err(409, 'ally_helped');
         if (A.helps.get(u.id, key).n >= HELP_MAX) throw err(409, 'ally_help_max');
         const r = game(u.id, 'allyHelp', [bs, key, HELP_SHARE, HELP_MIN]); if (r.error) throw err(409, r.error === 'bad_order' ? 'ally_help_over' : r.error);

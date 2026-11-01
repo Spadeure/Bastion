@@ -44,7 +44,7 @@ function __safeArgs(v, depth){ if(depth>6) return false;
   if(v && typeof v==='object') return Object.keys(v).every(k=>!PROTO_KEYS.has(k) && __safeArgs(v[k], depth+1));
   return true; }
 // which base an order is for: the main base (default) or the outpost (only if the player has one)
-const __base = b => (b === undefined || b === null || b === 'main') ? 'main' : (b === 'op' && state.op) ? 'op' : null;
+const __base = b => (b === undefined || b === null || b === 'main') ? 'main' : (OPK.includes(b) && hasOp(b)) ? b : null;
 const __in = (b, f) => { const bs = __base(b); if (!bs) return 'bad_order'; return withBase(bs, f); };
 const STAFF_ONLY = new Set(['finish', 'finishTraining', 'finishResearch', 'finishMarch', 'reset']);
 // every order the browser may send, with its checks (the game functions do the rest of the checks themselves)
@@ -61,7 +61,7 @@ const __ACTIONS = {
   cancelTrain(bl, i, b) { return __in(b, () => { i = __int(i, 0, 10); if (!TRAINERS.includes(bl) || !(state.training[bl] || [])[i]) return 'bad_order'; cancelTrain(bl, i); }); },
   train(u, n, b) { return __in(b, () => { n = __int(n, 0, 1e7); if (!own(UNITS, u)) return 'bad_order'; const why = whyNotTrain(u, n); if (why) return why; train(u, n); }); },
   // found the outpost on a free mountain (the server has already checked that no base stands on this tile)
-  found(x, y) { if (typeof x !== 'number' || typeof y !== 'number') return 'bad_order'; return foundOutpost('rempart', __int(x, 1, MAPN), __int(y, 1, MAPN)) || undefined; },
+  found(x, y, t) { if (typeof x !== 'number' || typeof y !== 'number') return 'bad_order'; t = t === undefined ? 'rempart' : t; if (!own(OUTPOST, t)) return 'bad_order'; return foundOutpost(t, __int(x, 1, MAPN), __int(y, 1, MAPN)) || undefined; },
   research(t) { if (!own(TECH, t)) return 'bad_order'; const why = whyNotResearch(t, techLv(t) + 1); if (why) return why; startResearch(t); },
   cancelResearch() { if (!researchState().cur) return 'bad_order'; cancelResearch(); },
   // o.pvp is added by the server only (after its own checks) when the target is another player's base
@@ -70,7 +70,7 @@ const __ACTIONS = {
     for (const k in atkQty) delete atkQty[k];
     const pv = o.pvp, spy = pv && pv.kind === 'spy';
     for (const u in (o.q || {})) if (own(UNITS, u) && (!spy || u === 'drone')) atkQty[u] = __int(o.q[u], 0, 1e8);
-    atkTitan = spy ? false : o.titan === 'op' ? (state.op ? 'op' : false) : (o.titan ? 'main' : false);   // one Titan: the main one or the Rampart one
+    atkTitan = spy ? false : OPK.includes(o.titan) ? (hasOp(o.titan) ? o.titan : false) : (o.titan ? 'main' : false);   // one Titan: the main one or an outpost's
     if (spy && !atkQty.drone) return 'bad_order';
     if (!pv) { const tl = tileAt(x, y); if (!attackable(tl)) return 'bad_order'; }   // never an outpost, a base or empty land
     if (x === state.pos.x && y === state.pos.y) return 'bad_order';

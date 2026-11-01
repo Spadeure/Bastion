@@ -219,7 +219,7 @@ module.exports = function makePanel(C) {
       const u = Q.userByName.get(String(qs.get('name') || '').trim()); if (!u) return send(res, 404, { error: 'joueur introuvable' });
       return send(res, 200, { player: playerCard(u), now: Date.now() });
     }
-    if (req.method === 'GET' && name === 'catalog') { const c = engine.catalog(); for (const r of c.res) if (r.id === 'alloy') r.name = 'Alliage lourd';
+    if (req.method === 'GET' && name === 'catalog') { const c = engine.catalog(); for (const r of c.res) { if (r.id === 'alloy') r.name = 'Alliage lourd'; if (r.id === 'napalm') r.name = 'Napalm'; }
       c.units = c.units.filter(x => UNIT_IDS.includes(x.id)); return send(res, 200, c); }
     if (req.method === 'POST' && name === 'player') {
       const u = Q.userByName.get(String(P.name || '').trim()); if (!u) return send(res, 404, { error: 'joueur introuvable' });
