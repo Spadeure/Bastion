@@ -554,13 +554,16 @@ async function api(req, res, url, ip) {
   if (url === '/api/players' && req.method === 'GET') { const now = Date.now(), an = ally.names();
     return send(res, 200, { players: Q.players.all(me.id).map(({ uid, cos, ...p }) => ({ ...p, cos: cos ? JSON.parse(cos) : null, shield: p.shield > now ? p.shield : 0, alliance: an.get(uid) || null })), outposts: Q.allOps.all() }); }
   if (url === '/api/alliance' && req.method === 'GET') return send(res, 200, ally.view(me));
-  if (url === '/api/event' && req.method === 'GET') return send(res, 200, events.view(me));   // the tournament: tiers, my score, ranking
+  if (url === '/api/event' && req.method === 'GET') return send(res, 200, events.view(me));
+  if (url === '/api/push' && req.method === 'GET') return send(res, 200, notify.view(me));   // notifications: the game's public key, my settings
+  if (url === '/api/push' && req.method === 'POST') { const P = await readBody(req, 5_000);
+    try { return send(res, 200, notify.act(me, P)); } catch (e) { if (!e.code) throw e; return send(res, e.code, { error: e.error }); } }   // the tournament: tiers, my score, ranking
   if (url.startsWith('/api/chat')) {   // the chat: general, alliance, private
     try {
       const qs = new URLSearchParams(req.url.split('?')[1] || '');
       if (url === '/api/chat/sum' && req.method === 'GET') return send(res, 200, chat.summary(me));
       if (url === '/api/chat' && req.method === 'GET') return send(res, 200, chat.read(me, qs.get('ch'), qs.get('after')));
-      if (url === '/api/chat' && req.method === 'POST') { const P = await readBody(req, 10_000); const r = chat.act(me, P); if (String(P.op || '') === 'send') chatMission(me); return send(res, 200, r); }
+      if (url === '/api/chat' && req.method === 'POST') { const P = await readBody(req, 10_000); const r = chat.act(me, P); if (String(P.op || '') === 'send') { chatMission(me); if (r._pm) try { notify.onPm(r._pm, me.name, r.msg && r.msg.text); } catch (e) {} } delete r._pm; return send(res, 200, r); }
     } catch (e) { if (!e.code) throw e; return send(res, e.code, { error: e.error }); }
   }
   if (url === '/api/alliance' && req.method === 'POST') {
@@ -642,7 +645,8 @@ function syncAttacks(uid, st) {
     if (!m.pvp || m.st !== 'out') continue;
     seen.add(m.id);
     const row = Q.atkByMarch.get(uid, m.id);
-    if (!row) { Q.atkAdd.run(uid, m.pvp, m.kind === 'spy' ? 'spy' : 'attack', m.id, m.s, m.a, m.a, JSON.stringify(m.troops || {}), m.titan ? 1 : 0); pushIncoming(m.pvp); }   // the target is warned at once
+    if (!row) { Q.atkAdd.run(uid, m.pvp, m.kind === 'spy' ? 'spy' : 'attack', m.id, m.s, m.a, m.a, JSON.stringify(m.troops || {}), m.titan ? 1 : 0); pushIncoming(m.pvp);
+      try { const au = Q.user.get(uid); notify.onAttack(m.pvp, au ? au.name : '?', m.kind === 'spy' ? 'spy' : 'attack', m.a); } catch (e) { log('ERREUR', 'notification d\'attaque : ' + e.message); } }   // the target is warned at once
     else if (row.status === 'out' && row.arrive !== m.a) { Q.atkArrive.run(m.a, row.id); pushIncoming(m.pvp); }
   }
   for (const r of Q.atkOutOf.all(uid)) if (!seen.has(r.mid)) { Q.atkStatus.run('gone', null, r.id); pushIncoming(r.def); }
@@ -661,6 +665,7 @@ function saveState(uid, created, r) {
   const ss = r.state.stats || {};
   Q.saveBase.run(JSON.stringify(r.state), r.lvl, r.power, Date.now(), shieldOf(r.state, created), (+ss.pvpWins || 0) + (+ss.pvpDef || 0), +ss.wins || 0, pubCos(r.state), uid); STATS.saved++;
   try { events.onSave(uid, r.power); } catch (e) { log('ERREUR', 'score d\'événement : ' + e.message); }
+  try { if (typeof notify !== 'undefined') notify.onSave(uid, r.state, shieldOf(r.state, created)); } catch (e) { log('ERREUR', 'notifications : ' + e.message); }
   for (const [ft, k] of Object.entries(OP_TYPES)) if (r.state[k]) { const l = ((r.state[k].slots || {}).cc || {}).lvl || 1; Q.opLvl.run(l, uid, ft, l); }   // level shown on the map
   syncAttacks(uid, r.state);
 }
@@ -983,6 +988,11 @@ const ally = require('./alliance.js')({ db, Q, log, clean, push, runFor, DAY_FMT
 // ---------- chat ----------
 const chat = require('./chat.js')({ db, Q, log, clean, push, broadcast, ally });
 const events = require('./event.js')({ db, Q, log, runFor, broadcast, push, engine, IS_TEST });
+// push notifications (server/notify.js): nothing is sent while the game is open
+const notify = require('./notify.js')({ db, log, engine, online: uid => streams.has(uid), Q });
+const kvOnce = k => { if (db.prepare('SELECT 1 FROM kv WHERE k = ?').get(k)) return false; db.prepare('INSERT OR REPLACE INTO kv (k, v) VALUES (?, ?)').run(k, '1'); return true; };
+events.hooks.start = e => { if (kvOnce('evstart_' + e.id)) notify.sendAll('evstart', {}); };
+events.hooks.last = e => { if (kvOnce('evlast_' + e.id)) notify.sendAll('evlast', {}); };
 
 // ---------- management panel (/admin): maintenance, updates, players, announcements, backups, journal ----------
 const panel = require('./panel.js')({

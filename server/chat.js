@@ -86,8 +86,9 @@ module.exports = function makeChat(C) {
     const msg = { id, name: me.name, text, at: now, cos };   // cos: the writer's name colour and frame (shop)
     if (c.ch === 'g') broadcast('chat', { ch: 'g', msg });
     else if (c.ch.startsWith('a:')) for (const m of db.prepare('SELECT user_id FROM ally_members WHERE aid = ?').all(+c.ch.slice(2))) push(m.user_id, 'chat', { ch: 'a', msg });
-    else { push(me.id, 'chat', { ch: 'p:' + c.to.name, msg }); if (!M.ignoredBy.get(c.to.id, me.id)) push(c.to.id, 'chat', { ch: 'p:' + me.name, msg }); }
-    return { ok: true, msg };
+    let pm = 0;
+    if (c.ch.startsWith('p:')) { push(me.id, 'chat', { ch: 'p:' + c.to.name, msg }); if (!M.ignoredBy.get(c.to.id, me.id)) { push(c.to.id, 'chat', { ch: 'p:' + me.name, msg }); pm = c.to.id; } }
+    return { ok: true, msg, _pm: pm };   // _pm: who receives this private message (for his notification; removed before answering)
   }
   // a channel: the latest messages (or the ones after an id), without the players this one ignores
   function read(me, ch, after) {

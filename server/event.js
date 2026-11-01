@@ -38,7 +38,8 @@ module.exports = function makeEvents({ db, Q, log, runFor, broadcast, push, engi
     toSend: db.prepare('SELECT s.*, u.banned FROM event_scores s JOIN users u ON u.id = s.uid WHERE s.eid = ? AND s.best > 0'),
     power: db.prepare('SELECT power FROM bases WHERE user_id = ?'),
   };
-  const TEST = IS_TEST ? 1 : 0;
+  const TEST = IS_TEST ? 1 : 0, hooks = {};   // hooks: start and last hour of a tournament (notifications)
+  let lastHour = 0;
   const tiers = () => engine.shop().evTiers;   // power needed for each tier (from the game rules)
   const pub = e => e && { id: e.id, type: e.type, start: e.start, end: e.end, status: e.status, cr: JSON.parse(e.cr || '[]') };
   const running = () => { const e = E.live.get(); return e && e.status === 'running' ? e : null; };
@@ -55,7 +56,7 @@ module.exports = function makeEvents({ db, Q, log, runFor, broadcast, push, engi
     E.status.run('running', e.end, e.id);
     db.exec('BEGIN'); try { for (const b of E.allBases.all()) E.addScore.run(e.id, b.user_id, Math.max(0, Math.floor(b.power || 0))); db.exec('COMMIT'); } catch (x) { db.exec('ROLLBACK'); throw x; }
     log('ÉVÉNEMENT', `Tournoi de puissance n°${e.id} commencé · fin le ${new Date(e.end).toLocaleString('fr-FR')}`);
-    broadcast('ev', {});
+    broadcast('ev', {}); try { hooks.start && hooks.start(e); } catch (x) {}
   }
   function finish(e, now) {
     const list = E.top.all(e.id, TEST, 1e9);
@@ -88,7 +89,8 @@ module.exports = function makeEvents({ db, Q, log, runFor, broadcast, push, engi
   setInterval(() => { const now = Date.now(), e = E.live.get();
     try { const u = E.unsent.get(); if (u) send(u); } catch (x) { log('ERREUR', 'envoi des récompenses du tournoi : ' + x.message); }
     if (!e) return;
-    try { if (e.status === 'planned' && now >= e.start) start(e); else if (e.status === 'running' && now >= e.end) finish(e, now); }
+    try { if (e.status === 'planned' && now >= e.start) start(e); else if (e.status === 'running' && now >= e.end) finish(e, now);
+      else if (e.status === 'running' && now >= e.end - 3600_000 && e.end - e.start > 2 * 3600_000 && lastHour !== e.id) { lastHour = e.id; try { hooks.last && hooks.last(e); } catch (x) {} } }
     catch (x) { log('ERREUR', 'événement : ' + x.message); } }, 20_000).unref();
 
   // the ranking shown: every player who gained power (up to 50 ranked); on the official server the administrators appear without a rank
@@ -131,5 +133,5 @@ module.exports = function makeEvents({ db, Q, log, runFor, broadcast, push, engi
       if (e.status === 'running') { log('ÉVÉNEMENT', `${by} termine maintenant le Tournoi de puissance n°${e.id}`); finish(e, Date.now()); return { ok: true }; }
       throw Object.assign(new Error('Cet événement est déjà terminé'), { code: 409 });
     } };
-  return { onSave, view, admin };
+  return { onSave, view, admin, hooks };
 };

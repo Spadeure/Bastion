@@ -184,5 +184,7 @@ function __run(stJson, lang, action, argsJson, role) {
   if (state.vip) state.vip.lv = vipLvl();   // the level of today (after the losses), read by the server for the badge seen by the others
   return JSON.stringify({ state, events: __events, error, lvl: playerLevel(totalPower()), power: totalPower() });
 }
+// the calendar of a saved game (for the 19 h reminder): read only
+function __calInfo(stJson) { const st = JSON.parse(stJson); state = st && st.slots ? st : fresh(); normalizeState(); return JSON.stringify({ ready: calReady(), n: calIdx() + 1 }); }
 // every outpost of the map, from the database (the Fortified Mountains move away from them)
 function __setOutposts(json) { setOutposts(JSON.parse(json)); tileCache.clear(); return OUTPOSTS.size; }

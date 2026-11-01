@@ -79,3 +79,12 @@ function shop() {
   return JSON.parse(vm.runInContext(`JSON.stringify({ packs: SHOP_PACKS, starter: SHOP_STARTER, pass: SHOP_PASS, prog: SHOP_PROG, weekly: SHOP_WEEKLY, products: PAY_PRODUCTS, cgv: CGV_VER, evTiers: EV_TIERS.map(t => t.p) })`, ctx));
 }
 module.exports.shop = shop;
+// the text of a notification, in the player's language
+function pushText(lang, kind, data) {
+  if (!ctx) load();
+  ctx.__pa = JSON.stringify([String(lang || 'en'), String(kind), data || {}]);
+  return JSON.parse(vm.runInContext(`(() => { const [l, k, d] = JSON.parse(__pa), L0 = LANG; LANG = LANGS.some(x => x[0] === l) ? l : 'en'; try { return JSON.stringify(pushText(k, d)); } finally { LANG = L0; } })()`, ctx));
+}
+// the calendar of a saved game: is the gift of today waiting, and which day is it
+function calInfo(st) { if (!ctx) load(); try { return JSON.parse(ctx.__calInfo(JSON.stringify(st))); } finally { fakeNow = null; } }
+module.exports.pushText = pushText; module.exports.calInfo = calInfo;
