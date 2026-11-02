@@ -281,7 +281,7 @@ module.exports = function makePanel(C) {
     // ----- beta test: settings, list of the testers, invitations, reward, bug reports, reset of the server -----
     if (req.method === 'GET' && name === 'beta') return send(res, 200, { ...beta.adminView(), launcher: LAUNCHER, now: Date.now() });
     if (req.method === 'POST' && name === 'beta') {
-      try { const r = await beta.adminAct(P, by); if (P.op === 'set') changed(); return send(res, 200, r); }
+      try { const r = await beta.adminAct(P, by); if (P.op === 'set') { changed(); if (P.on !== undefined || P.started !== undefined) broadcast('reload', {}); } return send(res, 200, r); }   // open games reload: the accounts not allowed any more go back to the login screen
       catch (e) { if (!e.code) throw e; return send(res, e.code, { error: e.error }); }
     }
     if (req.method === 'POST' && name === 'betareset') {   // start of the beta: a copy of the database, then every game starts again from zero, then a restart

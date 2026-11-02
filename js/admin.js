@@ -386,10 +386,12 @@ async function viewBeta() {
   const draw = () => {
     const free = Math.max(0, B.places - B.count), bugsOpen = B.bugs.filter(b => !b.done).length;
     $('#main').innerHTML = top('Bêta') + `
-      <div class="card ${B.on ? 'warnc' : ''}"><div class="ch"><img src="${IMG('quests')}" alt=""><h2>Mode bêta</h2><span class="badge ${B.on ? 'ban' : ''}">${B.on ? 'ACTIVÉ' : 'désactivé'}</span></div>
-        <p class="small">${B.on ? 'Seuls les inscrits de la liste peuvent créer un compte (avec la même adresse e-mail). La boutique payante est cachée. Un bandeau BÊTA est affiché dans le jeu.'
-          : 'Le jeu est ouvert à tout le monde. Active le mode bêta quand tu lances la bêta.'}</p>
-        <div class="row"><button class="btn ${B.on ? 'sec' : 'ora'}" id="bon"><img src="${IMG(B.on ? 'ui_close' : 'ui_ok')}" alt="">${B.on ? 'Désactiver le mode bêta' : 'Activer le mode bêta'}</button></div></div>
+      <div class="card ${B.on ? 'warnc' : ''}"><div class="ch"><img src="${IMG('quests')}" alt=""><h2>Mode bêta</h2><span class="badge ${B.on ? 'ban' : ''}">${!B.on ? 'désactivé' : B.started ? 'BÊTA LANCÉE' : 'JEU FERMÉ'}</span></div>
+        <p class="small">${!B.on ? 'Le jeu est ouvert à tout le monde.'
+          : B.started ? '<b>Bêta lancée</b> : seuls les comptes de la liste des inscrits peuvent jouer (et créer leur compte avec la même adresse e-mail). Les autres comptes sont refusés. La boutique payante est cachée.'
+          : '<b>Jeu fermé</b> : personne ne peut jouer ni créer de compte, sauf toi. Les joueurs voient « La bêta n\'a pas encore commencé ». Le jour J, clique sur « Lancer la bêta ».'}</p>
+        <div class="row">${B.on ? `<button class="btn ${B.started ? 'sec' : 'ora'}" id="bstart"><img src="${IMG(B.started ? 'ui_lock' : 'ui_ok')}" alt="">${B.started ? 'Refermer le jeu (bêta en pause)' : 'Lancer la bêta (ouvrir aux inscrits)'}</button>` : ''}
+          <button class="btn ${B.on ? 'sec' : 'ora'}" id="bon"><img src="${IMG(B.on ? 'ui_close' : 'ui_ok')}" alt="">${B.on ? 'Désactiver le mode bêta (jeu ouvert à tous)' : 'Activer le mode bêta'}</button></div></div>
       <div class="card"><div class="ch"><img src="${IMG('messages')}" alt=""><h2>Inscriptions sur le site</h2><span class="badge ${B.open && free ? 'admin' : 'ban'}">${!free ? 'COMPLET' : B.open ? 'ouvertes' : 'fermées'}</span></div>
         <p><b style="font-size:22px">${B.count} / ${B.places}</b> <span class="mut">places prises · page : <a href="https://mekanikwar.com/fr/beta" target="_blank" rel="noopener">mekanikwar.com/fr/beta</a></span></p>
         <div class="row"><label>Nombre de places<input id="bpl" type="number" min="1" max="10000" value="${B.places}" style="width:110px"></label>
@@ -426,7 +428,14 @@ async function viewBeta() {
         <div class="row"><label>Crédits par testeur<input id="bcr" type="number" min="1" max="100000" value="500" style="width:120px"></label><button class="btn" id="brew"><img src="${IMG('ui_ok')}" alt="">Distribuer la récompense</button></div></div>`;
     // ---- actions ----
     const post = (body, msg) => run(null, () => api('POST', 'beta', body), msg).then(r => { if (r) load(); return r; });
-    $('#bon').onclick = async () => { if (!B.on && !await confirmBox('Activer le mode bêta', 'Seuls les inscrits de la liste pourront créer un compte, et la boutique payante sera cachée. Continuer ?', 'Activer', 'ora')) return; post({ op: 'set', on: !B.on }, B.on ? 'Mode bêta désactivé' : 'Mode bêta activé'); };
+    $('#bon').onclick = async () => {
+      if (!await confirmBox(B.on ? 'Désactiver le mode bêta' : 'Activer le mode bêta', B.on ? 'Le jeu sera de nouveau ouvert à tout le monde (inscriptions libres, boutique visible). Continuer ?'
+        : 'Le jeu sera fermé à tout le monde sauf toi, jusqu\'à ce que tu cliques sur « Lancer la bêta ». Les parties ouvertes se rechargent. Continuer ?', B.on ? 'Désactiver' : 'Activer', 'ora')) return;
+      post({ op: 'set', on: !B.on }, B.on ? 'Mode bêta désactivé' : 'Mode bêta activé : jeu fermé'); };
+    const bs = $('#bstart'); if (bs) bs.onclick = async () => {
+      if (!await confirmBox(B.started ? 'Refermer le jeu' : 'Lancer la bêta', B.started ? 'Plus personne ne pourra jouer sauf toi (les parties sont gardées). Continuer ?'
+        : 'Les comptes de la liste des inscrits pourront jouer, et créer leur compte avec leur adresse e-mail. Pense à envoyer les invitations. Continuer ?', B.started ? 'Refermer' : 'Lancer', 'ora')) return;
+      post({ op: 'set', started: !B.started }, B.started ? 'Jeu refermé' : 'Bêta lancée !'); };
     $('#bopen').onclick = () => post({ op: 'set', open: !B.open }, B.open ? 'Inscriptions fermées' : 'Inscriptions rouvertes');
     $('#bsave').onclick = () => post({ op: 'set', places: +$('#bpl').value, msg: $('#bmsg').value }, 'Enregistré');
     document.querySelectorAll('[data-t]').forEach(b => b.onclick = () => { tab = b.dataset.t; draw(); });

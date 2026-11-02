@@ -16,7 +16,8 @@ module.exports = function makeBeta({ db, Q, log, clean, acc, runFor, push, NAME_
   const int = (v, lo, hi) => Math.max(lo, Math.min(hi, Math.floor(Number(v) || 0)));
   const txt = (v, n) => String(v || '').replace(/[\u0000-\u001f\u007f]/g, ' ').trim().slice(0, n);
   // on: beta mode · open: sign-ups open on the website · places · msg: the message of the beta page (date of the start...)
-  let S = Object.assign({ on: false, open: true, places: 50, msg: '' }, metaGet('beta') || {});
+  // started: the beta is launched (the listed testers can play); before, only the administrator can enter the game
+  let S = Object.assign({ on: false, started: false, open: true, places: 50, msg: '' }, metaGet('beta') || {});
   const save = () => metaSet('beta', S);
   const B = {
     all: db.prepare('SELECT * FROM beta_signups ORDER BY at'),
@@ -61,8 +62,15 @@ module.exports = function makeBeta({ db, Q, log, clean, acc, runFor, push, NAME_
 
   // ---------- the game ----------
   // beta mode: an account can be created only with an address of the list (the administrator always can)
+  // who may play: beta mode off = everybody · beta not launched yet = the administrator only · beta launched = the accounts of the list
+  function access(u) {
+    if (!S.on || !u || u.role === 'admin') return null;
+    if (!S.started) return 'beta_soon';
+    return B.byUid.get(u.id) ? null : 'beta_list';
+  }
   function registerCheck(name, email, isAdmin) {
     if (!S.on || isAdmin) return null;
+    if (!S.started) return 'beta_soon';
     const r = email && B.byEmail.get(String(email).trim());
     if (!r) return 'beta_only';
     if (r.uid && db.prepare('SELECT 1 FROM users WHERE id = ?').get(r.uid)) return 'beta_used';
@@ -134,11 +142,12 @@ module.exports = function makeBeta({ db, Q, log, clean, acc, runFor, push, NAME_
   async function adminAct(P, by) {
     const op = String(P.op || '');
     if (op === 'set') {
-      if (P.on !== undefined) S.on = !!P.on;
+      if (P.on !== undefined) { S.on = !!P.on; if (!S.on) S.started = false; }
+      if (P.started !== undefined) S.started = !!P.started && S.on;
       if (P.open !== undefined) S.open = !!P.open;
       if (P.places !== undefined) S.places = int(P.places, 1, 10000);
       if (P.msg !== undefined) S.msg = txt(P.msg, 300);
-      save(); log('BÊTA', `${by} : mode bêta ${S.on ? 'ACTIVÉ' : 'désactivé'} · inscriptions ${S.open ? 'ouvertes' : 'fermées'} · ${S.places} places${S.msg ? ' · message : ' + S.msg : ''}`);
+      save(); log('BÊTA', `${by} : mode bêta ${S.on ? 'ACTIVÉ' + (S.started ? ' (bêta LANCÉE : les inscrits jouent)' : ' (bêta pas encore lancée : jeu fermé)') : 'désactivé'} · inscriptions ${S.open ? 'ouvertes' : 'fermées'} · ${S.places} places${S.msg ? ' · message : ' + S.msg : ''}`);
       return { ok: true };
     }
     if (op === 'add') {   // by hand: an account of this server, or a name and an e-mail
@@ -160,5 +169,5 @@ module.exports = function makeBeta({ db, Q, log, clean, acc, runFor, push, NAME_
     if (op === 'bug') { db.prepare('UPDATE bug_reports SET done = ? WHERE id = ?').run(P.done ? 1 : 0, int(P.id, 1, 1e12)); return { ok: true }; }
     throw err(400, 'action inconnue');
   }
-  return { publicInfo, signup, registerCheck, registered, bug, adminView, adminAct, wipe, isOn: () => S.on };
+  return { publicInfo, signup, registerCheck, registered, access, bug, adminView, adminAct, wipe, isOn: () => S.on };
 };

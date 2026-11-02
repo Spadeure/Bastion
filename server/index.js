@@ -443,7 +443,7 @@ async function api(req, res, url, ip) {
     const isAdm = String(name).trim().toLowerCase() === ADMIN_NAME.toLowerCase();
     // beta mode: only the addresses signed up for the beta (website or panel) can create an account
     const brow = beta.registerCheck(String(name).trim(), email, isAdm);
-    if (brow === 'beta_only' || brow === 'beta_used') { log('INSCRIPTION REFUSÉE', `${clean(String(name).trim())} · ${ip} · bêta : ${brow === 'beta_only' ? 'adresse absente de la liste des inscrits' : 'place déjà utilisée par un autre compte'}`); return send(res, 403, { error: brow }); }
+    if (typeof brow === 'string') { log('INSCRIPTION REFUSÉE', `${clean(String(name).trim())} · ${ip} · bêta : ${{ beta_only: 'adresse absente de la liste des inscrits', beta_used: 'place déjà utilisée par un autre compte', beta_soon: 'la bêta n\'est pas encore lancée' }[brow] || brow}`); return send(res, 403, { error: brow }); }
     if (IS_TEST && !isAdm && !(brow && typeof brow === 'object')) { log('INSCRIPTION REFUSÉE', `${clean(String(name).trim())} · ${ip} · serveur de test (comptes créés depuis le panel)`); return send(res, 403, { error: 'test_closed' }); }
     if (panel.isMaint() && String(name).trim().toLowerCase() !== ADMIN_NAME.toLowerCase()) return send(res, 503, { error: 'maintenance' });
     if (accountsToday(ip) >= ACCOUNTS_PER_DAY) { log('INSCRIPTION REFUSÉE', `${clean(String(name).trim())} · ${ip} · déjà ${ACCOUNTS_PER_DAY} comptes créés aujourd'hui depuis cette adresse`); return send(res, 429, { error: 'too_many_accounts' }); }
@@ -487,6 +487,7 @@ async function api(req, res, url, ip) {
       blockIfTooMany(ip, n, 'connexions échouées');
       return send(res, 401, { error: 'bad_login' });
     }
+    { const bw = beta.access(u); if (bw && !fromPanel) { log('CONNEXION REFUSÉE', `${u.name} · ${ip} · bêta : ${bw === 'beta_soon' ? 'pas encore lancée' : 'compte absent de la liste des inscrits'}`); return send(res, 403, { error: bw }); } }
     if (u.banned) { const be = banError(u.id); log('CONNEXION REFUSÉE', `${u.name} · ${ip} · compte bloqué (${be.error === 'banned_admin' ? 'par l\'administrateur' : 'script'})`); return send(res, 403, be); }
     const token = crypto.randomBytes(32).toString('hex'), now = Date.now(); Q.addSession.run(token, u.id, now, now); Q.userSeen.run(now, u.id); lastIp.set(u.id, ip);
     let others = 0;
@@ -505,7 +506,8 @@ async function api(req, res, url, ip) {
   if (me && me.replaced) return send(res, 401, { error: 'session_replaced' });
   if (!me) return send(res, 401, { error: 'not_logged_in' });
   if (url.startsWith('/api/admin/') && me.role === 'admin') { lastIp.set(me.id, ip); return panel.route(req, res, url, me, ip); }   // the management panel (administrator only)
-  if (me.banned) return send(res, 403, banError(me.id));   // blocked for using a script, or by the administrator
+  if (me.banned) return send(res, 403, banError(me.id));
+  { const bw = beta.access(me); if (bw && url !== '/api/logout') return send(res, 403, { error: bw }); }   // beta: the game is closed to this account   // blocked for using a script, or by the administrator
   STATS.players.add(me.name); lastIp.set(me.id, ip);
   // official server: nobody has any power in the game, the administrator plays exactly like everybody (checks, maintenance…);
   // his role only opens the management panel. The tests with the administration buttons are done on the test server.
