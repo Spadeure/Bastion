@@ -431,7 +431,7 @@ async function api(req, res, url, ip) {
   if (url === '/api/register' && req.method === 'POST') {
     if (isBlocked(ip)) return send(res, 429, { error: 'too_many' });
     blockIfTooMany(ip, strike(ip), 'créations de compte');          // every new account counts: no flood of accounts
-    const { name = '', password = '' } = await readBody(req, 10_000);
+    const { name = '', password = '', email = '', lang = 'en' } = await readBody(req, 10_000);
     // test server: only the administrator account can be created here (the testers are created from the management panel)
     if (IS_TEST && String(name).trim().toLowerCase() !== ADMIN_NAME.toLowerCase()) { log('INSCRIPTION REFUSÉE', `${clean(String(name).trim())} · ${ip} · serveur de test (comptes créés depuis le panel)`); return send(res, 403, { error: 'test_closed' }); }
     if (panel.isMaint() && String(name).trim().toLowerCase() !== ADMIN_NAME.toLowerCase()) return send(res, 503, { error: 'maintenance' });
@@ -440,15 +440,29 @@ async function api(req, res, url, ip) {
     if (!NAME_OK.test(n) || !oneScript(n)) return send(res, 400, { error: 'bad_name' });
     if (String(password).length < 6 || String(password).length > 100) return send(res, 400, { error: 'bad_password' });
     if (Q.userByName.get(n) || nameLooksTaken(n) || (skeleton(n) === skeleton(ADMIN_NAME) && n.toLowerCase() !== ADMIN_NAME.toLowerCase())) return send(res, 409, { error: 'name_taken' });
+    let mail = null;   // the e-mail address: needed on the official server (forgotten password), confirmed by a link
+    if (!IS_TEST || email) { try { mail = acc.checkNewEmail(email); } catch (e) { return send(res, e.code, { error: e.error }); } }
     const salt = crypto.randomBytes(16).toString('hex'), now = Date.now();
     const id = Number(Q.addUser.run(n, salt, hashPass(String(password), salt), now).lastInsertRowid);
     if (Q.count.get().n === 1) { Q.setRole.run('admin', id); log('ADMIN', `Administrateur : ${n}`); }
     const p = freeSpot(); Q.addBase.run(id, p.x, p.y, now);
     newAccounts.set(ip, [...(newAccounts.get(ip) || []), now]);
     const token = crypto.randomBytes(32).toString('hex'); Q.addSession.run(token, id, now, now); Q.userSeen.run(now, id); lastIp.set(id, ip);
+    if (mail) acc.afterRegister(id, mail, LANG_OK.includes(lang) ? lang : 'en');
     STATS.registered++; STATS.players.add(n);
     log('INSCRIPTION', `${n} · ${ip} · base en (${p.x}, ${p.y})`);
     return send(res, 200, { token, name: n });
+  }
+  // forgotten password, new password from the e-mail link, address confirmed: without being logged in
+  if (url === '/api/password/forgot' && req.method === 'POST') {
+    if (isBlocked(ip)) return send(res, 429, { error: 'too_many' }); blockIfTooMany(ip, strike(ip), 'demandes de mot de passe');
+    const P = await readBody(req, 5_000); return send(res, 200, await acc.forgot({ who: P.who, lang: LANG_OK.includes(P.lang) ? P.lang : 'en' }));
+  }
+  if ((url === '/api/password/reset' || url === '/api/email/verify') && req.method === 'POST') {
+    if (isBlocked(ip)) return send(res, 429, { error: 'too_many' });
+    const P = await readBody(req, 5_000);
+    try { return send(res, 200, url === '/api/email/verify' ? acc.verify(P) : acc.reset(P)); }
+    catch (e) { if (!e.code) throw e; if (e.error === 'link_expired') blockIfTooMany(ip, strike(ip), 'liens invalides'); return send(res, e.code, { error: e.error }); }
   }
   if (url === '/api/login' && req.method === 'POST') {
     if (isBlocked(ip)) return send(res, 429, { error: 'too_many' });
@@ -559,6 +573,10 @@ async function api(req, res, url, ip) {
     return send(res, 200, { players: Q.players.all(me.id).map(({ uid, cos, ...p }) => ({ ...p, cos: cos ? JSON.parse(cos) : null, shield: p.shield > now ? p.shield : 0, alliance: an.get(uid) || null })), outposts: Q.allOps.all() }); }
   if (url === '/api/alliance' && req.method === 'GET') return send(res, 200, ally.view(me));
   if (url === '/api/event' && req.method === 'GET') return send(res, 200, events.view(me));
+  if (url === '/api/account' && req.method === 'GET') return send(res, 200, acc.view(me));   // my e-mail address
+  if (url === '/api/account' && req.method === 'POST') { const P = await readBody(req, 5_000);   // address, password, deletion
+    try { const r = await acc.act(me, { ...P, lang: LANG_OK.includes(P.lang) ? P.lang : 'en' }); return send(res, 200, r); }
+    catch (e) { if (!e.code) throw e; if (e.error === 'bad_login') blockIfTooMany(ip, strike(ip), 'mauvais mot de passe (compte)'); return send(res, e.code, { error: e.error }); } }
   if (url === '/api/push' && req.method === 'GET') return send(res, 200, notify.view(me));   // notifications: the game's public key, my settings
   if (url === '/api/push' && req.method === 'POST') { const P = await readBody(req, 5_000);
     try { return send(res, 200, notify.act(me, P)); } catch (e) { if (!e.code) throw e; return send(res, e.code, { error: e.error }); } }   // the tournament: tiers, my score, ranking
@@ -998,6 +1016,9 @@ const ally = require('./alliance.js')({ db, Q, log, clean, push, runFor, DAY_FMT
 function statSet(uid, k) { try { const u = Q.user.get(uid), b = Q.base.get(uid); if (!u || !b || !b.state) return; const r = runFor({ ...u, role: 'server' }, b, 'statSet', [k], 'fr', true); if (!r.error) push(uid, 'sync', {}); } catch (e) { log('ERREUR', 'statistique de quête : ' + e.message); } }
 ally.hooks.act = (uid, kind, other) => { try { events.onAct(uid, kind, other); } catch (e) { log('ERREUR', 'défi d\'alliance : ' + e.message); } if (kind === 'help') statSet(uid, 'helps'); };
 ally.hooks.join = uid => statSet(uid, 'ally');
+// accounts: e-mail, forgotten password, deletion (server/account.js)
+const acc = require('./account.js')({ db, Q, log, hashPass, IS_TEST, ADMIN_NAME, ally,
+  onDelete: u => { push(u.id, 'kick', {}); const set = streams.get(u.id); if (set) for (const r of set) { try { r.end(); } catch (e) {} } streams.delete(u.id); loadOutposts(); } });
 // players already in an alliance before this version: the quest « join an alliance » is noted once
 setTimeout(() => { let n = 0; for (const r of db.prepare("SELECT m.user_id AS uid FROM ally_members m JOIN bases b ON b.user_id = m.user_id WHERE b.state IS NOT NULL AND COALESCE(json_extract(b.state, '$.stats.ally'), 0) = 0").all()) { statSet(r.uid, 'ally'); n++; } if (n) log('QUÊTES', `alliance notée pour ${n} membre(s) déjà en alliance`); }, 3000).unref();   // help and reinforcements count for the Alliance Challenge
 // ---------- chat ----------
@@ -1014,5 +1035,5 @@ const panel = require('./panel.js')({
   db, Q, log, send, readBody, broadcast, push, streams, onlineSince, lastIp, watch, cheat, clean, STAMP,
   ROOT, DATA, ADMIN_NAME, IS_TEST, GIT, PATCH_ID, VERSION, STARTED, REASON_FR, NAME_OK,
   BACKUP_DIR, backupDb: () => backupDb(true), createAccount, unbanPlayer, admin, engine, UNIT_IDS,
-  orderBucket, chat, events,
+  orderBucket, chat, events, acc: () => acc,
 });

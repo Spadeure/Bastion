@@ -55,6 +55,7 @@ fr: {
 <p>{name}, {email}.</p>
 <h3>Données gardées et pourquoi</h3>
 <ul><li><b>Nom de commandant et mot de passe</b> (chiffré, jamais lisible) : pour ton compte.</li>
+<li><b>Adresse e-mail</b> : seulement pour confirmer ton compte et t'envoyer un lien si tu oublies ton mot de passe. Jamais de publicité, jamais transmise à d'autres.</li>
 <li><b>Ta partie</b> (base, troupes, objets, achats) : pour faire tourner le jeu.</li>
 <li><b>Adresse IP et heures de connexion</b> : sécurité, lutte contre la triche et les attaques, pendant 12 mois au plus.</li>
 <li><b>Messages du chat</b> : le chat général et d'alliance garde les 200 derniers messages, les messages privés 30 jours.</li>
@@ -63,7 +64,7 @@ fr: {
 <h3>Ce qui n'est pas fait</h3>
 <p>Pas de publicité, pas de revente de données, pas de cookies de suivi. Le navigateur garde seulement ta session et tes réglages (langue, son).</p>
 <h3>Tes droits</h3>
-<p>Tu peux demander l'accès à tes données, leur correction ou la suppression de ton compte en écrivant à {email}. Tu peux aussi saisir la CNIL (cnil.fr).</p>`
+<p>Tu peux supprimer ton compte toi-même dans Paramètres › Compte : la base, les messages et les données sont effacés tout de suite (seuls les justificatifs d'achat sont gardés, obligation comptable). Tu peux aussi demander l'accès à tes données ou leur correction en écrivant à {email}. Tu peux aussi saisir la CNIL (cnil.fr).</p>`
 },
 en: {
   mentions: `<h3>Publisher</h3>
@@ -117,6 +118,7 @@ en: {
 <p>{name}, {email}.</p>
 <h3>Data kept and why</h3>
 <ul><li><b>Commander name and password</b> (hashed, never readable): for your account.</li>
+<li><b>E-mail address</b>: only to confirm your account and send you a link if you forget your password. Never any advertising, never given to anyone.</li>
 <li><b>Your game</b> (base, troops, items, purchases): to run the game.</li>
 <li><b>IP address and login times</b>: security, fight against cheating and attacks, 12 months at most.</li>
 <li><b>Chat messages</b>: the general and alliance chats keep the latest 200 messages, private messages 30 days.</li>
@@ -125,5 +127,5 @@ en: {
 <h3>What is not done</h3>
 <p>No advertising, no sale of data, no tracking cookies. The browser only keeps your session and your settings (language, sound).</p>
 <h3>Your rights</h3>
-<p>You can ask for access to your data, its correction or the deletion of your account by writing to {email}. You can also contact the French data authority, the CNIL (cnil.fr).</p>`
+<p>You can delete your account yourself in Settings › Account: the base, messages and data are erased at once (only the purchase records are kept, accounting obligation). You can ask for access to your data, its correction or the deletion of your account by writing to {email}. You can also contact the French data authority, the CNIL (cnil.fr).</p>`
 }};

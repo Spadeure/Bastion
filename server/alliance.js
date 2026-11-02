@@ -309,6 +309,17 @@ module.exports = function makeAlliances(C) {
     log('ALLIANCE', `${me.name} dissout l'alliance ${al.a.name}`); return { ok: true };
   }
 
+  // an account deleted: it leaves its alliance (a leader hands over to the best officer or member; alone, the alliance is dissolved)
+  function removeUser(uid) {
+    const al = allyOf(uid); if (!al) { A.reqDelUser.run(uid); return; }
+    const u = userOf(uid) || { name: '?' };
+    if (al.m.role === 'leader') {
+      const next = A.members.all(al.a.id).filter(m => m.id !== uid).sort((x, y) => (y.role === 'officer') - (x.role === 'officer') || (y.power || 0) - (x.power || 0))[0];
+      if (!next) { disband(u, al); A.reqDelUser.run(uid); return; }
+      A.setRole.run('leader', next.id); note(al.a.id, 'newleader', { n: next.name, o: u.name });
+    }
+    leaveNow(uid, al.a, 'leave'); A.reqDelUser.run(uid);
+  }
   // ---------- fights: the reinforcements at a base defend it with its own troops ----------
   function reinfAt(uid) { const t = {}; for (const r of A.rHere.all(uid)) for (const [u, n] of Object.entries(cleanTroops(parse(r.troops)))) t[u] = (t[u] || 0) + n; return t; }
   // after the fight: each reinforcement keeps its share of the survivors of its kind of troop
@@ -329,5 +340,5 @@ module.exports = function makeAlliances(C) {
   const namesQ = db.prepare('SELECT m.user_id AS id, a.name FROM ally_members m JOIN alliances a ON a.id = m.aid');
   const names = () => new Map(namesQ.all().map(r => [r.id, r.name]));
   const tellMates = uid => { const m = A.member.get(uid); if (m) tellAlly(m.aid); };   // something the allies see changed (a construction to help...)
-  return { hooks, view, act, tellMates, sameAlliance, allyName, names, reinfAt, afterFight, allHome, SERVER_ACTS: new Set(['reinforce', 'reinfBack', 'allyGive', 'allyGet', 'allyHelp']) };
+  return { hooks, removeUser, view, act, tellMates, sameAlliance, allyName, names, reinfAt, afterFight, allHome, SERVER_ACTS: new Set(['reinforce', 'reinfBack', 'allyGive', 'allyGet', 'allyHelp']) };
 };

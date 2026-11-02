@@ -1176,3 +1176,11 @@ button.danger{background:linear-gradient(180deg,#b8432f,#7a2416)!important;color
 .note{font-size:12px;color:#cfc6b0;background:#e0b8301a;border:1px dashed #e0b83088;border-radius:8px;padding:6px 8px;margin:6px 0}
 .evme b.bad{color:#ff9a7a}
 .champb.champa{background:linear-gradient(#a8f5c8,#3fae6e);color:#062814}
+
+/* account: e-mail, password, deletion */
+#login .lforgot{text-align:center;font-size:13px;color:#cfc9ad;text-decoration:underline;cursor:pointer}
+#login .lerr .ok{color:#8fe07a}
+.accrow{margin:6px 0}.accrow .bad{color:#ff9a7a}.accrow .ok{color:#8fe07a}
+.accf{display:flex;flex-direction:column;gap:6px;margin-top:8px}.accf input{padding:8px 10px;border-radius:8px;border:1px solid #5a5a3a;background:#10140f;color:#eee;font-size:15px}
+.accdel{border-color:#7a2a20!important;margin-top:14px}
+button.red{background:linear-gradient(#c0432f,#7d2216)!important;color:#fff!important}

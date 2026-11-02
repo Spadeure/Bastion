@@ -300,6 +300,7 @@ async function openPlayer(name) {
       <span>Titan</span><span>${p.titan ? 'niv. ' + p.titan : 'aucun'}</span><span>Troupes</span><span>${fmtN(p.troops)} à la base</span>
       <span>Ressources</span><span class="small">${res || '—'}</span>
       <span>Inscrit</span><span>${dt(p.created)}</span><span>Adresse</span><span class="mono">${esc(p.ip || 'inconnue (pas vu depuis le démarrage)')}${p.games ? ` · ${p.games} partie(s) ouverte(s)` : ''}</span>
+      <span>E-mail</span><span>${p.email ? esc(p.email) + (p.email_ok ? ' <span class="ok small">confirmée</span>' : ' <span class="warn small">pas encore confirmée</span>') : '<span class="mut">aucune</span>'}</span>
       <span>Ordres</span><span>${p.orders.m1} dans la dernière minute · ${p.orders.m10} en 10 min${p.orders.bad ? ` · <span class="warn">${p.orders.bad} requête(s) hors du jeu</span>` : ''}</span></div>
     <h3>Actions</h3>
     <div class="row">${p.admin ? '<span class="mut small">Compte principal : il ne peut être ni bloqué, ni déconnecté, ni changé de rôle.</span>' : `
@@ -307,6 +308,11 @@ async function openPlayer(name) {
       <select id="role">${Object.entries(ROLE).filter(([k]) => k !== 'tester' || (D && D.server.test) || p.role === 'tester').map(([k, l]) => `<option value="${k}"${k === p.role ? ' selected' : ''}>${l}</option>`).join('')}</select><button class="btn sec sm" id="setrole">Changer le rôle</button>`}</div>
     ${p.admin ? '' : p.banned ? `<div class="row"><button class="btn sm" id="unban"><img src="${IMG('ui_ok')}" alt="">Débloquer</button></div>`
       : `<div class="row"><input id="motif" class="grow" maxlength="200" placeholder="Motif du blocage (le joueur le verra)"><button class="btn red sm" id="ban"><img src="${IMG('ui_lock')}" alt="">Bloquer</button></div>`}
+    <h3>Mot de passe et compte</h3>
+    <div class="row"><button class="btn sec sm" id="pwmail"${p.email ? '' : ' disabled'}><img src="${IMG('messages')}" alt="">Envoyer un lien de réinitialisation</button>
+      <button class="btn sec sm" id="pwtemp"><img src="${IMG('ui_lock')}" alt="">Mot de passe provisoire</button>
+      ${p.admin ? '' : `<button class="btn red sm" id="delacc"><img src="${IMG('ui_close')}" alt="">Supprimer le compte</button>`}</div>
+    ${p.mailOn ? '' : '<p class="mut small">Les e-mails ne partent pas encore : il manque les réglages SMTP dans les variables du serveur (SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM).</p>'}
     ${D && D.server.test ? `<h3>Dons</h3>
     <div class="gifts">
       <div class="gift"><h3><img src="${IMG('metal')}" alt="">Ressources</h3><div class="row"><select id="gres">${opts(CAT.res)}<option value="all">Toutes (sauf alliage)</option></select></div>
@@ -326,6 +332,12 @@ async function openPlayer(name) {
   const act = async (b, body, msg) => { if (await run(b, () => api('POST', 'player', Object.assign({ name: p.name }, body)))) reopen(msg); };
   const on = (id, f) => { const b = s.querySelector('#' + id); if (b) b.onclick = () => f(b); };
   on('kick', async b => { if (await confirmBox('Déconnecter', `${esc(p.name)} est renvoyé à l'écran de connexion tout de suite (il peut se reconnecter).`, 'Déconnecter', 'ora')) act(b, { op: 'kick' }, 'Joueur déconnecté'); });
+  on('pwmail', async b => { if (await confirmBox('Lien de réinitialisation', `Un e-mail part vers l'adresse de ${esc(p.name)} avec un lien valable 1 heure.`, 'Envoyer')) act(b, { op: 'pwmail' }, 'Lien envoyé'); });
+  on('pwtemp', async b => { if (!await confirmBox('Mot de passe provisoire', `Le mot de passe de ${esc(p.name)} est remplacé, et ses parties ouvertes sont fermées. Tu lui donnes le nouveau mot de passe toi-même (il pourra le changer dans les Paramètres du jeu).`, 'Remplacer', 'ora')) return;
+    try { const j = await api('POST', 'player', { name: p.name, op: 'pwtemp' }); await confirmBox('Nouveau mot de passe de ' + esc(p.name), `<b class="mono" style="font-size:20px">${esc(j.password)}</b><br><span class="mut small">Il n'est affiché qu'une fois : note-le pour le donner au joueur.</span>`, 'OK'); } catch (e) { toast(e.message, true); } });
+  on('delacc', async b => { const c = prompt(`Supprimer définitivement le compte ${p.name} (base, avant-postes, messages) ?\nÉcris son nom exact pour confirmer :`); if (c === null) return;
+    if (c !== p.name) return toast('Nom différent : rien n\'est supprimé', true);
+    if (await run(b, () => api('POST', 'player', { name: p.name, op: 'delete', confirm: c }), 'Compte supprimé')) { PL = null; go('players'); } });
   on('setrole', b => act(b, { op: 'role', role: s.querySelector('#role').value }, 'Rôle changé'));
   on('unban', b => act(b, { op: 'unban' }, 'Joueur débloqué'));
   on('ban', async b => { const motif = s.querySelector('#motif').value.trim(); if (!motif) return toast('Indique un motif', true);

@@ -7,7 +7,7 @@ const fs = require('fs'), path = require('path');
 
 module.exports = function makePanel(C) {
   const { db, Q, log, send, readBody, broadcast, push, streams, onlineSince, lastIp, watch, cheat, clean, STAMP,
-    DATA, ADMIN_NAME, IS_TEST, GIT, PATCH_ID, VERSION, STARTED, REASON_FR, BACKUP_DIR, backupDb, createAccount, unbanPlayer, admin, engine, UNIT_IDS, orderBucket, chat, events } = C;
+    DATA, ADMIN_NAME, IS_TEST, GIT, PATCH_ID, VERSION, STARTED, REASON_FR, BACKUP_DIR, backupDb, createAccount, unbanPlayer, admin, engine, UNIT_IDS, orderBucket, chat, events, acc } = C;
   const TEST_URL = (process.env.TEST_URL || 'https://bastion-test.stryxhost.fr').replace(/\/+$/, '');
   // the other server, for the link between the two panels (same computer at home, other port)
   const OTHER = IS_TEST ? { name: 'OFFICIEL', port: +process.env.OFFICIAL_PORT || 58689 } : { name: 'TEST', port: +process.env.TEST_PORT || 55000 };
@@ -109,6 +109,7 @@ module.exports = function makePanel(C) {
       outpost: op ? { x: op.x, y: op.y, lvl: op.lvl, titan: st.op && st.op.titan ? st.op.titan.lvl : 0 } : null,
       orders: w ? { m1: w.acts.filter(x => now - x.t < 60_000).length, m10: w.acts.filter(x => now - x.t < 600_000).length, bad: w.bad.filter(t => now - t < 600_000).length } : { m1: 0, m10: 0, bad: 0 },
       bans: db.prepare('SELECT * FROM bans WHERE user_id = ? ORDER BY at DESC LIMIT 10').all(u.id).map(banText),
+      ...acc().admin.info(u), mailOn: acc().mailOn(),
     };
   }
   function closeGames(uid) { const set = streams.get(uid); if (set) for (const r of set) { try { r.end(); } catch (e) {} } }
@@ -259,6 +260,11 @@ module.exports = function makePanel(C) {
         log('DÉCONNEXION', `${u.name} déconnecté par ${by} (${n} session(s) fermée(s))`);
         return send(res, 200, { ok: true });
       }
+      // ----- password and account -----
+      if (op === 'pwtemp') return send(res, 200, acc().admin.tempPass(u, by));
+      if (op === 'pwmail') { try { return send(res, 200, await acc().admin.mailReset(u, by)); } catch (e) { return send(res, e.code || 500, { error: e.error || e.message }); } }
+      if (op === 'delete') { if (String(P.confirm || '') !== u.name) return send(res, 400, { error: 'écris exactement le nom du joueur pour confirmer' });
+        try { return send(res, 200, acc().admin.remove(u, by)); } catch (e) { return send(res, e.code || 500, { error: e.error || e.message }); } }
       if (op === 'give') {   // the gifts of the in-game administration, to this player (test server only: on the official server everybody plays normally)
         if (!IS_TEST) return send(res, 403, { error: 'les dons se font seulement sur le serveur de test' });
         const action = String(P.action || '');
