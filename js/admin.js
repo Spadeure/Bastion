@@ -108,7 +108,7 @@ function paintNav() {
   if (!D) return; const s = D.server, el = $('#srvtag');
   const o = $('#otherp'); if (o && D.other) { o.href = otherUrl(); o.querySelector('span').textContent = 'Aller au panel ' + D.other.name; o.className = 'btn ' + (s.test ? 'off' : 'test'); o.style.display = ''; }
   el.className = 'srvtag ' + (s.test ? 'test' : 'off'); el.textContent = s.test ? 'SERVEUR DE TEST' : 'SERVEUR OFFICIEL';
-  document.title = (s.test ? '[TEST] ' : '') + 'Bastion · Gestion';
+  document.title = (s.test ? '[TEST] ' : '') + 'Mekanik War · Gestion';
   const mb = $('#menu [data-v=maint]'); let d = mb.querySelector('.dot'); const want = !!(D.maint || D.plan);
   if (want && !d) { d = document.createElement('i'); d.className = 'dot'; mb.appendChild(d); } else if (!want && d) d.remove();
   const cb = $('#menu [data-v=chat]'); if (cb) { let c = cb.querySelector('.dot'); if (D.chatReports && !c) { c = document.createElement('i'); c.className = 'dot'; cb.appendChild(c); } else if (!D.chatReports && c) c.remove(); }

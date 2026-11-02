@@ -1,7 +1,7 @@
 {
-  "name": "Bastion Test",
-  "short_name": "Bastion Test",
-  "description": "Bastion test server: new features are tried here before the official game.",
+  "name": "Mekanik War Test",
+  "short_name": "MW Test",
+  "description": "Mekanik War test server: new features are tried here before the official game.",
   "id": "./",
   "start_url": "./?app=1",
   "scope": "./",

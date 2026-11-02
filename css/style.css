@@ -1184,3 +1184,7 @@ button.danger{background:linear-gradient(180deg,#b8432f,#7a2416)!important;color
 .accf{display:flex;flex-direction:column;gap:6px;margin-top:8px}.accf input{padding:8px 10px;border-radius:8px;border:1px solid #5a5a3a;background:#10140f;color:#eee;font-size:15px}
 .accdel{border-color:#7a2a20!important;margin-top:14px}
 button.red{background:linear-gradient(#c0432f,#7d2216)!important;color:#fff!important}
+/* the name of the game: Mekanik War, with TITANS under it */
+#login .ltitle,#loader .ltitle{font-size:34px;letter-spacing:3px;line-height:1;text-align:center;margin-top:8px}
+#login .ltitle small,#loader .ltitle small{display:block;font-size:.5em;letter-spacing:.6em;margin:4px 0 0 .6em;color:#e8e2c8;text-shadow:0 2px 0 #3a2a05}
+@media (max-width:420px){ #login .ltitle,#loader .ltitle{font-size:29px} }

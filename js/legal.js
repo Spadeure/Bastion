@@ -5,7 +5,7 @@
 const LEGAL_TEXT = {
 fr: {
   mentions: `<h3>Éditeur</h3>
-<p>Bastion est un jeu édité par <b>{name}</b>, entrepreneur individuel (micro-entreprise).<br>SIRET : {siret}<br>Adresse : {address}<br>Contact : {email}</p>
+<p>Mekanik War: Titans est un jeu édité par <b>{name}</b>, entrepreneur individuel (micro-entreprise).<br>SIRET : {siret}<br>Adresse : {address}<br>Contact : {email}</p>
 <p>Directeur de la publication : {name}.</p>
 <h3>Hébergement</h3>
 <p>Le jeu est hébergé par l'éditeur sur son propre serveur, situé en France. Les échanges passent par le réseau de Cloudflare, Inc. (101 Townsend St, San Francisco, CA 94107, États-Unis), qui protège le site.</p>
@@ -15,7 +15,7 @@ fr: {
 <p>Les images du jeu ont été créées avec l'aide de Google Gemini, puis retravaillées pour le jeu. Le code, les textes et les règles du jeu appartiennent à l'éditeur.</p>`,
   cgu: `<p>Version du {ver}. En créant un compte, tu acceptes ces règles.</p>
 <h3>1. Le jeu</h3>
-<p>Bastion est un jeu de stratégie en ligne gratuit. Certains contenus facultatifs sont payants (voir les Conditions de vente). Le jeu évolue : des règles, des objets ou des équilibrages peuvent changer pour garder un jeu juste et intéressant.</p>
+<p>Mekanik War: Titans est un jeu de stratégie en ligne gratuit. Certains contenus facultatifs sont payants (voir les Conditions de vente). Le jeu évolue : des règles, des objets ou des équilibrages peuvent changer pour garder un jeu juste et intéressant.</p>
 <h3>2. Ton compte</h3>
 <ul><li>Un compte est personnel. Garde ton mot de passe secret : l'éditeur ne te le demandera jamais.</li>
 <li>Les mineurs doivent avoir l'accord d'un parent pour jouer et pour tout achat.</li>
@@ -68,7 +68,7 @@ fr: {
 },
 en: {
   mentions: `<h3>Publisher</h3>
-<p>Bastion is published by <b>{name}</b>, sole trader (micro-entreprise, France).<br>SIRET: {siret}<br>Address: {address}<br>Contact: {email}</p>
+<p>Mekanik War: Titans is published by <b>{name}</b>, sole trader (micro-entreprise, France).<br>SIRET: {siret}<br>Address: {address}<br>Contact: {email}</p>
 <h3>Hosting</h3>
 <p>The game is hosted by the publisher on his own server in France. Traffic goes through Cloudflare, Inc. (101 Townsend St, San Francisco, CA 94107, USA), which protects the site.</p>
 <h3>Payments</h3>
@@ -78,7 +78,7 @@ en: {
 <p><i>The French version of these pages is the reference version.</i></p>`,
   cgu: `<p>Version of {ver}. By creating an account, you accept these rules. <i>The French version is the reference version.</i></p>
 <h3>1. The game</h3>
-<p>Bastion is a free online strategy game. Some optional content is paid (see the Terms of sale). The game evolves: rules, items or balance may change to keep it fair and interesting.</p>
+<p>Mekanik War: Titans is a free online strategy game. Some optional content is paid (see the Terms of sale). The game evolves: rules, items or balance may change to keep it fair and interesting.</p>
 <h3>2. Your account</h3>
 <ul><li>An account is personal. Keep your password secret: the publisher will never ask for it.</li>
 <li>Minors need a parent's permission to play and for any purchase.</li>

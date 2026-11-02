@@ -68,7 +68,7 @@ module.exports = function makePay({ db, engine, log, send, push, runFor, Q, IS_T
     try {
       const s = await stripe('checkout/sessions', {
         mode: 'payment', 'line_items[0][quantity]': '1', 'line_items[0][price_data][currency]': 'eur',
-        'line_items[0][price_data][unit_amount]': String(c), 'line_items[0][price_data][product_data][name]': 'Bastion · ' + (names()[prod] || prod),
+        'line_items[0][price_data][unit_amount]': String(c), 'line_items[0][price_data][product_data][name]': 'Mekanik War · ' + (names()[prod] || prod),
         client_reference_id: String(me.id), 'metadata[uid]': String(me.id), 'metadata[prod]': prod,
         success_url: origin + '/?pay=ok', cancel_url: origin + '/?pay=cancel', expires_at: String(Math.floor(Date.now() / 1000) + 31 * 60) });
       P.add.run(s.id, me.id, prod, c, 'pending', live ? 'live' : 'test', Date.now(), CGV);

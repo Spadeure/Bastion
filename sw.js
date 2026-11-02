@@ -5,8 +5,8 @@ self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', e => e.waitUntil(self.clients.claim()));
 // Notifications (sent by the server even when the game is closed): show them, and open the game when one is touched.
 self.addEventListener('push', e => {
-  let d = {}; try { d = e.data ? e.data.json() : {}; } catch (x) { d = { title: 'Bastion', body: e.data ? e.data.text() : '' }; }
-  e.waitUntil(self.registration.showNotification(d.title || 'Bastion', {
+  let d = {}; try { d = e.data ? e.data.json() : {}; } catch (x) { d = { title: 'Mekanik War', body: e.data ? e.data.text() : '' }; }
+  e.waitUntil(self.registration.showNotification(d.title || 'Mekanik War', {
     body: d.body || '', tag: d.tag || 'bastion', renotify: true, icon: d.icon || 'assets/app/icon-192.png', badge: 'assets/app/icon-192.png',
     timestamp: d.ts || Date.now(), data: { url: d.url || './?app=1' } }));
 });

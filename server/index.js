@@ -27,8 +27,8 @@ function buildIndex(file = 'index.html') {
     .replace(/(href|src)="((?:css|js)\/[^"?]+\.(?:css|js))"/g, `$1="$2?v=${VERSION}"`)
     .replace('</head>', `<meta name="bastion-ver" content="${VERSION}">\n</head>`);   // no inline script: the pages only run the game's own files (CSP)
   // the test server installs as its own app « Bastion Test » (name and icons marked TEST), next to the official game
-  const html2 = file === 'index.html' && IS_TEST ? html.replace('<title>Bastion</title>', '<title>Bastion Test</title>')
-    .replace('content="Bastion">', 'content="Bastion Test">').replace(/assets\/app\/(apple-touch-icon|favicon)\.png/g, 'assets/app/test-$1.png') : html;
+  const html2 = file === 'index.html' && IS_TEST ? html.replace('<title>Mekanik War: Titans</title>', '<title>Mekanik War Test</title>')
+    .replace('content="Mekanik War">', 'content="MW Test">').replace(/assets\/app\/(apple-touch-icon|favicon)\.png/g, 'assets/app/test-$1.png') : html;
   const data = Buffer.from(html2);
   return { data, br: zlib.brotliCompressSync(data), gz: zlib.gzipSync(data) };
 }
@@ -918,7 +918,7 @@ http.createServer(async (req, res) => {
     return;
   }
   serveFile(req, res, url);
-}).listen(PORT, '0.0.0.0', () => { log('DÉMARRAGE', `Serveur Bastion sur le port ${PORT} · version ${VERSION} · ${Q.count.get().n} joueurs inscrits`);
+}).listen(PORT, '0.0.0.0', () => { log('DÉMARRAGE', `Serveur Mekanik War sur le port ${PORT} · version ${VERSION} · ${Q.count.get().n} joueurs inscrits`);
   if (process.env.BASTION_CRASHED) log('ERREUR', `Le jeu avait planté (${clean(process.env.BASTION_CRASHED)}) : redémarré automatiquement par le lanceur`); });
 
 // ---------- hourly summary in the console ----------
