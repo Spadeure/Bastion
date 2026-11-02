@@ -27,7 +27,7 @@ module.exports = function makeAccounts({ db, Q, log, hashPass, IS_TEST, ADMIN_NA
     clean: db.prepare('DELETE FROM acc_tokens WHERE exp < ?'),
   };
   setInterval(() => { try { T.clean.run(Date.now() - 86400_000); } catch (e) {} }, 3600_000).unref();
-  const BASE = (process.env.PUBLIC_URL || (IS_TEST ? 'https://bastion-test.stryxhost.fr' : 'https://bastion.stryxhost.fr')).replace(/\/$/, '');
+  const BASE = (process.env.PUBLIC_URL || (IS_TEST ? 'https://test.mekanikwar.com' : 'https://games.mekanikwar.com')).replace(/\/$/, '');
   const GAME = IS_TEST ? 'Mekanik War Test' : 'Mekanik War';
   const sha = t => crypto.createHash('sha256').update(t).digest('hex');
   const err = (code, error) => Object.assign(new Error(error), { code, error });

@@ -39,7 +39,7 @@ module.exports = function makeNotify({ db, log, engine, online, Q, IS_TEST }) {
     N.kvSet.run('vapid', JSON.stringify(V)); log('NOTIFICATIONS', 'clés de notification créées');
   }
   const vapidKey = crypto.createPrivateKey({ key: { kty: 'EC', crv: 'P-256', x: V.x, y: V.y, d: V.d }, format: 'jwk' });
-  const SUBJECT = process.env.PUBLIC_URL ? process.env.PUBLIC_URL.replace(/\/$/, '') : 'https://bastion.stryxhost.fr';
+  const SUBJECT = process.env.PUBLIC_URL ? process.env.PUBLIC_URL.replace(/\/$/, '') : (IS_TEST ? 'https://test.mekanikwar.com' : 'https://games.mekanikwar.com');
   const jwtCache = new Map();
   function vapidAuth(endpoint) {
     const aud = new URL(endpoint).origin, now = Math.floor(Date.now() / 1000), c = jwtCache.get(aud);
