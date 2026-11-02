@@ -6,6 +6,20 @@
     try { document.cookie = 'mwlang=' + s.value + ';path=/;max-age=31536000;samesite=lax'; } catch (e) {}
     location.href = (s.dataset.base || '') + '/' + s.value + (s.dataset.path || '/');
   }));
+  // the beta is not launched yet: a play button shows a message instead of opening the game
+  document.addEventListener('click', e => {
+    const a = e.target.closest('a[data-soon]'); if (!a) return;
+    e.preventDefault();
+    let m = document.getElementById('soonbox'); if (m) m.remove();
+    m = document.createElement('div'); m.id = 'soonbox';
+    const box = document.createElement('div'); box.className = 'soonin';
+    const p = document.createElement('p'); p.textContent = a.dataset.soon; box.appendChild(p);
+    const row = document.createElement('div'); row.className = 'soonrow';
+    if (!/\/beta\/?$/.test(location.pathname)) { const j = document.createElement('a'); j.className = 'btn'; j.href = a.getAttribute('href'); j.textContent = a.dataset.join; row.appendChild(j); }
+    const ok = document.createElement('button'); ok.className = 'btn ghost'; ok.type = 'button'; ok.textContent = 'OK'; row.appendChild(ok); box.appendChild(row);
+    m.appendChild(box); document.body.appendChild(m);
+    m.addEventListener('click', ev => { if (ev.target === m || ev.target === ok) m.remove(); });
+  });
   // the beta sign-up form
   const bf = document.getElementById('bform');
   if (bf) bf.addEventListener('submit', e => {

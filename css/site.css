@@ -222,3 +222,10 @@ img{max-width:100%}
 .dcrow{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px 16px;margin:14px 0}
 .dcrow p{margin:0;flex:1;min-width:200px}
 @media (max-width:820px){.dcrow{flex-direction:column;text-align:center}.dcrow .btn{width:100%;justify-content:center}}
+/* the beta is not launched yet: message of the play buttons */
+#soonbox{position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.65);display:grid;place-items:center;padding:16px}
+#soonbox .soonin{max-width:440px;width:100%;background:linear-gradient(var(--panel2),var(--panel));border:2px solid var(--gold2);border-radius:16px;padding:20px;text-align:center;box-shadow:0 10px 40px #000}
+#soonbox p{margin:0 0 16px;font-size:18px}
+#soonbox .soonrow{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+a[data-soon]{opacity:.85}
+button.btn{cursor:pointer}

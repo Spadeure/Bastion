@@ -16,6 +16,8 @@ module.exports = function makeSite({ engine, stats, ranking, IS_TEST, log, beta 
   const DISCORD = process.env.DISCORD_URL || 'https://discord.gg/fHpxRftpuS';   // the game's Discord server (invitation that never expires)
   const dcBtn = (T, cls) => `<a class="btn ${cls || 'ghost'} dcb" href="${DISCORD}" target="_blank" rel="noopener"><img src="/assets/img/messages.webp" alt="" width="22" height="22">${esc(T.discord)}</a>`;
   const BETA_CR = +process.env.BETA_CREDITS || 1200;   // the testers' reward announced on the beta page (the same number is given from the panel)
+  // beta mode on but not launched yet: the play buttons open a message (and the beta page) instead of the game; they work again as soon as the beta is launched
+  const playA = c => c.soon ? `href="${c.B}/${c.lang}/beta/" data-soon="${esc(c.T.soonMsg)}" data-join="${esc(c.T.join)}"` : `href="${PLAY}"`;
   const PLAY = (process.env.PLAY_URL || (IS_TEST ? 'https://test.mekanikwar.com' : 'https://games.mekanikwar.com')).replace(/\/+$/, '') + '/';
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
   const fill = (s, o) => String(s).replace(/\{(\w+)\}/g, (m, k) => o && k in o ? o[k] : m);
@@ -40,11 +42,11 @@ module.exports = function makeSite({ engine, stats, ranking, IS_TEST, log, beta 
 <meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(desc)}"><meta property="og:image" content="${CANON}/assets/app/icon-512.png"><meta property="og:type" content="website">
 <link rel="preload" href="/assets/fonts/black-ops-one-400-latin.woff2" as="font" type="font/woff2" crossorigin><link rel="stylesheet" href="/css/site.css?v=${CSS_V}"><script src="/js/site.js?v=${JS_V}" defer></script></head><body>
 <header class="top"><div class="wrap"><a class="brand" href="${href(lang, '/')}"><img src="/assets/app/icon-192.png?v=2" alt="" width="38" height="38">MEKANIK WAR</a>
-<nav class="nav" id="nav">${nav}<span class="mlang">${sel}</span></nav><span class="dlang">${sel}</span><a class="btn sm" href="${PLAY}">${esc(T.play)}</a>
+<nav class="nav" id="nav">${nav}<span class="mlang">${sel}</span></nav><span class="dlang">${sel}</span><a class="btn sm" ${playA(c)}>${esc(T.play)}</a>
 <button class="burger" id="burger" aria-label="${esc(T.menu)}" aria-controls="nav" aria-expanded="false"><i></i></button></div></header>
 ${body}
 <footer><div class="wrap"><div>${c.D.legal.map(x => `<a href="${href(lang, '/legal/' + x.id)}">${esc(x.name)}</a>`).join('')}<a href="${DISCORD}" target="_blank" rel="noopener">Discord</a><a href="mailto:contact@mekanikwar.com">${esc(T.contact)}</a></div><div>© ${new Date().getFullYear()} Mekanik War: Titans · contact@mekanikwar.com</div></div></footer>
-<div class="mobplay"><a class="btn" href="${PLAY}">${esc(T.playFree)}</a></div></body></html>`;
+<div class="mobplay"><a class="btn" ${playA(c)}>${esc(T.playFree)}</a></div></body></html>`;
   }
   const crumb = (c, list) => `<div class="crumb">${list.map(([n, p]) => p ? `<a href="${c.B}/${c.lang}${p}">${esc(n)}</a>` : esc(n)).join(' › ')}</div>`;
   const autoNote = c => `<div class="auto"><img src="/assets/img/ui_ok.webp" alt="" width="22" height="22">${esc(fill(c.T.auto, { d: c.D.news[0] ? c.D.news[0].date : c.D.ver }))}</div>`;
@@ -72,7 +74,7 @@ ${body}
     const bband = bi && bi.open ? `<a class="betaband" href="${c.B}/${lang}/beta/"><span><b>${esc(fill(T.band, { n: nf(lang, bi.places - bi.count) }))}</b></span><span class="btn sm">${esc(T.join)}</span></a>` : '';
     const body = `${bband}<div class="hero"><div class="wrap"><div>
   <h1>MEKANIK WAR<small>TITANS</small></h1><p class="lead">${esc(T.lead)}</p>
-  <div class="cta"><a class="btn" href="${PLAY}">${esc(T.playFree)}</a><a class="btn ghost" href="${c.B}/${lang}/wiki/">${esc(T.discoverWiki)}</a></div>
+  <div class="cta"><a class="btn" ${playA(c)}>${esc(T.playFree)}</a><a class="btn ghost" href="${c.B}/${lang}/wiki/">${esc(T.discoverWiki)}</a></div>
   <div class="plat">${esc(T.plat)}</div>
   <div class="stats"><div><b>${nf(lang, s.players)}</b><span>${esc(T.commanders)}</span></div><div><b>${nf(lang, s.alliances)}</b><span>${esc(T.alliances)}</span></div><div><b>9</b><span>${esc(T.languages)}</span></div></div>
  </div><img class="titan" src="/assets/img/titan.webp" alt="Titan" width="640" height="603"></div></div>
@@ -85,7 +87,7 @@ ${body}
 <section class="pt0"><div class="wrap"><div class="sh"><div><h2>${esc(T.news.toUpperCase())}</h2><p>${esc(T.newsSub)}</p></div><a href="${c.B}/${lang}/news/">${esc(T.seeAll)}</a></div><div class="news">
  ${D.news.slice(0, 3).map(n => `<div class="card"><time datetime="${n.d}">${esc(n.date)}</time><p>${esc(n.items[0] || '')}</p></div>`).join('')}
 </div></div></section>
-<div class="band"><div class="wrap"><div><h2>${esc(T.ready)}</h2><div class="mut">${esc(T.readySub)}</div></div><div class="bbtns">${dcBtn(T)}<a class="btn" href="${PLAY}">${esc(T.playNow)}</a></div></div></div>`;
+<div class="band"><div class="wrap"><div><h2>${esc(T.ready)}</h2><div class="mut">${esc(T.readySub)}</div></div><div class="bbtns">${dcBtn(T)}<a class="btn" ${playA(c)}>${esc(T.playNow)}</a></div></div></div>`;
     return page(c, 'Mekanik War: Titans', T.lead, body, { nav: 'home' });
   }
   function wikiIndex(c) {
@@ -190,7 +192,7 @@ ${trains.length ? `<h2 class="gh">${esc(T.cUnits)}</h2><div class="mini">${train
     const { T } = c, ic = ['quests', 'command', 'mine', 'barracks', 'research', 'ally', 'defense'];
     const inner = `${crumb(c, [[T.wiki, '/wiki/'], [T.cGuide]])}<h1 class="ph">${esc(T.cGuide.toUpperCase())}</h1><p class="intro">${esc(T.guideIntro)}</p>
 <ol class="steps">${[1, 2, 3, 4, 5, 6, 7].map((n, i) => `<li><img src="/assets/img/${ic[i]}.webp" alt=""><div><h3>${esc(T['g' + n + 't'])}</h3><p>${esc(T['g' + n])}</p></div></li>`).join('')}</ol>
-<div class="band in"><div><h2>${esc(T.ready)}</h2><div class="mut">${esc(T.readySub)}</div></div><a class="btn" href="${PLAY}">${esc(T.playNow)}</a></div>`;
+<div class="band in"><div><h2>${esc(T.ready)}</h2><div class="mut">${esc(T.readySub)}</div></div><a class="btn" ${playA(c)}>${esc(T.playNow)}</a></div>`;
     return page(c, `${T.cGuide} · Mekanik War`, T.guideIntro, wikiFrame(c, 'guide', inner), { nav: 'wiki' });
   }
   function news(c) {
@@ -244,7 +246,7 @@ ${bi.testers.length ? `<h2 class="gh">${esc(T.thanks)}</h2><p class="mut">${esc(
   // ---------- routing ----------
   const cache = new Map();   // rendered pages: kept 2 minutes (the wiki only changes when the game is updated, i.e. at a restart)
   function render(lang, rest, B) {
-    const T = TXT[lang], D = engine.wikiData(lang), c = { T, D, lang, B, path: rest };
+    const T = TXT[lang], D = engine.wikiData(lang), bi = beta ? beta.publicInfo() : null, c = { T, D, lang, B, path: rest, soon: !!(bi && bi.on && !bi.started) };
     const m = rest.match(/^\/wiki\/(units|buildings)\/([a-z0-9_]+)$/);
     if (rest === '/' ) return [200, home(c)];
     if (rest === '/wiki/') return [200, wikiIndex(c)];
@@ -274,7 +276,7 @@ ${bi.testers.length ? `<h2 class="gh">${esc(T.thanks)}</h2><p class="mut">${esc(
     const leaf = /^\/(wiki\/(units|buildings)\/[a-z0-9_]+|legal\/[a-z]+|search\.json)\/?$/.test(p);
     if (leaf && p.endsWith('/')) p = p.slice(0, -1); else if (!leaf && !p.endsWith('/')) p += '/';
     if ((lm[2] || '/') !== p) { res.writeHead(301, { Location: `${B}/${lm[1]}${p}` }); res.end(); return true; }
-    const key = `${B}|${lm[1]}|${p}`, live = p === '/beta/' || p === '/';   // the beta page shows the places left: kept 5 seconds only
+    const bs = beta ? beta.publicInfo() : null, key = `${B}|${lm[1]}|${p}|${bs && bs.on && !bs.started ? 'soon' : ''}`, live = p === '/beta/' || p === '/';   // the beta page shows the places left: kept 5 seconds only
     let e = cache.get(key);
     if (!e || Date.now() - e.at > (live ? 5_000 : 120_000)) {
       try { const [code, html, type] = render(lm[1], p, B); e = { at: Date.now(), code, html, type: type || 'text/html; charset=utf-8' }; }

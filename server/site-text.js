@@ -515,4 +515,14 @@ Object.assign(PT, {"discord": "Entrar no Discord", "discordSub": "Nosso Discord:
 Object.assign(PL, {"discord": "Dołącz do Discorda", "discordSub": "Nasz Discord: nowości, pomoc, pomysły i start bety."});
 Object.assign(TR, {"discord": "Discord'a katıl", "discordSub": "Discord sunucumuz: haberler, yardım, fikirler ve betanın başlangıcı."});
 Object.assign(RU, {"discord": "Вступить в Discord", "discordSub": "Наш Discord: новости, помощь, идеи и старт беты."});
+// the play buttons before the beta is launched
+Object.assign(EN, {"soonMsg": "The beta is not open yet. Sign up now to receive your invitation by e-mail on launch day."});
+Object.assign(FR, {"soonMsg": "La bêta n'est pas encore ouverte. Inscris-toi maintenant pour recevoir ton invitation par e-mail le jour du lancement."});
+Object.assign(ES, {"soonMsg": "La beta aún no está abierta. Inscríbete ya para recibir tu invitación por correo el día del lanzamiento."});
+Object.assign(DE, {"soonMsg": "Die Beta ist noch nicht geöffnet. Melde dich jetzt an, um deine Einladung am Starttag per E-Mail zu erhalten."});
+Object.assign(IT, {"soonMsg": "La beta non è ancora aperta. Iscriviti ora per ricevere l'invito per e-mail il giorno del lancio."});
+Object.assign(PT, {"soonMsg": "O beta ainda não está aberto. Inscreva-se agora para receber o convite por e-mail no dia do lançamento."});
+Object.assign(PL, {"soonMsg": "Beta nie jest jeszcze otwarta. Zapisz się teraz, aby dostać zaproszenie e-mailem w dniu startu."});
+Object.assign(TR, {"soonMsg": "Beta henüz açılmadı. Başlangıç günü davetini e-postayla almak için şimdi kaydol."});
+Object.assign(RU, {"soonMsg": "Бета ещё не открыта. Запишись сейчас, чтобы получить приглашение по почте в день запуска."});
 module.exports = { en: EN, fr: FR, es: ES, de: DE, it: IT, pt: PT, pl: PL, tr: TR, ru: RU };

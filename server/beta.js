@@ -54,7 +54,7 @@ module.exports = function makeBeta({ db, Q, log, clean, acc, runFor, push, NAME_
   const isOpen = () => S.open && !full();
 
   // ---------- the website ----------
-  function publicInfo() { return { open: isOpen(), full: full(), count: count(), places: S.places, msg: S.msg, on: S.on, testers: B.testers.all().map(r => r.name) }; }
+  function publicInfo() { return { open: isOpen(), full: full(), count: count(), places: S.places, msg: S.msg, on: S.on, started: S.started, testers: B.testers.all().map(r => r.name) }; }
   const perIp = new Map();   // address -> sign-up times (3 a day at most)
   function signup(P, ip) {
     if (!isOpen()) throw err(409, full() ? 'full' : 'closed');
