@@ -15,6 +15,7 @@ const CSS_V = fileVer('css/site.css'), JS_V = fileVer('js/site.js');
 module.exports = function makeSite({ engine, stats, ranking, IS_TEST, log, beta }) {
   const DISCORD = process.env.DISCORD_URL || 'https://discord.gg/fHpxRftpuS';   // the game's Discord server (invitation that never expires)
   const dcBtn = (T, cls) => `<a class="btn ${cls || 'ghost'} dcb" href="${DISCORD}" target="_blank" rel="noopener"><img src="/assets/img/messages.webp" alt="" width="22" height="22">${esc(T.discord)}</a>`;
+  const BETA_CR = +process.env.BETA_CREDITS || 1200;   // the testers' reward announced on the beta page (the same number is given from the panel)
   const PLAY = (process.env.PLAY_URL || (IS_TEST ? 'https://test.mekanikwar.com' : 'https://games.mekanikwar.com')).replace(/\/+$/, '') + '/';
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
   const fill = (s, o) => String(s).replace(/\{(\w+)\}/g, (m, k) => o && k in o ? o[k] : m);
@@ -221,14 +222,14 @@ ${trains.length ? `<h2 class="gh">${esc(T.cUnits)}</h2><div class="mini">${train
       : `<div class="card bclosed"><p>${esc(T.closed)}</p></div>`;
     const steps = [T.h1, T.h2, T.h3, T.h4].map((t, i) => `<li><b>${i + 1}</b><p>${esc(t)}</p></li>`).join('');
     const body = `<div class="wrap narrow">${crumb(c, [[T.home, '/'], [T.beta]])}<h1 class="ph">${esc(T.betaH)}</h1>
-<div class="bhead"><img src="/assets/img/titan_1.webp" alt="" width="120" height="120"><p class="intro">${esc(fill(T.betaIntro, { m: nf(lang, bi.places) }))}</p></div>
+<div class="bhead"><img src="/assets/img/titan_1.webp" alt="" width="120" height="120"><p class="intro">${esc(fill(T.betaIntro, { m: nf(lang, bi.places), cr: nf(lang, BETA_CR) }))}</p></div>
 <div class="bcount"><div><b>${nf(lang, bi.count)} / ${nf(lang, bi.places)}</b> <span class="mut">${esc(T.places)}</span></div><div class="bar"><i style="width:${pct}%"></i></div>${bi.open ? `<div class="mut sm">${esc(fill(T.left, { n: nf(lang, left) }))}</div>` : ''}</div>
 ${bi.msg ? `<div class="auto">${esc(bi.msg)}</div>` : ''}
 <div class="dcrow"><p class="mut">${esc(T.discordSub)}</p>${dcBtn(T)}</div>
 ${form}
 <h2 class="gh">${esc(T.how)}</h2><ol class="bsteps">${steps}</ol>
 ${bi.testers.length ? `<h2 class="gh">${esc(T.thanks)}</h2><p class="mut">${esc(T.thanksSub)}</p><div class="btesters">${bi.testers.map(n => `<span>${esc(n)}</span>`).join('')}</div>` : ''}</div>`;
-    return page(c, `${T.beta} · Mekanik War`, fill(T.betaIntro, { m: bi.places }), body, { nav: 'beta' });
+    return page(c, `${T.beta} · Mekanik War`, fill(T.betaIntro, { m: bi.places, cr: BETA_CR }), body, { nav: 'beta' });
   }
   function notFound(c) {
     return page(c, `${c.T.notFound} · Mekanik War`, c.T.notFound, `<div class="wrap narrow nf"><h1 class="ph">404</h1><p>${esc(c.T.notFound)}</p><a class="btn" href="${c.B}/${c.lang}/">${esc(c.T.back)}</a></div>`);
