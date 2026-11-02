@@ -1188,3 +1188,22 @@ button.red{background:linear-gradient(#c0432f,#7d2216)!important;color:#fff!impo
 #login .ltitle,#loader .ltitle{font-size:34px;letter-spacing:3px;line-height:1;text-align:center;margin-top:8px}
 #login .ltitle small,#loader .ltitle small{display:block;font-size:.5em;letter-spacing:.6em;margin:4px 0 0 .6em;color:#e8e2c8;text-shadow:0 2px 0 #3a2a05}
 @media (max-width:420px){ #login .ltitle,#loader .ltitle{font-size:29px} }
+/* map tile: level badge, Information button, Information sheet (troops, loot, chance of every reward) */
+.tlbig{position:relative}
+.tlv{position:absolute;top:-9px;left:50%;transform:translateX(-50%);background:linear-gradient(#f6d24a,#d9a51f);color:#1a1408;font:15px var(--disp);line-height:1.25;border:2px solid #6b4f0c;border-radius:6px;padding:0 7px;z-index:1}
+.tlname{min-width:0;padding-right:30px}
+.tinfob{display:flex;justify-content:center;margin:14px 0 4px}
+.tinfob button{width:auto;padding:8px 20px;text-transform:uppercase;letter-spacing:.5px}
+.tsep{display:flex;align-items:center;gap:12px;margin:8px 0 12px}
+.tsep:before,.tsep:after{content:'';flex:1;height:1px;background:linear-gradient(90deg,transparent,#6b5520)}
+.tsep:after{background:linear-gradient(90deg,#6b5520,transparent)}
+.tsep i{width:9px;height:9px;transform:rotate(45deg);background:#a8842a}
+.tig{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+.tit{display:flex;gap:8px;align-items:center;background:#12171999;border:1px solid #3a3120;border-radius:8px;padding:5px 8px;min-width:0}
+.tit img{width:42px;height:42px;object-fit:contain;flex:none}
+.tit b{display:block;font-size:15px;line-height:1.1}.tit span{color:#e8c64a;font-weight:700;font-size:15px}
+.tir{display:flex;align-items:center;gap:10px;background:#12171999;border:1px solid #3a3120;border-left:3px solid var(--rc);border-radius:8px;padding:6px 10px;margin-top:6px}
+.tir .nm{flex:1;min-width:0;line-height:1.15;overflow-wrap:anywhere}
+.tir .nm small{display:block;color:var(--rc);font-size:13px;font-weight:600}
+.tir .pc{background:#0b0e0f;border:1px solid #4a3c1c;border-radius:6px;padding:2px 8px;font-weight:700;color:#f3c534;white-space:nowrap}
+@media (min-width:700px){.tig{grid-template-columns:repeat(3,minmax(0,1fr))}}
