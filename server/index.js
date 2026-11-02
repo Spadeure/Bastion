@@ -25,7 +25,7 @@ let indexPage = null, adminPage = null;   // index.html (and admin.html, the man
 function buildIndex(file = 'index.html') {
   const html = fs.readFileSync(path.join(ROOT, file), 'utf8')
     .replace(/(href|src)="((?:css|js)\/[^"?]+\.(?:css|js))"/g, `$1="$2?v=${VERSION}"`)
-    .replace('</head>', `<script>window.BASTION_VER=${JSON.stringify(VERSION)}</script>\n</head>`);
+    .replace('</head>', `<meta name="bastion-ver" content="${VERSION}">\n</head>`);   // no inline script: the pages only run the game's own files (CSP)
   // the test server installs as its own app « Bastion Test » (name and icons marked TEST), next to the official game
   const html2 = file === 'index.html' && IS_TEST ? html.replace('<title>Bastion</title>', '<title>Bastion Test</title>')
     .replace('content="Bastion">', 'content="Bastion Test">').replace(/assets\/app\/(apple-touch-icon|favicon)\.png/g, 'assets/app/test-$1.png') : html;
@@ -483,6 +483,7 @@ async function api(req, res, url, ip) {
   STATS.players.add(me.name); lastIp.set(me.id, ip);
   // official server: nobody has any power in the game, the administrator plays exactly like everybody (checks, maintenance…);
   // his role only opens the management panel. The tests with the administration buttons are done on the test server.
+  me.isAdmin = me.role === 'admin';   // the real role, kept for the rankings (the administrator of the official server is never ranked)
   if (!IS_TEST) me.role = 'player';
   if (url.startsWith('/api/admin/')) return panel.route(req, res, url, me, ip);   // not an administrator: refused there
   if (url === '/api/stream' && req.method === 'GET') {   // the live line (kept open)
@@ -848,7 +849,7 @@ function loadFile(file, cb) {
 }
 // the browser's own protections: the game cannot be shown inside another site, files keep their type, no address leaks to other sites
 const SEC_HEADERS = { 'X-Frame-Options': 'DENY', 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'same-origin',
-  'Content-Security-Policy': "frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'", 'Permissions-Policy': 'camera=(), microphone=(), geolocation=(), payment=()' };
+  'Content-Security-Policy': "script-src 'self'; frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'", 'Permissions-Policy': 'camera=(), microphone=(), geolocation=(), payment=()' };
 function serveFile(req, res, url) {
   const adm = url === '/admin' || url === '/admin/' || url === '/admin.html';   // the management panel: a page of its own, without the game
   if ((adm || url === '/js/admin.js' || url === '/css/admin.css') && !fromHome(req)) { panelOutside(ipOf(req), url); res.writeHead(404); return res.end('Not found'); }

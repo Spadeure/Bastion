@@ -4235,7 +4235,8 @@ let pingFails=0, maintTimer=0, updating=false, maintIcon=ICS.build;
 if(typeof __SERVER==='undefined') fetch(ICS.build).then(r=>r.blob()).then(b=>{ maintIcon=URL.createObjectURL(b); }).catch(()=>{});   // kept in memory: the server is off when the screen shows
 function serverLost(){ if(!ONLINE || updating) return; pingFails++; if(pingFails>=2) showMaint(); }
 function serverBack(v){ pingFails=0;
-  if(v && window.BASTION_VER && v!==window.BASTION_VER) return showUpdate();
+  const pv=(document.querySelector('meta[name=bastion-ver]')||{}).content||window.BASTION_VER;
+  if(v && pv && v!==pv) return showUpdate();
   if(document.getElementById('maint')){ hideMaint(); syncState(true); } }
 function maintBox(title, text){ let el=document.getElementById('maint');
   if(!el){ el=document.createElement('div'); el.id='maint'; document.body.appendChild(el); }

@@ -192,7 +192,7 @@ module.exports = function makeEvents({ db, Q, log, runFor, broadcast, push, engi
     if (e.type === 'ally') return viewA(e, me, now);
     const s = E.score.get(e.id, me.id), T = tiers();
     let mine = null;
-    const out = !IS_TEST && me.role === 'admin';   // the administrator of the official server plays, but is never ranked
+    const out = !IS_TEST && (me.isAdmin || me.role === 'admin');   // the administrator of the official server plays, but is never ranked
     if (s) { const p = (E.power.get(me.id) || {}).power || 0;
       mine = { best: s.best, gain: e.status === 'running' ? Math.max(0, p - s.p0) : s.best, claimed: s.claimed, rank: out ? null : e.status === 'ended' ? s.rank || null : (s.best > 0 ? E.above.get(e.id, TEST, s.best, s.best, me.id).n + 1 : null), out, rclaimed: !!s.rclaimed, sent: !!e.sent }; }
     return { ev: pub(e), tiers: T, me: mine, n: E.count.get(e.id, TEST).n,
@@ -208,7 +208,7 @@ module.exports = function makeEvents({ db, Q, log, runFor, broadcast, push, engi
     if (ri >= 30) top.push({ r: ri + 1, name: mine.name, sc: mine.sc, me: true });
     const members = aid && e.status !== 'planned' ? E.members.all(e.id, aid).map(m => ({ name: m.name, c: m.c, me: m.uid === me.id, cos: m.cos ? JSON.parse(m.cos) : null, out: !IS_TEST && m.role === 'admin' })) : [];
     return { ev: pub(e), tiers: T, min: AL_MIN, pts: PTS, now, n: all.length,
-      me: { c, aid, ally: aname, frozen: !!(s && s.aid && cur !== s.aid), noAlly: !aid, score: mine ? mine.sc : 0, rank: mine ? ri + 1 : null, claimed: s ? s.claimed : 0, rclaimed: !!(s && s.rclaimed), sent: !!e.sent, out: !IS_TEST && me.role === 'admin' },
+      me: { c, aid, ally: aname, frozen: !!(s && s.aid && cur !== s.aid), noAlly: !aid, score: mine ? mine.sc : 0, rank: mine ? ri + 1 : null, claimed: s ? s.claimed : 0, rclaimed: !!(s && s.rclaimed), sent: !!e.sent, out: !IS_TEST && (me.isAdmin || me.role === 'admin') },
       top, members };
   }
   // ---------- management panel ----------

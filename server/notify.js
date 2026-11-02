@@ -149,6 +149,7 @@ module.exports = function makeNotify({ db, log, engine, online, Q, IS_TEST }) {
 
   // ----- the browser side: /api/push -----
   function view(me) { return { key: V.pub, prefs: prefs(me.id), n: N.subsOf.all(me.id).length }; }
+  const lastTest = new Map();
   function act(me, P) {
     const err = (code, error) => Object.assign(new Error(error), { code, error });
     const op = String(P.op || '');
@@ -162,7 +163,9 @@ module.exports = function makeNotify({ db, log, engine, online, Q, IS_TEST }) {
     }
     if (op === 'unsub') { N.subDelUid.run(String(P.endpoint || ''), me.id); return { ok: true }; }
     if (op === 'prefs') { const p = prefs(me.id), q = P.prefs || {}; for (const k in DEF) if (k in q) p[k] = q[k] ? 1 : 0; N.prefSet.run(me.id, JSON.stringify(p)); return { ok: true }; }
-    if (op === 'test') { if (!N.subsOf.all(me.id).length) throw err(409, 'no_sub'); send(me.id, 'test', {}, { always: true }); return { ok: true }; }
+    if (op === 'test') { if (!N.subsOf.all(me.id).length) throw err(409, 'no_sub');
+      if (Date.now() - (lastTest.get(me.id) || 0) < 20_000) throw err(429, 'chat_too_fast'); lastTest.set(me.id, Date.now());
+      send(me.id, 'test', {}, { always: true }); return { ok: true }; }   // one test every 20 seconds
     throw err(400, 'bad_order');
   }
   return { send, sendAll, onSave, onAttack, onPm, view, act, tick, encrypt, stats: () => ({ ...STATS, subs: db.prepare('SELECT COUNT(*) AS n FROM push_subs').get().n }) };
