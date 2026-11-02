@@ -51,7 +51,7 @@ section{padding:56px 0}
 .card img{width:96px;height:96px;object-fit:contain;display:block;margin-bottom:8px}
 .card h3{margin:0 0 6px;font-size:19px}
 .card p{margin:0;color:var(--mut);font-size:16px}
-.shots{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.shots{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
 .shot{border-radius:14px;border:1px solid var(--line);aspect-ratio:16/10;background:center/cover;position:relative}
 .shot span{position:absolute;left:10px;bottom:10px;background:rgba(0,0,0,.7);padding:3px 10px;border-radius:6px;font-size:14px}
 .news{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
@@ -229,3 +229,6 @@ img{max-width:100%}
 #soonbox .soonrow{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
 a[data-soon]{opacity:.85}
 button.btn{cursor:pointer}
+
+/* Samsung Internet darkens every site that does not say it has a dark theme: this one is dark already, keep its own colours */
+@media (prefers-color-scheme: dark){:root{color-scheme:dark}}

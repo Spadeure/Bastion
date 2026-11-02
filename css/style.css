@@ -1213,3 +1213,6 @@ body.beta #shopBtn{display:none!important}
 .champb.betab{background:linear-gradient(#bfe8a0,#5f9a3a);color:#0c1a06;box-shadow:0 0 6px #8fd06a88}
 .bugtxt{display:block;width:100%;min-height:84px;resize:vertical;margin:0 0 8px;padding:8px 10px;border-radius:8px;border:1px solid #4a3c1c;background:#0f1314;color:inherit;font:inherit;font-size:15px}
 #login .lbeta{font-size:12.5px;text-align:center;line-height:1.35;color:#bfe39a;background:#1c2a14cc;border:1px solid #5e7a3e;border-radius:8px;padding:6px 8px}
+
+/* Samsung Internet darkens every site that does not say it has a dark theme: this one is dark already, keep its own colours */
+@media (prefers-color-scheme: dark){:root{color-scheme:dark}}

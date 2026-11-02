@@ -172,3 +172,6 @@ textarea{width:100%;min-height:72px;resize:vertical}
   #menu button span{max-width:100%;overflow:hidden;text-overflow:ellipsis}
   #menu button img{width:28px;height:28px}
 }
+
+/* Samsung Internet darkens every site that does not say it has a dark theme: this one is dark already, keep its own colours */
+@media (prefers-color-scheme: dark){:root{color-scheme:dark}}

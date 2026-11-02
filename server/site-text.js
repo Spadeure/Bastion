@@ -525,4 +525,14 @@ Object.assign(PT, {"soonMsg": "O beta ainda não está aberto. Inscreva-se agora
 Object.assign(PL, {"soonMsg": "Beta nie jest jeszcze otwarta. Zapisz się teraz, aby dostać zaproszenie e-mailem w dniu startu."});
 Object.assign(TR, {"soonMsg": "Beta henüz açılmadı. Başlangıç günü davetini e-postayla almak için şimdi kaydol."});
 Object.assign(RU, {"soonMsg": "Бета ещё не открыта. Запишись сейчас, чтобы получить приглашение по почте в день запуска."});
+// the fields picture of the home page
+Object.assign(EN, {"picF": "Your fields"});
+Object.assign(FR, {"picF": "Tes champs"});
+Object.assign(ES, {"picF": "Tus campos"});
+Object.assign(DE, {"picF": "Deine Felder"});
+Object.assign(IT, {"picF": "I tuoi campi"});
+Object.assign(PT, {"picF": "Os teus campos"});
+Object.assign(PL, {"picF": "Twoje pola"});
+Object.assign(TR, {"picF": "Tarlaların"});
+Object.assign(RU, {"picF": "Твои поля"});
 module.exports = { en: EN, fr: FR, es: ES, de: DE, it: IT, pt: PT, pl: PL, tr: TR, ru: RU };
