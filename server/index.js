@@ -917,6 +917,7 @@ http.createServer(async (req, res) => {
     }
     return;
   }
+  if ((url === '/site' || url.startsWith('/site/') || site.isSiteHost(req.headers.host)) && site.handle(req, res, url, req.headers.host, SEC_HEADERS)) return;
   serveFile(req, res, url);
 }).listen(PORT, '0.0.0.0', () => { log('DÉMARRAGE', `Serveur Mekanik War sur le port ${PORT} · version ${VERSION} · ${Q.count.get().n} joueurs inscrits`);
   if (process.env.BASTION_CRASHED) log('ERREUR', `Le jeu avait planté (${clean(process.env.BASTION_CRASHED)}) : redémarré automatiquement par le lanceur`); });
@@ -1029,6 +1030,15 @@ const notify = require('./notify.js')({ db, log, engine, online: uid => streams.
 const kvOnce = k => { if (db.prepare('SELECT 1 FROM kv WHERE k = ?').get(k)) return false; db.prepare('INSERT OR REPLACE INTO kv (k, v) VALUES (?, ?)').run(k, '1'); return true; };
 events.hooks.start = e => { if (kvOnce('evstart_' + e.id)) notify.sendAll(e.type === 'ally' ? 'alstart' : 'evstart', {}); };
 events.hooks.last = e => { if (kvOnce('evlast_' + e.id)) notify.sendAll(e.type === 'ally' ? 'allast' : 'evlast', {}); };
+
+// ---------- the public website mekanikwar.com (server/site.js): home page, wiki built from the game rules, news, rankings ----------
+const siteStats = { at: 0, v: null };
+const site = require('./site.js')({ engine, IS_TEST, log,
+  stats: () => { if (!siteStats.v || Date.now() - siteStats.at > 60_000) { siteStats.at = Date.now();
+    siteStats.v = { players: db.prepare('SELECT COUNT(*) AS n FROM users WHERE banned = 0').get().n, alliances: db.prepare('SELECT COUNT(*) AS n FROM alliances').get().n }; } return siteStats.v; },
+  ranking: by => { const r = ranking(by, 0); if (IS_TEST || by === 'ally') return r;   // the administrator of the official server is never ranked
+    const adm = new Set(db.prepare("SELECT name FROM users WHERE role = 'admin'").all().map(x => x.name)); let n = 0;
+    return { ...r, top: r.top.filter(x => !adm.has(x.name)).map(x => ({ ...x, r: ++n })) }; } });
 
 // ---------- management panel (/admin): maintenance, updates, players, announcements, backups, journal ----------
 const panel = require('./panel.js')({
