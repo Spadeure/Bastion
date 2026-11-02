@@ -4,6 +4,16 @@
 // {ver} = version of the terms of sale (CGV_VER in js/game.js): change it each time the terms of sale change.
 const LEGAL_TEXT = {
 fr: {
+  // no business yet (no SIRET in the server variables): a free game published as a private person, under his pseudonym
+  mentions_perso: `<h3>Éditeur</h3>
+<p>Mekanik War: Titans est un jeu <b>gratuit</b>, publié à titre personnel et non commercial par <b>{name}</b> (pseudonyme).<br>Contact : {email}</p>
+<p>Directeur de la publication : {name}.</p>
+<h3>Hébergement</h3>
+<p>Le jeu est hébergé par l'éditeur sur son propre serveur, situé en France. Les échanges passent par le réseau de Cloudflare, Inc. (101 Townsend St, San Francisco, CA 94107, États-Unis), qui protège le site.</p>
+<h3>Achats</h3>
+<p>Aucun achat en argent réel n'est possible pour le moment.</p>
+<h3>Images et crédits</h3>
+<p>Les images du jeu ont été créées avec l'aide de Google Gemini, puis retravaillées pour le jeu. Le code, les textes et les règles du jeu appartiennent à l'éditeur.</p>`,
   mentions: `<h3>Éditeur</h3>
 <p>Mekanik War: Titans est un jeu édité par <b>{name}</b>, entrepreneur individuel (micro-entreprise).<br>SIRET : {siret}<br>Adresse : {address}<br>Contact : {email}</p>
 <p>Directeur de la publication : {name}.</p>
@@ -67,6 +77,15 @@ fr: {
 <p>Tu peux supprimer ton compte toi-même dans Paramètres › Compte : la base, les messages et les données sont effacés tout de suite (seuls les justificatifs d'achat sont gardés, obligation comptable). Tu peux aussi demander l'accès à tes données ou leur correction en écrivant à {email}. Tu peux aussi saisir la CNIL (cnil.fr).</p>`
 },
 en: {
+  mentions_perso: `<h3>Publisher</h3>
+<p>Mekanik War: Titans is a <b>free</b> game, published privately and on a non-commercial basis by <b>{name}</b> (pseudonym).<br>Contact: {email}</p>
+<h3>Hosting</h3>
+<p>The game is hosted by the publisher on his own server in France. Traffic goes through Cloudflare, Inc. (101 Townsend St, San Francisco, CA 94107, USA), which protects the site.</p>
+<h3>Purchases</h3>
+<p>No real-money purchase is possible for now.</p>
+<h3>Images and credits</h3>
+<p>The game's images were created with the help of Google Gemini, then reworked for the game. The code, texts and game rules belong to the publisher.</p>
+<p><i>The French version of these pages is the reference version.</i></p>`,
   mentions: `<h3>Publisher</h3>
 <p>Mekanik War: Titans is published by <b>{name}</b>, sole trader (micro-entreprise, France).<br>SIRET: {siret}<br>Address: {address}<br>Contact: {email}</p>
 <h3>Hosting</h3>

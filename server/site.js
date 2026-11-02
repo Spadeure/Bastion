@@ -12,7 +12,7 @@ const fs = require('fs'), path = require('path'), crypto = require('crypto');
 const fileVer = f => { try { return crypto.createHash('sha1').update(fs.readFileSync(path.join(__dirname, '..', f))).digest('hex').slice(0, 10); } catch (e) { return String(Date.now()); } };
 const CSS_V = fileVer('css/site.css'), JS_V = fileVer('js/site.js');
 
-module.exports = function makeSite({ engine, stats, ranking, IS_TEST, log }) {
+module.exports = function makeSite({ engine, stats, ranking, IS_TEST, log, beta }) {
   const PLAY = (process.env.PLAY_URL || (IS_TEST ? 'https://test.mekanikwar.com' : 'https://games.mekanikwar.com')).replace(/\/+$/, '') + '/';
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
   const fill = (s, o) => String(s).replace(/\{(\w+)\}/g, (m, k) => o && k in o ? o[k] : m);
@@ -28,7 +28,7 @@ module.exports = function makeSite({ engine, stats, ranking, IS_TEST, log }) {
     const { T, lang, B, path } = c, on = opt.nav || '';
     const href = (l, p) => `${B}/${l}${p}`;
     const alt = LANGS.map(([l]) => `<link rel="alternate" hreflang="${l}" href="${CANON}/${l}${path}">`).join('');
-    const nav = [['', 'home'], ['/wiki/', 'wiki'], ['/news/', 'news'], ['/rankings/', 'rankings']].map(([p, k]) => `<a href="${href(lang, p)}"${on === k ? ' class="on"' : ''}>${esc(T[k])}</a>`).join('');
+    const nav = [['', 'home'], ['/wiki/', 'wiki'], ['/news/', 'news'], ['/rankings/', 'rankings'], ['/beta/', 'beta']].map(([p, k]) => `<a href="${href(lang, p)}"${on === k ? ' class="on"' : ''}>${esc(T[k])}</a>`).join('');
     const sel = `<select class="lang" aria-label="${esc(T.language)}" data-path="${esc(path)}" data-base="${esc(B)}">${LANGS.map(([l, n]) => `<option value="${l}"${l === lang ? ' selected' : ''}>${n}</option>`).join('')}</select>`;
     return `<!doctype html><html lang="${lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>${esc(title)}</title><meta name="description" content="${esc(desc)}"><meta name="theme-color" content="#0d1012"><meta name="color-scheme" content="dark">
@@ -65,7 +65,9 @@ ${body}
     const { T, D, lang } = c, s = stats();
     const card = (im, t, p) => `<div class="card"><img src="${img(im)}" alt="" loading="lazy"><h3>${esc(t)}</h3><p>${esc(p)}</p></div>`;
     const nMain = D.blds.filter(b => b.main).length;
-    const body = `<div class="hero"><div class="wrap"><div>
+    const bi = beta ? beta.publicInfo() : null;
+    const bband = bi && bi.open ? `<a class="betaband" href="${c.B}/${lang}/beta/"><span><b>${esc(fill(T.band, { n: nf(lang, bi.places - bi.count) }))}</b></span><span class="btn sm">${esc(T.join)}</span></a>` : '';
+    const body = `${bband}<div class="hero"><div class="wrap"><div>
   <h1>MEKANIK WAR<small>TITANS</small></h1><p class="lead">${esc(T.lead)}</p>
   <div class="cta"><a class="btn" href="${PLAY}">${esc(T.playFree)}</a><a class="btn ghost" href="${c.B}/${lang}/wiki/">${esc(T.discoverWiki)}</a></div>
   <div class="plat">${esc(T.plat)}</div>
@@ -205,6 +207,26 @@ ${trains.length ? `<h2 class="gh">${esc(T.cUnits)}</h2><div class="mini">${train
     const body = `<div class="wrap narrow">${crumb(c, [[T.home, '/'], [T.legal]])}<div class="mtabs on">${D.legal.map(l => `<a href="${c.B}/${c.lang}/legal/${l.id}"${l.id === x.id ? ' class="on"' : ''}>${esc(l.name)}</a>`).join('')}</div><h1 class="ph">${esc(x.name.toUpperCase())}</h1><div class="legal card">${x.html}</div></div>`;
     return page(c, `${x.name} · Mekanik War`, x.name, body);
   }
+  // the beta test: places, sign-up form (sent by js/site.js to /api/beta/signup), how it works, the testers
+  function betaPage(c) {
+    const { T, lang } = c, bi = beta ? beta.publicInfo() : { open: false, full: false, count: 0, places: 50, msg: '', testers: [] };
+    const pct = Math.min(100, Math.round(bi.count / Math.max(1, bi.places) * 100)), left = Math.max(0, bi.places - bi.count);
+    const err = { bad_name: T.eName, bad_email: T.eEmail, email_taken: T.eTaken, name_taken: T.eNameTaken, full: T.eFull, closed: T.closed, too_many: T.eMany, net: T.eNet };
+    const form = bi.open ? `<form class="bform" id="bform" data-lang="${lang}" data-ok="${esc(T.fOk)}" data-err='${esc(JSON.stringify(err))}' novalidate>
+  <label>${esc(T.fName)}<input name="name" maxlength="16" autocomplete="nickname" required></label>
+  <label>${esc(T.fEmail)}<input name="email" type="email" maxlength="120" autocomplete="email" required></label>
+  <button class="btn" type="submit">${esc(T.fSend)}</button><p class="mut sm">${esc(T.fNote)}</p><p class="bmsg" id="bres" hidden></p></form>`
+      : `<div class="card bclosed"><p>${esc(T.closed)}</p></div>`;
+    const steps = [T.h1, T.h2, T.h3, T.h4].map((t, i) => `<li><b>${i + 1}</b><p>${esc(t)}</p></li>`).join('');
+    const body = `<div class="wrap narrow">${crumb(c, [[T.home, '/'], [T.beta]])}<h1 class="ph">${esc(T.betaH)}</h1>
+<div class="bhead"><img src="/assets/img/titan_1.webp" alt="" width="120" height="120"><p class="intro">${esc(fill(T.betaIntro, { m: nf(lang, bi.places) }))}</p></div>
+<div class="bcount"><div><b>${nf(lang, bi.count)} / ${nf(lang, bi.places)}</b> <span class="mut">${esc(T.places)}</span></div><div class="bar"><i style="width:${pct}%"></i></div>${bi.open ? `<div class="mut sm">${esc(fill(T.left, { n: nf(lang, left) }))}</div>` : ''}</div>
+${bi.msg ? `<div class="auto">${esc(bi.msg)}</div>` : ''}
+${form}
+<h2 class="gh">${esc(T.how)}</h2><ol class="bsteps">${steps}</ol>
+${bi.testers.length ? `<h2 class="gh">${esc(T.thanks)}</h2><p class="mut">${esc(T.thanksSub)}</p><div class="btesters">${bi.testers.map(n => `<span>${esc(n)}</span>`).join('')}</div>` : ''}</div>`;
+    return page(c, `${T.beta} · Mekanik War`, fill(T.betaIntro, { m: bi.places }), body, { nav: 'beta' });
+  }
   function notFound(c) {
     return page(c, `${c.T.notFound} · Mekanik War`, c.T.notFound, `<div class="wrap narrow nf"><h1 class="ph">404</h1><p>${esc(c.T.notFound)}</p><a class="btn" href="${c.B}/${c.lang}/">${esc(c.T.back)}</a></div>`);
   }
@@ -226,7 +248,7 @@ ${trains.length ? `<h2 class="gh">${esc(T.cUnits)}</h2><div class="mini">${train
     if (rest === '/wiki/buildings/') return [200, buildings(c)];
     if (m && m[1] === 'units') { const u = D.units.find(x => x.id === m[2]); if (u) return [200, unit(c, u)]; }
     if (m && m[1] === 'buildings') { const b = D.blds.find(x => x.id === m[2]); if (b) return [200, building(c, b)]; }
-    const P = { '/wiki/research/': research, '/wiki/titan/': titan, '/wiki/outposts/': outposts, '/wiki/map/': map, '/wiki/items/': items, '/wiki/alliances/': alliances, '/wiki/guide/': guide, '/news/': news, '/rankings/': rankings };
+    const P = { '/beta/': betaPage, '/wiki/research/': research, '/wiki/titan/': titan, '/wiki/outposts/': outposts, '/wiki/map/': map, '/wiki/items/': items, '/wiki/alliances/': alliances, '/wiki/guide/': guide, '/news/': news, '/rankings/': rankings };
     if (P[rest]) return [200, P[rest](c)];
     const lg = rest.match(/^\/legal\/([a-z]+)$/); if (lg) { const x = D.legal.find(l => l.id === lg[1]); if (x) return [200, legal(c, x)]; }
     if (rest === '/search.json') return [200, searchIndex(c), 'application/json; charset=utf-8'];
@@ -248,19 +270,19 @@ ${trains.length ? `<h2 class="gh">${esc(T.cUnits)}</h2><div class="mini">${train
     const leaf = /^\/(wiki\/(units|buildings)\/[a-z0-9_]+|legal\/[a-z]+|search\.json)\/?$/.test(p);
     if (leaf && p.endsWith('/')) p = p.slice(0, -1); else if (!leaf && !p.endsWith('/')) p += '/';
     if ((lm[2] || '/') !== p) { res.writeHead(301, { Location: `${B}/${lm[1]}${p}` }); res.end(); return true; }
-    const key = `${B}|${lm[1]}|${p}`;
+    const key = `${B}|${lm[1]}|${p}`, live = p === '/beta/' || p === '/';   // the beta page shows the places left: kept 5 seconds only
     let e = cache.get(key);
-    if (!e || Date.now() - e.at > 120_000) {
+    if (!e || Date.now() - e.at > (live ? 5_000 : 120_000)) {
       try { const [code, html, type] = render(lm[1], p, B); e = { at: Date.now(), code, html, type: type || 'text/html; charset=utf-8' }; }
       catch (err) { log('ERREUR', `site ${p} · ${err.message}`); res.writeHead(500, { 'Content-Type': 'text/plain' }); res.end('Error'); return true; }
       if (cache.size > 2000) cache.clear(); cache.set(key, e);
     }
-    const h = { ...SEC, 'Content-Type': e.type, 'Cache-Control': 'public, max-age=120' };
+    const h = { ...SEC, 'Content-Type': e.type, 'Cache-Control': live ? 'no-cache' : 'public, max-age=120' };
     if (!onSite) h['X-Robots-Tag'] = 'noindex';   // the preview on the game addresses is never indexed
     res.writeHead(e.code, h); res.end(req.method === 'HEAD' ? undefined : e.html); return true;
   }
   function sitemap() {
-    const D = engine.wikiData('en'), paths = ['/', '/wiki/', '/wiki/units/', '/wiki/buildings/', '/wiki/research/', '/wiki/titan/', '/wiki/outposts/', '/wiki/map/', '/wiki/items/', '/wiki/alliances/', '/wiki/guide/', '/news/', '/rankings/',
+    const D = engine.wikiData('en'), paths = ['/', '/beta/', '/wiki/', '/wiki/units/', '/wiki/buildings/', '/wiki/research/', '/wiki/titan/', '/wiki/outposts/', '/wiki/map/', '/wiki/items/', '/wiki/alliances/', '/wiki/guide/', '/news/', '/rankings/',
       ...D.units.map(u => '/wiki/units/' + u.id), ...D.blds.map(b => '/wiki/buildings/' + b.id)];
     return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${paths.flatMap(p => LANGS.map(([l]) => `<url><loc>${CANON}/${l}${p}</loc></url>`)).join('')}</urlset>`;
   }

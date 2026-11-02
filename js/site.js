@@ -6,6 +6,18 @@
     try { document.cookie = 'mwlang=' + s.value + ';path=/;max-age=31536000;samesite=lax'; } catch (e) {}
     location.href = (s.dataset.base || '') + '/' + s.value + (s.dataset.path || '/');
   }));
+  // the beta sign-up form
+  const bf = document.getElementById('bform');
+  if (bf) bf.addEventListener('submit', e => {
+    e.preventDefault();
+    const out = document.getElementById('bres'), btn = bf.querySelector('button'), ER = JSON.parse(bf.dataset.err || '{}');
+    const say = (t, ok) => { out.textContent = t; out.className = 'bmsg ' + (ok ? 'ok' : 'bad'); out.hidden = false; };
+    btn.disabled = true;
+    fetch('/api/beta/signup', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: bf.name.value.trim(), email: bf.email.value.trim(), lang: bf.dataset.lang }) })
+      .then(r => r.json().then(j => ({ ok: r.ok, j })))
+      .then(({ ok, j }) => { if (ok) { say(bf.dataset.ok, true); bf.querySelectorAll('input,button').forEach(x => { x.disabled = true; }); } else { say(ER[j.error] || ER.net); btn.disabled = false; } })
+      .catch(() => { say(ER.net); btn.disabled = false; });
+  });
   const q = document.getElementById('q'), box = document.getElementById('qres');
   if (!q || !box) return;
   let data = null, sel = -1;

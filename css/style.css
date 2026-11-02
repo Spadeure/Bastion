@@ -1207,3 +1207,9 @@ button.red{background:linear-gradient(#c0432f,#7d2216)!important;color:#fff!impo
 .tir .nm small{display:block;color:var(--rc);font-size:13px;font-weight:600}
 .tir .pc{background:#0b0e0f;border:1px solid #4a3c1c;border-radius:6px;padding:2px 8px;font-weight:700;color:#f3c534;white-space:nowrap}
 @media (min-width:700px){.tig{grid-template-columns:repeat(3,minmax(0,1fr))}}
+/* beta: green band at the top, shop button hidden, badge « Beta veteran », bug report box */
+#testbar.betab{background:linear-gradient(180deg,#6fbf4a,#3d7a22);border-color:#c8f0a0;color:#0c1a06}
+body.beta #shopBtn{display:none!important}
+.champb.betab{background:linear-gradient(#bfe8a0,#5f9a3a);color:#0c1a06;box-shadow:0 0 6px #8fd06a88}
+.bugtxt{display:block;width:100%;min-height:84px;resize:vertical;margin:0 0 8px;padding:8px 10px;border-radius:8px;border:1px solid #4a3c1c;background:#0f1314;color:inherit;font:inherit;font-size:15px}
+#login .lbeta{font-size:12.5px;text-align:center;line-height:1.35;color:#bfe39a;background:#1c2a14cc;border:1px solid #5e7a3e;border-radius:8px;padding:6px 8px}

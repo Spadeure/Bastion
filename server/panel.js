@@ -7,7 +7,7 @@ const fs = require('fs'), path = require('path');
 
 module.exports = function makePanel(C) {
   const { db, Q, log, send, readBody, broadcast, push, streams, onlineSince, lastIp, watch, cheat, clean, STAMP,
-    DATA, ADMIN_NAME, IS_TEST, GIT, PATCH_ID, VERSION, STARTED, REASON_FR, BACKUP_DIR, backupDb, createAccount, unbanPlayer, admin, engine, UNIT_IDS, orderBucket, chat, events, acc } = C;
+    DATA, ADMIN_NAME, IS_TEST, GIT, PATCH_ID, VERSION, STARTED, REASON_FR, BACKUP_DIR, backupDb, createAccount, unbanPlayer, admin, engine, UNIT_IDS, orderBucket, chat, events, acc, beta } = C;
   const TEST_URL = (process.env.TEST_URL || 'https://test.mekanikwar.com').replace(/\/+$/, '');
   // the other server, for the link between the two panels (same computer at home, other port)
   const OTHER = IS_TEST ? { name: 'OFFICIEL', port: +process.env.OFFICIAL_PORT || 58689 } : { name: 'TEST', port: +process.env.TEST_PORT || 55000 };
@@ -34,7 +34,7 @@ module.exports = function makePanel(C) {
     return { m: maint ? { since: maint.since, dur: maint.dur, reason: maint.reason } : 0,
       p: plan ? { at: plan.at, dur: plan.dur, reason: plan.reason } : 0,
       a: ann && ann.until > now ? { id: ann.id, text: ann.text, color: ann.color, until: ann.until } : 0,
-      test: IS_TEST };
+      test: IS_TEST, b: beta.isOn() };
   }
   const isMaint = () => !!maint;
   const changed = () => broadcast('srv', status());
@@ -76,7 +76,7 @@ module.exports = function makePanel(C) {
     blocages: ['BLOQUÉ', 'SCRIPT', 'INSCRIPTION REFUSÉE', 'CONNEXION REFUSÉE', 'PANEL REFUSÉ'],
     connexions: ['CONNEXION OK', 'CONNEXION ÉCHOUÉE', 'DÉCONNEXION', 'INSCRIPTION'],
     erreurs: ['ERREUR'],
-    admin: ['ADMIN', 'CONSOLE', 'PANEL', 'MODÉRATION', 'MAINTENANCE', 'ANNONCE', 'SAUVEGARDE', 'DÉMARRAGE', 'MISE À JOUR', 'REDÉMARRAGE'],
+    admin: ['ADMIN', 'CONSOLE', 'PANEL', 'MODÉRATION', 'MAINTENANCE', 'ANNONCE', 'SAUVEGARDE', 'DÉMARRAGE', 'MISE À JOUR', 'REDÉMARRAGE', 'BÊTA', 'BUG'],
   };
   function logRead(after, cat, q, limit) {
     const where = ['id > ?'], args = [int(after, 0, 1e15)];
@@ -277,6 +277,23 @@ module.exports = function makePanel(C) {
     if (req.method === 'POST' && name === 'create') {
       try { const c = createAccount(P.name, P.password, P.role === 'tester' && IS_TEST ? 'tester' : 'player'); log('ADMIN', `${by} a créé le compte ${c.n} (${c.rl}) depuis le panel`); return send(res, 200, { ok: true, name: c.n }); }
       catch (e) { return send(res, e.code || 500, { error: { bad_name: 'nom invalide (3 à 16 lettres, chiffres, espaces, - ou _)', bad_password: 'mot de passe trop court (6 caractères minimum)', name_taken: 'ce nom est déjà pris' }[e.message] || e.message }); }
+    }
+    // ----- beta test: settings, list of the testers, invitations, reward, bug reports, reset of the server -----
+    if (req.method === 'GET' && name === 'beta') return send(res, 200, { ...beta.adminView(), launcher: LAUNCHER, now: Date.now() });
+    if (req.method === 'POST' && name === 'beta') {
+      try { const r = await beta.adminAct(P, by); if (P.op === 'set') changed(); return send(res, 200, r); }
+      catch (e) { if (!e.code) throw e; return send(res, e.code, { error: e.error }); }
+    }
+    if (req.method === 'POST' && name === 'betareset') {   // start of the beta: a copy of the database, then every game starts again from zero, then a restart
+      if (String(P.confirm || '') !== 'REMISE A ZERO') return send(res, 400, { error: 'écris exactement REMISE A ZERO pour confirmer' });
+      if (!LAUNCHER) return send(res, 409, { error: 'no_launcher' });
+      const file = path.join(BACKUP_DIR, `avant-remise-a-zero-${new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-')}.db`);
+      try { fs.mkdirSync(BACKUP_DIR, { recursive: true }); db.exec(`VACUUM INTO '${file.replace(/'/g, "''")}'`); }
+      catch (e) { return send(res, 500, { error: 'sauvegarde impossible, rien n\'a été effacé : ' + e.message }); }
+      log('SAUVEGARDE', `Copie avant la remise à zéro : backups/${path.basename(file)}`);
+      beta.wipe(by); broadcast('reload', {});
+      send(res, 200, { ok: true, backup: path.basename(file) });
+      restartSoon(`Redémarrage après la remise à zéro (par ${by})`); return;
     }
     // ----- backups and journal -----
     if (req.method === 'GET' && name === 'backups') return send(res, 200, { list: backups() });

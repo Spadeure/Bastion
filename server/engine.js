@@ -125,7 +125,7 @@ function wikiData(lang) {
       const news = PATCH.slice(0, 40).map(p => ({ id: p.id, d: p.d, date: fmtDate(p.d), items: p.items.map(x => _t(x)) }));
       const tx = s => _t(s);
       LEGAL_INFO = JSON.parse(__legalInfo);
-      const legal = LEGAL_TABS.map(([k, n]) => ({ id: k, name: nm(n), html: legalHtml(k) }));
+      const legal = legalTabs().map(([k, n]) => ({ id: k, name: nm(n), html: legalHtml(k) }));
       return JSON.stringify({ units, blds, techs, items, br, res, targets, outposts, titan, news, legal, forts: [nm('Fortified Mountain'), nm('Fortified Oil Field')], fortImg: [(MSPR.fort || {}).img || 'assets/img/fort.webp', (MSPR.oilfort || {}).img || 'assets/img/oilfort.webp'], max: MAX, ver: PATCH[0].id,
         t: { Attack: tx('Attack'), Defense: tx('Defense'), Health: tx('Health'), Speed: tx('Speed'), Load: tx('Load'), Range: tx('Range'), Power: tx('Power'), Population: tx('Population') } });
     } finally { LANG = L0; } })()`, ctx));

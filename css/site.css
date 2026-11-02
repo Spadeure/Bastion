@@ -193,3 +193,26 @@ footer .wrap>div:first-child{display:flex;flex-wrap:wrap;gap:6px 14px}footer a{m
 .mobplay{z-index:6}
 img{max-width:100%}
 @media (max-width:820px){.nav .mlang{display:block}}
+/* beta test */
+.betaband{display:flex;align-items:center;justify-content:center;gap:14px;flex-wrap:wrap;padding:10px 16px;background:linear-gradient(90deg,#1f3416,#2d4a1d,#1f3416);border-bottom:1px solid #5e7a3e;color:#d9f2c0;text-align:center}
+.betaband b{font-family:'Black Ops One',Rajdhani,sans-serif;font-weight:400;letter-spacing:1px}
+.bhead{display:flex;gap:18px;align-items:center}
+.bhead img{width:120px;height:auto;flex:none;filter:drop-shadow(0 8px 12px #000)}
+.bcount{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin:18px 0}
+.bcount b{font:400 30px 'Black Ops One',Rajdhani,sans-serif;color:var(--gold)}
+.bar{height:12px;border-radius:99px;background:#0b0e0f;border:1px solid var(--line);overflow:hidden;margin:8px 0 6px}
+.bar i{display:block;height:100%;background:linear-gradient(90deg,#d9a51f,#f6d24a)}
+.bform{display:grid;gap:12px;background:linear-gradient(var(--panel2),var(--panel));border:1px solid var(--gold2);border-radius:14px;padding:18px;margin:18px 0}
+.bform label{display:grid;gap:4px;font-weight:600;color:var(--mut)}
+.bform input{font:600 17px Rajdhani,system-ui,sans-serif;color:var(--txt);background:#0b0e0f;border:1px solid var(--line);border-radius:10px;padding:10px 12px;min-width:0}
+.bform input:focus{outline:2px solid var(--gold2);outline-offset:1px}
+.bform .btn{justify-self:start}.bform p{margin:0}
+.bmsg{padding:10px 12px;border-radius:10px;font-weight:600}.bmsg.ok{background:#16210f;border:1px solid #34502a;color:#b9d9a4}.bmsg.bad{background:#2a1410;border:1px solid #7a3a2c;color:#f0a08a}
+.bclosed{margin:18px 0}.bclosed p{color:var(--txt)}
+.bsteps{list-style:none;padding:0;margin:0;display:grid;gap:10px}
+.bsteps li{display:flex;gap:12px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 14px}
+.bsteps li b{flex:none;width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(#f6d24a,#d9a51f);color:#1a1408;font:400 17px 'Black Ops One'}
+.bsteps li p{margin:0}
+.btesters{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.btesters span{background:var(--panel2);border:1px solid #4f7a37;color:#bfe39a;border-radius:999px;padding:4px 12px;font-weight:700}
+@media (max-width:820px){.bhead{flex-direction:column;text-align:center}.bhead img{width:96px}.bform .btn{justify-self:stretch;justify-content:center}}

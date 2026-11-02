@@ -426,14 +426,25 @@ async function api(req, res, url, ip) {
   if (url.startsWith('/api/admin/') && !fromHome(req)) { panelOutside(ip, url); return send(res, 404, { error: 'not_found' }); }   // the panel does not exist seen from the internet
   if (url === '/api/ping') return send(res, 200, { t: Date.now(), tz: SERVER_TZ, v: VERSION, s: panel.status() });   // s: maintenance, announcement, test server
   if (url === '/api/health') return send(res, 200, { ok: true, game: 'Bastion', players: Q.count.get().n, uptime: Math.round(process.uptime()),
-    commit: GIT.commit, branch: GIT.branch, subject: GIT.subject, patch: PATCH_ID, version: VERSION, test: IS_TEST, legal: LEGAL });
+    commit: GIT.commit, branch: GIT.branch, subject: GIT.subject, patch: PATCH_ID, version: VERSION, test: IS_TEST, beta: beta.isOn(), legal: LEGAL });
+  // the beta sign-up form of the website (no account needed)
+  if (url === '/api/beta/signup' && req.method === 'POST') {
+    if (isBlocked(ip)) return send(res, 429, { error: 'too_many' });
+    blockIfTooMany(ip, strike(ip), 'inscriptions à la bêta');
+    const P = await readBody(req, 5_000);
+    try { return send(res, 200, beta.signup(P, ip)); } catch (e) { if (!e.code) throw e; return send(res, e.code, { error: e.error }); }
+  }
 
   if (url === '/api/register' && req.method === 'POST') {
     if (isBlocked(ip)) return send(res, 429, { error: 'too_many' });
     blockIfTooMany(ip, strike(ip), 'créations de compte');          // every new account counts: no flood of accounts
     const { name = '', password = '', email = '', lang = 'en' } = await readBody(req, 10_000);
     // test server: only the administrator account can be created here (the testers are created from the management panel)
-    if (IS_TEST && String(name).trim().toLowerCase() !== ADMIN_NAME.toLowerCase()) { log('INSCRIPTION REFUSÉE', `${clean(String(name).trim())} · ${ip} · serveur de test (comptes créés depuis le panel)`); return send(res, 403, { error: 'test_closed' }); }
+    const isAdm = String(name).trim().toLowerCase() === ADMIN_NAME.toLowerCase();
+    // beta mode: only the addresses signed up for the beta (website or panel) can create an account
+    const brow = beta.registerCheck(String(name).trim(), email, isAdm);
+    if (brow === 'beta_only' || brow === 'beta_used') { log('INSCRIPTION REFUSÉE', `${clean(String(name).trim())} · ${ip} · bêta : ${brow === 'beta_only' ? 'adresse absente de la liste des inscrits' : 'place déjà utilisée par un autre compte'}`); return send(res, 403, { error: brow }); }
+    if (IS_TEST && !isAdm && !(brow && typeof brow === 'object')) { log('INSCRIPTION REFUSÉE', `${clean(String(name).trim())} · ${ip} · serveur de test (comptes créés depuis le panel)`); return send(res, 403, { error: 'test_closed' }); }
     if (panel.isMaint() && String(name).trim().toLowerCase() !== ADMIN_NAME.toLowerCase()) return send(res, 503, { error: 'maintenance' });
     if (accountsToday(ip) >= ACCOUNTS_PER_DAY) { log('INSCRIPTION REFUSÉE', `${clean(String(name).trim())} · ${ip} · déjà ${ACCOUNTS_PER_DAY} comptes créés aujourd'hui depuis cette adresse`); return send(res, 429, { error: 'too_many_accounts' }); }
     const n = String(name).trim();
@@ -449,6 +460,7 @@ async function api(req, res, url, ip) {
     newAccounts.set(ip, [...(newAccounts.get(ip) || []), now]);
     const token = crypto.randomBytes(32).toString('hex'); Q.addSession.run(token, id, now, now); Q.userSeen.run(now, id); lastIp.set(id, ip);
     if (mail) acc.afterRegister(id, mail, LANG_OK.includes(lang) ? lang : 'en');
+    if (brow && typeof brow === 'object') beta.registered(brow, id);
     STATS.registered++; STATS.players.add(n);
     log('INSCRIPTION', `${n} · ${ip} · base en (${p.x}, ${p.y})`);
     return send(res, 200, { token, name: n });
@@ -527,7 +539,7 @@ async function api(req, res, url, ip) {
   if (url === '/api/act' && req.method === 'POST') {             // one order from the player: checked and run by the server
     const { a, args = [], lang } = await readBody(req, 20_000);
     const b = Q.base.get(me.id), act = clean(a);
-    if (ally.SERVER_ACTS.has(String(a)) || ['payGrant', 'payCheck', 'payRevoke', 'evGrant', 'evRank', 'evFinal', 'alFinal', 'missionChat', 'statSet'].includes(String(a))) { cheat(me, ip, `ordre réservé au serveur : ${act}`); return send(res, 403, { error: 'forbidden' }); }
+    if (ally.SERVER_ACTS.has(String(a)) || ['payGrant', 'payCheck', 'payRevoke', 'evGrant', 'evRank', 'evFinal', 'alFinal', 'missionChat', 'statSet', 'betaGrant'].includes(String(a))) { cheat(me, ip, `ordre réservé au serveur : ${act}`); return send(res, 403, { error: 'forbidden' }); }
     const refuse = err => { if (err === 'bad_order') refusedOrder(me, ip, act, args, err); const r0 = runFor(me, b, null, [], lang); return send(res, 200, { state: r0.state, events: r0.events, error: err, serverTime: Date.now() }); };
     if (a === 'launch' && Array.isArray(args) && args[0] && typeof args[0] === 'object') {
       const o = args[0]; delete o.pvp;                             // only the server says that the target is a player
@@ -561,6 +573,7 @@ async function api(req, res, url, ip) {
   }
   if (url === '/api/pay/start' && req.method === 'POST') {   // a real-money purchase: the server opens the Stripe payment page (test server: simulated)
     if (panel.isMaint() && me.role !== 'admin') return send(res, 503, { error: 'maintenance' });
+    if (beta.isOn()) return send(res, 403, { error: 'beta_shop' });   // no real-money purchase during the beta
     if (activeTok.has(me.id) && activeTok.get(me.id) !== me.token) return send(res, 409, { error: 'session_replaced' });
     const P0 = await readBody(req, 5_000);
     const origin = process.env.PUBLIC_URL ? process.env.PUBLIC_URL.replace(/\/$/, '') : `${req.headers['x-forwarded-proto'] || (req.socket.encrypted ? 'https' : 'http')}://${req.headers.host}`;
@@ -573,6 +586,8 @@ async function api(req, res, url, ip) {
     return send(res, 200, { players: Q.players.all(me.id).map(({ uid, cos, ...p }) => ({ ...p, cos: cos ? JSON.parse(cos) : null, shield: p.shield > now ? p.shield : 0, alliance: an.get(uid) || null })), outposts: Q.allOps.all() }); }
   if (url === '/api/alliance' && req.method === 'GET') return send(res, 200, ally.view(me));
   if (url === '/api/event' && req.method === 'GET') return send(res, 200, events.view(me));
+  if (url === '/api/bug' && req.method === 'POST') { const P = await readBody(req, 10_000);   // Settings › Report a bug: read in the panel
+    try { return send(res, 200, beta.bug(me, P)); } catch (e) { if (!e.code) throw e; return send(res, e.code, { error: e.error }); } }
   if (url === '/api/account' && req.method === 'GET') return send(res, 200, acc.view(me));   // my e-mail address
   if (url === '/api/account' && req.method === 'POST') { const P = await readBody(req, 5_000);   // address, password, deletion
     try { const r = await acc.act(me, { ...P, lang: LANG_OK.includes(P.lang) ? P.lang : 'en' }); return send(res, 200, r); }
@@ -682,7 +697,8 @@ function pubCos(st) { const C = (st && st.cos) || {}, own = C.own || {}, V = (st
   if (C.f === 'frame_vip' && lv >= 10) o.f = 'vip';   // never sold: VIP 10 only
   if (V.show && lv) o.v = lv;   // the VIP badge, only if the player chose to show it
   if ((+st.champ || 0) > Date.now()) o.t = 1;
-  if ((+st.champA || 0) > Date.now()) o.a = 1;   // title « Champion alliance » (1st alliance of a challenge, 7 days)   // title « Champion » (1st of a tournament, 7 days)
+  if ((+st.champA || 0) > Date.now()) o.a = 1;
+  if (st.betaVet === 1) o.b = 1;   // badge « Beta veteran » (the testers' reward)   // title « Champion alliance » (1st alliance of a challenge, 7 days)   // title « Champion » (1st of a tournament, 7 days)
   return Object.keys(o).length ? JSON.stringify(o) : null; }
 function saveState(uid, created, r) {
   const ss = r.state.stats || {};
@@ -950,10 +966,24 @@ function backupDb(force) {
     if (fs.existsSync(file)) { if (!force) return; fs.unlinkSync(file); }   // asked from the console: today's copy is made again
     const t0 = Date.now();
     db.exec(`VACUUM INTO '${file.replace(/'/g, "''")}'`);
+    setTimeout(() => mailBackup(file), 2000);
     const old = fs.readdirSync(BACKUP_DIR).filter(f => /^bastion-\d{4}-\d{2}-\d{2}\.db$/.test(f)).sort().reverse().slice(BACKUP_KEEP);
     for (const f of old) fs.unlinkSync(path.join(BACKUP_DIR, f));
     log('SAUVEGARDE', `Copie de la base : backups/${path.basename(file)} (${Math.round(fs.statSync(file).size / 1024)} Ko, ${Date.now() - t0} ms)${old.length ? ' · ' + old.length + ' ancienne(s) supprimée(s)' : ''}`);
   } catch (e) { log('ERREUR', 'sauvegarde de la base : ' + e.message); }
+}
+// a copy outside the house: the day's copy, compressed, sent by e-mail (official server: to the game's mailbox, kept at OVH)
+// BACKUP_EMAIL (Pelican variable) chooses another address; on the test server nothing is sent unless BACKUP_EMAIL is set
+function mailBackup(file) {
+  try {
+    const to = process.env.BACKUP_EMAIL || (IS_TEST ? '' : acc.SMTP_USER);
+    if (!to || /^(off|0|non)$/i.test(to) || !acc.mailOn()) return;
+    const gz = zlib.gzipSync(fs.readFileSync(file), { level: 9 }), name = path.basename(file) + '.gz';
+    if (gz.length > 15 * 1048576) { log('SAUVEGARDE', `copie trop grosse pour l'e-mail (${Math.round(gz.length / 1048576)} Mo) : non envoyée, elle reste dans data/backups`); return; }
+    acc.sendMail(to, `Sauvegarde ${name.slice(8, 18)}`, `Copie de sauvegarde de la base du jeu (${name}, ${Math.round(gz.length / 1024)} Ko).\n\nGarde ce message : en cas de panne du serveur, cette pièce jointe permet de tout remettre en place.`, '', '', { name, type: 'application/gzip', data: gz })
+      .then(ok => { if (ok) log('SAUVEGARDE', `copie envoyée par e-mail hors de la maison (${Math.round(gz.length / 1024)} Ko)`); })
+      .catch(e => log('ERREUR', 'envoi de la sauvegarde par e-mail : ' + e.message));
+  } catch (e) { log('ERREUR', 'envoi de la sauvegarde par e-mail : ' + e.message); }
 }
 setTimeout(() => backupDb(), 60_000).unref();
 setInterval(() => backupDb(), 30 * 60_000).unref();
@@ -1031,9 +1061,11 @@ const kvOnce = k => { if (db.prepare('SELECT 1 FROM kv WHERE k = ?').get(k)) ret
 events.hooks.start = e => { if (kvOnce('evstart_' + e.id)) notify.sendAll(e.type === 'ally' ? 'alstart' : 'evstart', {}); };
 events.hooks.last = e => { if (kvOnce('evlast_' + e.id)) notify.sendAll(e.type === 'ally' ? 'allast' : 'evlast', {}); };
 
+// ---------- the beta test (server/beta.js): sign-ups of the website, beta mode, invitations, reward, bug reports ----------
+const beta = require('./beta.js')({ db, Q, log, clean, acc: () => acc, runFor, push, NAME_OK, IS_TEST });
 // ---------- the public website mekanikwar.com (server/site.js): home page, wiki built from the game rules, news, rankings ----------
 const siteStats = { at: 0, v: null };
-const site = require('./site.js')({ engine, IS_TEST, log,
+const site = require('./site.js')({ engine, IS_TEST, log, beta,
   stats: () => { if (!siteStats.v || Date.now() - siteStats.at > 60_000) { siteStats.at = Date.now();
     siteStats.v = { players: db.prepare('SELECT COUNT(*) AS n FROM users WHERE banned = 0').get().n, alliances: db.prepare('SELECT COUNT(*) AS n FROM alliances').get().n }; } return siteStats.v; },
   ranking: by => { const r = ranking(by, 0); if (IS_TEST || by === 'ally') return r;   // the administrator of the official server is never ranked
@@ -1045,5 +1077,5 @@ const panel = require('./panel.js')({
   db, Q, log, send, readBody, broadcast, push, streams, onlineSince, lastIp, watch, cheat, clean, STAMP,
   ROOT, DATA, ADMIN_NAME, IS_TEST, GIT, PATCH_ID, VERSION, STARTED, REASON_FR, NAME_OK,
   BACKUP_DIR, backupDb: () => backupDb(true), createAccount, unbanPlayer, admin, engine, UNIT_IDS,
-  orderBucket, chat, events, acc: () => acc,
+  orderBucket, chat, events, acc: () => acc, beta,
 });

@@ -37,13 +37,15 @@ module.exports = function makeAccounts({ db, Q, log, hashPass, IS_TEST, ADMIN_NA
   const SMTP = { host: process.env.SMTP_HOST || '', port: +process.env.SMTP_PORT || 465, user: process.env.SMTP_USER || '', pass: process.env.SMTP_PASS || '', from: process.env.SMTP_FROM || process.env.SMTP_USER || '',
     plain: /^(off|none|0)$/i.test(process.env.SMTP_TLS || '') };   // SMTP_TLS=off: a relay on the same machine only (never through the internet)
   const mailOn = () => !!(SMTP.host && SMTP.from);
-  function smtpSend(to, subject, text, html) {
+  function smtpSend(to, subject, text, html, att) {   // att: {name, type, data (Buffer)}, a file sent with the e-mail
     return new Promise((ok, ko) => {
       const b64 = s => Buffer.from(s, 'utf8').toString('base64'), wrap = s => s.replace(/.{1,76}/g, '$&\r\n');
       const bnd = 'b' + crypto.randomBytes(12).toString('hex'), mid = `<${crypto.randomBytes(12).toString('hex')}@${(SMTP.from.split('@')[1] || 'bastion').replace(/[^\w.-]/g, '')}>`;
       const msg = [`From: ${GAME} <${SMTP.from}>`, `To: <${to}>`, `Subject: =?UTF-8?B?${b64(subject)}?=`, `Date: ${new Date().toUTCString()}`, `Message-ID: ${mid}`, 'MIME-Version: 1.0',
+        ...(att ? [`Content-Type: multipart/mixed; boundary="m${bnd}"`, '', `--m${bnd}`] : []),
         `Content-Type: multipart/alternative; boundary="${bnd}"`, '', `--${bnd}`, 'Content-Type: text/plain; charset=UTF-8', 'Content-Transfer-Encoding: base64', '', wrap(b64(text)),
-        `--${bnd}`, 'Content-Type: text/html; charset=UTF-8', 'Content-Transfer-Encoding: base64', '', wrap(b64(html)), `--${bnd}--`, ''].join('\r\n');
+        `--${bnd}`, 'Content-Type: text/html; charset=UTF-8', 'Content-Transfer-Encoding: base64', '', wrap(b64(html)), `--${bnd}--`,
+        ...(att ? ['', `--m${bnd}`, `Content-Type: ${att.type}; name="${att.name}"`, 'Content-Transfer-Encoding: base64', `Content-Disposition: attachment; filename="${att.name}"`, '', wrap(att.data.toString('base64')), `--m${bnd}--`] : []), ''].join('\r\n');
       let sock, buf = '', step = 0, done = false;
       const finish = e => { if (done) return; done = true; try { sock.end(); } catch (x) {} e ? ko(e) : ok(); };
       const write = s => sock.write(s + '\r\n');
@@ -76,6 +78,15 @@ module.exports = function makeAccounts({ db, Q, log, hashPass, IS_TEST, ADMIN_NA
     reset:  { fr: ['Nouveau mot de passe', 'Bonjour {n},\n\nTu as demandé un nouveau mot de passe. Choisis-le ici :\n{u}\n\nCe lien est valable 1 heure et ne sert qu\'une fois. Si ce n\'est pas toi, ignore ce message : ton mot de passe ne change pas.', 'Choisir un nouveau mot de passe'],
               en: ['New password', 'Hello {n},\n\nYou asked for a new password. Choose it here:\n{u}\n\nThis link is valid for 1 hour and works only once. If it was not you, ignore this message: your password does not change.', 'Choose a new password'] },
   };
+  const escH = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  // any e-mail with the game's look: a text, and a button if there is a link (invitations to the beta, backups)
+  async function sendMail(to, subject, text, btn, url, att) {
+    const html = `<div style="font-family:Arial,sans-serif;max-width:520px;margin:auto;background:#1a1e1a;color:#e8e2d0;padding:24px;border-radius:12px;border:2px solid #b8913a">
+      <h2 style="color:#f3c534;letter-spacing:2px;margin-top:0">${escH(GAME.toUpperCase())}</h2>${escH(text).split('\n').filter(l => l !== url).map(l => l ? `<p>${l}</p>` : '').join('')}
+      ${url ? `<p style="text-align:center;margin:24px 0"><a href="${escH(url)}" style="background:#f3c534;color:#1a1408;text-decoration:none;font-weight:bold;padding:12px 22px;border-radius:8px">${escH(btn)}</a></p><p style="font-size:12px;color:#9c9585">${escH(url)}</p>` : ''}</div>`;
+    if (!mailOn()) { log('E-MAIL', `non envoyé à ${to.replace(/^(.).*@/, '$1***@')} (${subject}) : réglages SMTP absents`); return false; }
+    await smtpSend(to, `${GAME} · ${subject}`, text, html, att); return true;
+  }
   async function mail(u, kind, email, lang) {
     const raw = crypto.randomBytes(32).toString('hex'), now = Date.now();
     T.dropKind.run(u.id, kind); T.add.run(sha(raw), u.id, kind, email, now + LIFE[kind]);
@@ -184,5 +195,5 @@ module.exports = function makeAccounts({ db, Q, log, hashPass, IS_TEST, ADMIN_NA
     remove(u, by) { if (u.name.toLowerCase() === ADMIN_NAME.toLowerCase()) throw err(409, 'le compte principal ne peut pas être supprimé'); remove(u, 'par ' + by); return { ok: true }; },
     info: u => ({ email: u.email || null, email_ok: !!u.email_ok }),
   };
-  return { checkNewEmail, afterRegister, forgot, reset, verify, view, act, admin, mailOn, EMAIL_OK, mask };
+  return { checkNewEmail, afterRegister, forgot, reset, verify, view, act, admin, mailOn, EMAIL_OK, mask, sendMail, BASE, SMTP_USER: SMTP.user };
 };

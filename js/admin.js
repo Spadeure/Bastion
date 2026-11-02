@@ -90,7 +90,7 @@ let view = 'dash', D = null, timers = [];
 const every = (ms, f) => timers.push(setInterval(f, ms));
 function stopTimers() { timers.forEach(clearInterval); timers = []; }
 let DEPLOY_DUR = 15;   // maintenance length chosen for the next deployment (minutes)
-const VIEWS = { dash: viewDash, maint: viewMaint, players: viewPlayers, chat: viewChat, ann: viewAnn, events: viewEvents, logs: viewLogs };
+const VIEWS = { dash: viewDash, maint: viewMaint, players: viewPlayers, beta: viewBeta, chat: viewChat, ann: viewAnn, events: viewEvents, logs: viewLogs };
 document.querySelectorAll('#menu [data-v]').forEach(b => b.onclick = () => go(b.dataset.v));
 function go(v) {
   view = VIEWS[v] ? v : 'dash'; try { history.replaceState(null, '', '#' + view); } catch (e) {}
@@ -377,6 +377,75 @@ async function viewAnn() {
   };
   const load = async () => { const [, l] = await Promise.all([loadDash(), api('GET', 'announces')]).catch(e => { toast(e.message, true); return [null, null]; }); if (l) draw(l.list); };
   await load(); every(1000, tickCountdowns);
+}
+
+// ===== beta test: settings, testers, invitations, reward, bug reports, reset =====
+async function viewBeta() {
+  let B = null, tab = 'list';
+  const SRC = { site: 'site', panel: 'ajouté à la main', compte: 'compte existant' };
+  const draw = () => {
+    const free = Math.max(0, B.places - B.count), bugsOpen = B.bugs.filter(b => !b.done).length;
+    $('#main').innerHTML = top('Bêta') + `
+      <div class="card ${B.on ? 'warnc' : ''}"><div class="ch"><img src="${IMG('quests')}" alt=""><h2>Mode bêta</h2><span class="badge ${B.on ? 'ban' : ''}">${B.on ? 'ACTIVÉ' : 'désactivé'}</span></div>
+        <p class="small">${B.on ? 'Seuls les inscrits de la liste peuvent créer un compte (avec la même adresse e-mail). La boutique payante est cachée. Un bandeau BÊTA est affiché dans le jeu.'
+          : 'Le jeu est ouvert à tout le monde. Active le mode bêta quand tu lances la bêta.'}</p>
+        <div class="row"><button class="btn ${B.on ? 'sec' : 'ora'}" id="bon"><img src="${IMG(B.on ? 'ui_close' : 'ui_ok')}" alt="">${B.on ? 'Désactiver le mode bêta' : 'Activer le mode bêta'}</button></div></div>
+      <div class="card"><div class="ch"><img src="${IMG('messages')}" alt=""><h2>Inscriptions sur le site</h2><span class="badge ${B.open && free ? 'admin' : 'ban'}">${!free ? 'COMPLET' : B.open ? 'ouvertes' : 'fermées'}</span></div>
+        <p><b style="font-size:22px">${B.count} / ${B.places}</b> <span class="mut">places prises · page : <a href="https://mekanikwar.com/fr/beta" target="_blank" rel="noopener">mekanikwar.com/fr/beta</a></span></p>
+        <div class="row"><label>Nombre de places<input id="bpl" type="number" min="1" max="10000" value="${B.places}" style="width:110px"></label>
+          <button class="btn sec" id="bopen">${B.open ? 'Fermer les inscriptions' : 'Rouvrir les inscriptions'}</button></div>
+        <label class="small mut" style="display:block;margin-top:6px">Message affiché sur la page bêta du site (et dans l'e-mail d'invitation)</label>
+        <textarea id="bmsg" maxlength="300" placeholder="Ex. : Inscriptions closes ! La bêta commence le lundi 24 novembre à 18 h.">${esc(B.msg)}</textarea>
+        <div class="row"><button class="btn" id="bsave"><img src="${IMG('ui_ok')}" alt="">Enregistrer</button></div>
+        <p class="mut small">À 50 inscrits (ou le nombre choisi), les inscriptions se ferment toutes seules.</p></div>
+      <div class="tabs"><button class="tab${tab === 'list' ? ' on' : ''}" data-t="list">Inscrits (${B.count})</button><button class="tab${tab === 'bugs' ? ' on' : ''}" data-t="bugs">Bugs signalés${bugsOpen ? ' (' + bugsOpen + ')' : ''}</button><button class="tab${tab === 'end' ? ' on' : ''}" data-t="end">Lancement et récompense</button></div>
+      <div id="btab"></div>`;
+    const T = $('#btab');
+    if (tab === 'list') T.innerHTML = `<div class="card"><div class="ch"><img src="${IMG('troops')}" alt=""><h2>Liste des bêta-testeurs</h2></div>
+        <div class="row"><input id="bn" placeholder="Nom (ou compte existant)" maxlength="16" class="grow"><input id="be" placeholder="Adresse e-mail" maxlength="120" class="grow"><button class="btn sm" id="badd"><img src="${IMG('ui_ok')}" alt="">Ajouter</button></div>
+        <p class="mut small">Pour un compte qui existe déjà sur ce serveur, le nom suffit. Pour quelqu'un d'autre, mets son nom et son adresse e-mail.</p>
+        <div class="row"><button class="btn ora" id="binv"><img src="${IMG('messages')}" alt="">Envoyer les invitations (${B.list.filter(r => r.email && !r.invited).length} pas encore invité(s))</button></div>
+        ${B.mailOn ? '' : '<p class="note">Les e-mails ne sont pas réglés sur ce serveur (SMTP) : les invitations ne partiront pas.</p>'}
+        <div class="plist">${B.list.map((r, i) => `<div class="prow brow">
+          <div class="pn"><span class="mut small">${i + 1}.</span><b>${esc(r.name)}</b></div>
+          <div class="small bem">${esc(r.email || '—')}<br><span class="mut">${esc(SRC[r.src] || r.src)} · ${dt(r.at)}</span></div>
+          <div class="small">${r.account ? `<span class="ok">compte : ${esc(r.account)}</span>` : '<span class="mut">pas encore de compte</span>'}<br><span class="mut">${r.invited ? 'invité le ' + dt(r.invited) : 'pas invité'}${r.rewarded ? ' · récompensé' : ''}</span></div>
+          <div class="row bact" style="margin:0">${r.email ? `<button class="btn sec sm" data-inv="${r.id}" title="Envoyer l'invitation">E-mail</button>` : ''}<button class="btn red sm" data-del="${r.id}" data-n="${esc(r.name)}">Retirer</button></div></div>`).join('') || '<p class="mut">Personne pour le moment.</p>'}</div></div>`;
+    if (tab === 'bugs') T.innerHTML = `<div class="card"><div class="ch"><img src="${IMG('ui_warn')}" alt=""><h2>Bugs signalés par les joueurs</h2></div>
+        <p class="mut small">Envoyés depuis le jeu (Paramètres › Signaler un bug). Copie-les à Claude pour qu'il les corrige.</p>
+        ${B.bugs.map(b => `<div class="err" style="${b.done ? 'opacity:.55' : ''}"><span class="mut mono">${dt(b.at)}</span> <b>${esc(b.name)}</b> <span class="mut small">${esc(b.info || '')}</span>
+          <div style="white-space:pre-wrap;margin:4px 0">${esc(b.text)}</div><button class="btn sec sm" data-bug="${b.id}" data-d="${b.done ? 0 : 1}">${b.done ? 'Remettre à traiter' : 'Marquer comme traité'}</button></div>`).join('') || '<p class="mut">Aucun bug signalé.</p>'}</div>`;
+    if (tab === 'end') T.innerHTML = `<div class="card warnc"><div class="ch"><img src="${IMG('ui_warn')}" alt=""><h2>Remise à zéro du serveur</h2></div>
+        <p class="small">Toutes les parties repartent de zéro (bases, troupes, alliances, avant-postes, chat). <b>Les comptes sont gardés</b> : chacun se reconnecte avec son nom et son mot de passe.
+        Une copie complète de la base est faite juste avant (dossier data/backups). Le serveur redémarre ensuite tout seul.</p>
+        <p class="small">À faire au <b>début</b> de la bêta (tout le monde part à égalité), et à la <b>fin</b> si on décide de remettre à zéro pour la sortie officielle.</p>
+        <div class="row"><input id="bconf" placeholder="Écris REMISE A ZERO" maxlength="20"><button class="btn red" id="breset"><img src="${IMG('ui_warn')}" alt="">Remettre le serveur à zéro</button></div></div>
+      <div class="card"><div class="ch"><img src="${IMG('power')}" alt=""><h2>Récompense des testeurs</h2></div>
+        <p class="small">Donne des Crédits et le badge « Vétéran de la bêta » (visible par tous à côté du nom) à chaque testeur qui a un compte. Une seule fois par testeur.
+        <b>À faire après la remise à zéro de fin de bêta</b>, sinon la remise à zéro effacerait la récompense.</p>
+        <div class="row"><label>Crédits par testeur<input id="bcr" type="number" min="1" max="100000" value="500" style="width:120px"></label><button class="btn" id="brew"><img src="${IMG('ui_ok')}" alt="">Distribuer la récompense</button></div></div>`;
+    // ---- actions ----
+    const post = (body, msg) => run(null, () => api('POST', 'beta', body), msg).then(r => { if (r) load(); return r; });
+    $('#bon').onclick = async () => { if (!B.on && !await confirmBox('Activer le mode bêta', 'Seuls les inscrits de la liste pourront créer un compte, et la boutique payante sera cachée. Continuer ?', 'Activer', 'ora')) return; post({ op: 'set', on: !B.on }, B.on ? 'Mode bêta désactivé' : 'Mode bêta activé'); };
+    $('#bopen').onclick = () => post({ op: 'set', open: !B.open }, B.open ? 'Inscriptions fermées' : 'Inscriptions rouvertes');
+    $('#bsave').onclick = () => post({ op: 'set', places: +$('#bpl').value, msg: $('#bmsg').value }, 'Enregistré');
+    document.querySelectorAll('[data-t]').forEach(b => b.onclick = () => { tab = b.dataset.t; draw(); });
+    const q = s => T.querySelector(s);
+    if (q('#badd')) q('#badd').onclick = () => post({ op: 'add', name: q('#bn').value.trim(), email: q('#be').value.trim() }, 'Ajouté à la liste');
+    if (q('#binv')) q('#binv').onclick = async e => { if (!await confirmBox('Envoyer les invitations', 'Un e-mail part vers chaque inscrit qui n\'a pas encore été invité, avec le lien du jeu et ton message. Continuer ?', 'Envoyer')) return;
+      const r = await run(e.currentTarget, () => api('POST', 'beta', { op: 'invite' })); if (r) { toast(`${r.sent} invitation(s) envoyée(s)${r.fail ? ', ' + r.fail + ' en échec' : ''}`, !!r.fail); load(); } };
+    T.querySelectorAll('[data-inv]').forEach(b => b.onclick = async () => { const r = await run(b, () => api('POST', 'beta', { op: 'invite', id: +b.dataset.inv })); if (r) { toast(r.sent ? 'Invitation envoyée' : 'Non envoyée', !r.sent); load(); } });
+    T.querySelectorAll('[data-del]').forEach(b => b.onclick = async () => { if (await confirmBox('Retirer de la liste', `Retirer ${esc(b.dataset.n)} de la liste de la bêta ?`, 'Retirer', 'red')) post({ op: 'del', id: +b.dataset.del }, 'Retiré'); });
+    T.querySelectorAll('[data-bug]').forEach(b => b.onclick = () => post({ op: 'bug', id: +b.dataset.bug, done: b.dataset.d === '1' }));
+    if (q('#breset')) q('#breset').onclick = async e => { if (q('#bconf').value.trim() !== 'REMISE A ZERO') return toast('Écris exactement REMISE A ZERO', true);
+      if (!await confirmBox('Remise à zéro', 'Toutes les parties de ce serveur vont repartir de zéro (une sauvegarde est faite avant). Le serveur redémarre ensuite. Continuer ?', 'Tout remettre à zéro', 'red')) return;
+      const r = await run(e.currentTarget, () => api('POST', 'betareset', { confirm: 'REMISE A ZERO' })); if (r) toast('Remise à zéro faite (sauvegarde : ' + r.backup + '). Le serveur redémarre…'); };
+    if (q('#brew')) q('#brew').onclick = async e => { const cr = +q('#bcr').value; if (!(cr > 0)) return toast('Indique un nombre de Crédits', true);
+      if (!await confirmBox('Récompense des testeurs', `Donner ${fmtN(cr)} Crédits et le badge « Vétéran de la bêta » à chaque testeur qui a un compte (une seule fois par testeur) ?`, 'Distribuer')) return;
+      const r = await run(e.currentTarget, () => api('POST', 'beta', { op: 'reward', cr })); if (r) { toast(`Récompense donnée à ${r.n} testeur(s)${r.wait ? ' · ' + r.wait + ' sans base pour le moment (reclique plus tard)' : ''}`); load(); } };
+  };
+  const load = async () => { try { await loadDash(); B = await api('GET', 'beta'); draw(); } catch (e) { toast(e.message, true); } };
+  await load();
 }
 
 // ===== events: the Power Tournament =====

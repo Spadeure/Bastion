@@ -161,3 +161,14 @@ textarea{width:100%;min-height:72px;resize:vertical}
 @media (max-width:820px){#toast{bottom:calc(84px + env(safe-area-inset-bottom,0px))}}
 .spin{animation:spin 1.2s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
 @media (max-width:820px){#pq,#lq{flex:1 1 100%}}
+/* ----- beta: list of the testers ----- */
+.prow.brow{cursor:default;grid-template-columns:minmax(0,1.3fr) minmax(0,1.6fr) minmax(0,1.3fr) auto}
+.brow .bem{overflow:hidden;text-overflow:ellipsis;word-break:break-all}
+@media (max-width:820px){
+  .prow.brow{grid-template-columns:minmax(0,1fr) auto;row-gap:4px}
+  .prow.brow>div:nth-child(2),.prow.brow>div:nth-child(3){grid-column:1/-1;font-size:13px}
+  .prow.brow .bact{grid-row:1;grid-column:2}
+  #menu button{flex:1 1 0;min-width:0;font-size:10px;letter-spacing:-.2px;padding:5px 0;overflow:hidden}
+  #menu button span{max-width:100%;overflow:hidden;text-overflow:ellipsis}
+  #menu button img{width:28px;height:28px}
+}
