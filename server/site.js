@@ -292,5 +292,5 @@ ${bi.testers.length ? `<h2 class="gh">${esc(T.thanks)}</h2><p class="mut">${esc(
       ...D.units.map(u => '/wiki/units/' + u.id), ...D.blds.map(b => '/wiki/buildings/' + b.id)];
     return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${paths.flatMap(p => LANGS.map(([l]) => `<url><loc>${CANON}/${l}${p}</loc></url>`)).join('')}</urlset>`;
   }
-  return { handle, isSiteHost };
+  return { handle, isSiteHost, PLAY };
 };

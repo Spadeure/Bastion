@@ -149,6 +149,7 @@ const __ACTIONS = {
   payGrant(prod) { if (!own(PAY_PRODUCTS, prod)) return 'bad_order'; return payGrant(prod) || undefined; },
   evGrant(i) { return evGrant(__int(i, 0, 20)) || undefined; },   // event tier (server only, after checking the score)
   evFinal(mask, rank, cr, id) { return evFinal(__int(mask, 0, 1 << 20), __int(rank, 0, 1e9), __int(cr, 0, 100000), __int(id, 0, 1e9)) || undefined; },   // end of an event: everything sent at once (server only)
+  refGrant(t, side) { return refGrant(__int(t, 0, 10), side === 'r' ? 'r' : 'f') || undefined; },   // referral reward (server only, after checking the friend's level)
   betaGrant(cr) { return betaGrant(__int(cr, 1, 100000)) || undefined; },   // the beta testers' reward (server only, from the management panel)
   statSet(k) { if (k === 'ally') { const s = statsState(); s.ally = 1; return; } if (k === 'helps') { statAdd('helps', 1); if (stat('helps') % 10 === 0) addItem('speed_1m', 1); return; } return 'bad_order'; },   // alliance joined, help given (server only)
   alFinal(mask, rank, id) { return alFinal(__int(mask, 0, 1 << 20), __int(rank, 0, 1e9), __int(id, 0, 1e9)) || undefined; },   // end of an Alliance Challenge (server only)
@@ -181,7 +182,7 @@ function __run(stJson, lang, action, argsJson, role) {
     const args = JSON.parse(argsJson), f = own(__ACTIONS, action) ? __ACTIONS[action] : null;
     if (!f || !Array.isArray(args) || !__safeArgs(args, 0)) error = 'bad_order';
     else if (STAFF_ONLY.has(action) && !['admin', 'tester'].includes(role)) error = 'forbidden';
-    else if (['payGrant', 'payCheck', 'payRevoke', 'evGrant', 'evRank', 'evFinal', 'alFinal', 'missionChat', 'statSet', 'betaGrant'].includes(action) && role !== 'server') error = 'forbidden';   // bought Credits: only the server, after a confirmed payment
+    else if (['payGrant', 'payCheck', 'payRevoke', 'evGrant', 'evRank', 'evFinal', 'alFinal', 'missionChat', 'statSet', 'betaGrant', 'refGrant'].includes(action) && role !== 'server') error = 'forbidden';   // bought Credits: only the server, after a confirmed payment
     else { try { const r = f(...args); if (r) error = r; } catch (e) { error = 'bad_order'; } }
     __catchUp();
   }

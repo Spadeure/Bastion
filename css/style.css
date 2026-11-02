@@ -1216,3 +1216,13 @@ body.beta #shopBtn{display:none!important}
 
 /* Samsung Internet darkens every site that does not say it has a dark theme: this one is dark already, keep its own colours */
 @media (prefers-color-scheme: dark){:root{color-scheme:dark}}
+/* referral window */
+.rfbox{background:#0f1314;border:1px solid #6b5520;border-radius:10px;padding:10px 12px;margin:8px 0}
+.rflink{font-weight:700;font-size:16px;color:#f3c534;word-break:break-all}
+.rftier{display:flex;align-items:center;gap:10px;background:#12171999;border:1px solid #3a3120;border-left:3px solid #f3c534;border-radius:8px;padding:8px 10px;margin-top:6px}
+.rftier .nm,.rfrow .nm{flex:1;min-width:0;line-height:1.2}
+.rftier small,.rfrow small{display:block;color:#b9b2a0}
+.rfrow{display:flex;align-items:center;gap:10px;background:#12171999;border:1px solid #3a3120;border-radius:8px;padding:7px 10px;margin-top:6px}
+.rfrow .sm{flex:none}
+.bar2{height:8px;border-radius:9px;background:#0b0e0f;border:1px solid #3a3120;overflow:hidden;margin-top:4px}
+.bar2 i{display:block;height:100%;background:linear-gradient(90deg,#d9a51f,#f6d24a)}

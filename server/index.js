@@ -438,7 +438,7 @@ async function api(req, res, url, ip) {
   if (url === '/api/register' && req.method === 'POST') {
     if (isBlocked(ip)) return send(res, 429, { error: 'too_many' });
     blockIfTooMany(ip, strike(ip), 'créations de compte');          // every new account counts: no flood of accounts
-    const { name = '', password = '', email = '', lang = 'en' } = await readBody(req, 10_000);
+    const { name = '', password = '', email = '', lang = 'en', ref = '' } = await readBody(req, 10_000);
     // test server: only the administrator account can be created here (the testers are created from the management panel)
     const isAdm = String(name).trim().toLowerCase() === ADMIN_NAME.toLowerCase();
     // beta mode: only the addresses signed up for the beta (website or panel) can create an account
@@ -461,6 +461,7 @@ async function api(req, res, url, ip) {
     const token = crypto.randomBytes(32).toString('hex'); Q.addSession.run(token, id, now, now); Q.userSeen.run(now, id); lastIp.set(id, ip);
     if (mail) acc.afterRegister(id, mail, LANG_OK.includes(lang) ? lang : 'en');
     if (brow && typeof brow === 'object') beta.registered(brow, id);
+    if (ref) try { referral.onRegister(id, ref, ip); } catch (e) { log('ERREUR', 'parrainage : ' + e.message); }
     STATS.registered++; STATS.players.add(n);
     log('INSCRIPTION', `${n} · ${ip} · base en (${p.x}, ${p.y})`);
     return send(res, 200, { token, name: n });
@@ -541,7 +542,7 @@ async function api(req, res, url, ip) {
   if (url === '/api/act' && req.method === 'POST') {             // one order from the player: checked and run by the server
     const { a, args = [], lang } = await readBody(req, 20_000);
     const b = Q.base.get(me.id), act = clean(a);
-    if (ally.SERVER_ACTS.has(String(a)) || ['payGrant', 'payCheck', 'payRevoke', 'evGrant', 'evRank', 'evFinal', 'alFinal', 'missionChat', 'statSet', 'betaGrant'].includes(String(a))) { cheat(me, ip, `ordre réservé au serveur : ${act}`); return send(res, 403, { error: 'forbidden' }); }
+    if (ally.SERVER_ACTS.has(String(a)) || ['payGrant', 'payCheck', 'payRevoke', 'evGrant', 'evRank', 'evFinal', 'alFinal', 'missionChat', 'statSet', 'betaGrant', 'refGrant'].includes(String(a))) { cheat(me, ip, `ordre réservé au serveur : ${act}`); return send(res, 403, { error: 'forbidden' }); }
     const refuse = err => { if (err === 'bad_order') refusedOrder(me, ip, act, args, err); const r0 = runFor(me, b, null, [], lang); return send(res, 200, { state: r0.state, events: r0.events, error: err, serverTime: Date.now() }); };
     if (a === 'launch' && Array.isArray(args) && args[0] && typeof args[0] === 'object') {
       const o = args[0]; delete o.pvp;                             // only the server says that the target is a player
@@ -588,6 +589,9 @@ async function api(req, res, url, ip) {
     return send(res, 200, { players: Q.players.all(me.id).map(({ uid, cos, ...p }) => ({ ...p, cos: cos ? JSON.parse(cos) : null, shield: p.shield > now ? p.shield : 0, alliance: an.get(uid) || null })), outposts: Q.allOps.all() }); }
   if (url === '/api/alliance' && req.method === 'GET') return send(res, 200, ally.view(me));
   if (url === '/api/event' && req.method === 'GET') return send(res, 200, events.view(me));
+  if (url === '/api/referral' && req.method === 'GET') return send(res, 200, referral.view(me));   // my invitation link, my friends, my rewards
+  if (url === '/api/referral' && req.method === 'POST') { const P = await readBody(req, 5_000);
+    try { return send(res, 200, referral.claim(me, P)); } catch (e) { if (!e.code) throw e; return send(res, e.code, { error: e.error }); } }
   if (url === '/api/bug' && req.method === 'POST') { const P = await readBody(req, 10_000);   // Settings › Report a bug: read in the panel
     try { return send(res, 200, beta.bug(me, P)); } catch (e) { if (!e.code) throw e; return send(res, e.code, { error: e.error }); } }
   if (url === '/api/account' && req.method === 'GET') return send(res, 200, acc.view(me));   // my e-mail address
@@ -935,6 +939,8 @@ http.createServer(async (req, res) => {
     }
     return;
   }
+  if (/^\/r\/[^/]{1,40}$/.test(url)) {   // an invitation link: mekanikwar.com/r/<name> -> the game, with the name of the referrer
+    const n = encodeURIComponent(url.slice(3)); res.writeHead(302, { Location: (site.isSiteHost(req.headers.host) ? site.PLAY : '/') + '?ref=' + n, 'Cache-Control': 'no-cache' }); return res.end(); }
   if ((url === '/site' || url.startsWith('/site/') || site.isSiteHost(req.headers.host)) && site.handle(req, res, url, req.headers.host, SEC_HEADERS)) return;
   serveFile(req, res, url);
 }).listen(PORT, '0.0.0.0', () => { log('DÉMARRAGE', `Serveur Mekanik War sur le port ${PORT} · version ${VERSION} · ${Q.count.get().n} joueurs inscrits`);
@@ -1065,6 +1071,8 @@ events.hooks.last = e => { if (kvOnce('evlast_' + e.id)) notify.sendAll(e.type =
 
 // ---------- the beta test (server/beta.js): sign-ups of the website, beta mode, invitations, reward, bug reports ----------
 const beta = require('./beta.js')({ db, Q, log, clean, acc: () => acc, runFor, push, NAME_OK, IS_TEST });
+// ---------- referral (server/referral.js): invitation links, rewards of the referrer and of the friend ----------
+const referral = require('./referral.js')({ db, Q, log, clean, runFor, push, lastIp });
 // ---------- the public website mekanikwar.com (server/site.js): home page, wiki built from the game rules, news, rankings ----------
 const siteStats = { at: 0, v: null };
 const site = require('./site.js')({ engine, IS_TEST, log, beta,
