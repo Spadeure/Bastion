@@ -10,6 +10,7 @@ module.exports = function makeBeta({ db, Q, log, clean, acc, runFor, push, NAME_
       src TEXT NOT NULL DEFAULT 'site', invited INTEGER NOT NULL DEFAULT 0, uid INTEGER, rewarded INTEGER NOT NULL DEFAULT 0, ip TEXT);
     CREATE UNIQUE INDEX IF NOT EXISTS beta_email ON beta_signups (email COLLATE NOCASE) WHERE email IS NOT NULL;
     CREATE TABLE IF NOT EXISTS bug_reports (id INTEGER PRIMARY KEY, uid INTEGER NOT NULL, name TEXT NOT NULL, at INTEGER NOT NULL, text TEXT NOT NULL, info TEXT, done INTEGER NOT NULL DEFAULT 0);`);
+  try { db.exec('ALTER TABLE beta_signups ADD COLUMN bonus INTEGER NOT NULL DEFAULT 0'); } catch (e) {}   // the bonus of the most helpful testers (time it was given)
   const metaGet = k => { const r = db.prepare('SELECT v FROM meta WHERE k = ?').get(k); try { return r ? JSON.parse(r.v) : null; } catch (e) { return null; } };
   const metaSet = (k, v) => db.prepare('INSERT INTO meta (k, v) VALUES (?, ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v').run(k, JSON.stringify(v));
   const err = (code, error) => Object.assign(new Error(error), { code, error });
@@ -112,12 +113,13 @@ module.exports = function makeBeta({ db, Q, log, clean, acc, runFor, push, NAME_
   }
 
   // ---------- the management panel ----------
+  const bugsOf = db.prepare('SELECT COUNT(*) AS n FROM bug_reports WHERE uid = ?');
   function adminView() {
     linkAll();
     const users = new Map(db.prepare('SELECT id, name, seen FROM users').all().map(u => [u.id, u]));
     return { ...S, count: count(), mailOn: acc().mailOn(), test: IS_TEST,
       list: B.all.all().map(r => { const u = r.uid ? users.get(r.uid) : null;
-        return { id: r.id, name: r.name, email: r.email || '', lang: r.lang, at: r.at, src: r.src, invited: r.invited, rewarded: r.rewarded, account: u ? u.name : '', seen: u ? u.seen : 0 }; }),
+        return { id: r.id, name: r.name, email: r.email || '', lang: r.lang, at: r.at, src: r.src, invited: r.invited, rewarded: r.rewarded, bonus: r.bonus, bugs: r.uid ? (bugsOf.get(r.uid) || {}).n || 0 : 0, account: u ? u.name : '', seen: u ? u.seen : 0 }; }),
       bugs: db.prepare('SELECT * FROM bug_reports ORDER BY done, id DESC LIMIT 200').all() };
   }
   const MAIL = {
@@ -158,7 +160,7 @@ module.exports = function makeBeta({ db, Q, log, clean, acc, runFor, push, NAME_
       for (const t of ['attacks', 'outposts', 'alliances', 'ally_members', 'ally_requests', 'ally_log', 'ally_helps', 'ally_sent', 'reinforcements', 'convoys',
         'chat_msgs', 'chat_read', 'event_scores', 'push_jobs']) del('DELETE FROM ' + t);
       db.prepare('UPDATE bases SET state = NULL, lvl = 1, power = 0, shield = 0, pvp = 0, wins = 0, cos = NULL, updated = ?').run(Date.now());
-      db.prepare('UPDATE beta_signups SET rewarded = 0').run();
+      db.prepare('UPDATE beta_signups SET rewarded = 0, bonus = 0').run();
       db.exec('COMMIT');
     } catch (e) { db.exec('ROLLBACK'); throw e; }
     log('BÊTA', `REMISE À ZÉRO du serveur par ${by} : toutes les parties repartent de zéro, les comptes sont gardés`);
@@ -190,6 +192,18 @@ module.exports = function makeBeta({ db, Q, log, clean, acc, runFor, push, NAME_
       B.del.run(r.id); log('BÊTA', `${by} retire ${r.name} de la liste de la bêta`); return { ok: true }; }
     if (op === 'invite') return invite(P.id ? [int(P.id, 1, 1e12)] : null, by);
     if (op === 'reward') { const cr = int(P.cr, 1, 100000); if (!cr) throw err(400, 'indique un nombre de Crédits'); return reward(cr, by); }
+    if (op === 'bonus') {   // extra Credits for one tester (bugs reported, good ideas), once
+      const cr = int(P.cr, 1, 100000), r = db.prepare('SELECT * FROM beta_signups WHERE id = ?').get(int(P.id, 1, 1e12));
+      if (!r) throw err(404, 'introuvable'); if (!cr) throw err(400, 'indique un nombre de Crédits');
+      if (r.bonus) throw err(409, 'ce testeur a déjà reçu son bonus');
+      const u = r.uid && Q.user.get(r.uid), b = u && Q.base.get(r.uid);
+      if (!u) throw err(409, 'ce testeur n\'a pas encore de compte');
+      if (!b || !b.state) throw err(409, 'ce testeur n\'a pas encore de base : il doit se connecter une fois au jeu');
+      const res = runFor({ ...u, role: 'server' }, b, 'betaGrant', [cr], 'fr', true);
+      if (res.error) throw err(409, 'refusé par le jeu : ' + res.error);
+      db.prepare('UPDATE beta_signups SET bonus = ? WHERE id = ?').run(Date.now(), r.id); push(r.uid, 'sync', {});
+      log('BÊTA', `${by} donne un bonus de ${cr} Crédits à ${u.name}`); return { ok: true };
+    }
     if (op === 'bug') { db.prepare('UPDATE bug_reports SET done = ? WHERE id = ?').run(P.done ? 1 : 0, int(P.id, 1, 1e12)); return { ok: true }; }
     throw err(400, 'action inconnue');
   }

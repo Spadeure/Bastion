@@ -407,12 +407,14 @@ async function viewBeta() {
         <div class="row"><input id="bn" placeholder="Nom (ou compte existant)" maxlength="16" class="grow"><input id="be" placeholder="Adresse e-mail" maxlength="120" class="grow"><button class="btn sm" id="badd"><img src="${IMG('ui_ok')}" alt="">Ajouter</button></div>
         <p class="mut small">Pour un compte qui existe déjà sur ce serveur, le nom suffit. Pour quelqu'un d'autre, mets son nom et son adresse e-mail.</p>
         <div class="row"><button class="btn ora" id="binv"><img src="${IMG('messages')}" alt="">Envoyer les invitations (${B.list.filter(r => r.email && !r.invited).length} pas encore invité(s))</button></div>
+        <div class="row"><label>Bonus pour les plus actifs (Crédits)<input id="bbon" type="number" min="1" max="100000" value="500" style="width:120px"></label></div>
+        <p class="mut small">Le bouton « Bonus » d'un testeur lui donne ce nombre de Crédits en plus, une seule fois (bugs signalés, bonnes idées). À faire après la récompense de fin de bêta.</p>
         ${B.mailOn ? '' : '<p class="note">Les e-mails ne sont pas réglés sur ce serveur (SMTP) : les invitations ne partiront pas.</p>'}
         <div class="plist">${B.list.map((r, i) => `<div class="prow brow">
           <div class="pn"><span class="mut small">${i + 1}.</span><b>${esc(r.name)}</b></div>
           <div class="small bem">${esc(r.email || '—')}<br><span class="mut">${esc(SRC[r.src] || r.src)} · ${dt(r.at)}</span></div>
-          <div class="small">${r.account ? `<span class="ok">compte : ${esc(r.account)}</span>` : '<span class="mut">pas encore de compte</span>'}<br><span class="mut">${r.invited ? 'invité le ' + dt(r.invited) : 'pas invité'}${r.rewarded ? ' · récompensé' : ''}</span></div>
-          <div class="row bact" style="margin:0">${r.email ? `<button class="btn sec sm" data-inv="${r.id}" title="Envoyer l'invitation">E-mail</button>` : ''}<button class="btn red sm" data-del="${r.id}" data-n="${esc(r.name)}">Retirer</button></div></div>`).join('') || '<p class="mut">Personne pour le moment.</p>'}</div></div>`;
+          <div class="small">${r.account ? `<span class="ok">compte : ${esc(r.account)}</span>` : '<span class="mut">pas encore de compte</span>'}<br><span class="mut">${r.invited ? 'invité le ' + dt(r.invited) : 'pas invité'}${r.rewarded ? ' · récompensé' : ''}${r.bugs ? ' · ' + r.bugs + ' bug(s) signalé(s)' : ''}</span>${r.bonus ? '<br><span class="ok">bonus donné le ' + dt(r.bonus) + '</span>' : ''}</div>
+          <div class="row bact" style="margin:0">${r.account && !r.bonus ? `<button class="btn sec sm" data-bonus="${r.id}" data-n="${esc(r.name)}">Bonus</button>` : ''}${r.email ? `<button class="btn sec sm" data-inv="${r.id}" title="Envoyer l'invitation">E-mail</button>` : ''}<button class="btn red sm" data-del="${r.id}" data-n="${esc(r.name)}">Retirer</button></div></div>`).join('') || '<p class="mut">Personne pour le moment.</p>'}</div></div>`;
     if (tab === 'bugs') T.innerHTML = `<div class="card"><div class="ch"><img src="${IMG('ui_warn')}" alt=""><h2>Bugs signalés par les joueurs</h2></div>
         <p class="mut small">Envoyés depuis le jeu (Paramètres › Signaler un bug). Copie-les à Claude pour qu'il les corrige.</p>
         ${B.bugs.map(b => `<div class="err" style="${b.done ? 'opacity:.55' : ''}"><span class="mut mono">${dt(b.at)}</span> <b>${esc(b.name)}</b> <span class="mut small">${esc(b.info || '')}</span>
@@ -425,7 +427,7 @@ async function viewBeta() {
       <div class="card"><div class="ch"><img src="${IMG('power')}" alt=""><h2>Récompense des testeurs</h2></div>
         <p class="small">Donne des Crédits et le badge « Vétéran de la bêta » (visible par tous à côté du nom) à chaque testeur qui a un compte. Une seule fois par testeur.
         <b>À faire après la remise à zéro de fin de bêta</b>, sinon la remise à zéro effacerait la récompense.</p>
-        <div class="row"><label>Crédits par testeur<input id="bcr" type="number" min="1" max="100000" value="500" style="width:120px"></label><button class="btn" id="brew"><img src="${IMG('ui_ok')}" alt="">Distribuer la récompense</button></div></div>`;
+        <div class="row"><label>Crédits par testeur<input id="bcr" type="number" min="1" max="100000" value="1200" style="width:120px"></label><button class="btn" id="brew"><img src="${IMG('ui_ok')}" alt="">Distribuer la récompense</button></div></div>`;
     // ---- actions ----
     const post = (body, msg) => run(null, () => api('POST', 'beta', body), msg).then(r => { if (r) load(); return r; });
     $('#bon').onclick = async () => {
@@ -445,6 +447,8 @@ async function viewBeta() {
       const r = await run(e.currentTarget, () => api('POST', 'beta', { op: 'invite' })); if (r) { toast(`${r.sent} invitation(s) envoyée(s)${r.fail ? ', ' + r.fail + ' en échec' : ''}`, !!r.fail); load(); } };
     T.querySelectorAll('[data-inv]').forEach(b => b.onclick = async () => { const r = await run(b, () => api('POST', 'beta', { op: 'invite', id: +b.dataset.inv })); if (r) { toast(r.sent ? 'Invitation envoyée' : 'Non envoyée', !r.sent); load(); } });
     T.querySelectorAll('[data-del]').forEach(b => b.onclick = async () => { if (await confirmBox('Retirer de la liste', `Retirer ${esc(b.dataset.n)} de la liste de la bêta ?`, 'Retirer', 'red')) post({ op: 'del', id: +b.dataset.del }, 'Retiré'); });
+    T.querySelectorAll('[data-bonus]').forEach(b => b.onclick = async () => { const cr = +(q('#bbon') || {}).value; if (!(cr > 0)) return toast('Indique un nombre de Crédits', true);
+      if (await confirmBox('Bonus', `Donner ${fmtN(cr)} Crédits en bonus à ${esc(b.dataset.n)} ? (une seule fois)`, 'Donner')) post({ op: 'bonus', id: +b.dataset.bonus, cr }, 'Bonus donné à ' + b.dataset.n); });
     T.querySelectorAll('[data-bug]').forEach(b => b.onclick = () => post({ op: 'bug', id: +b.dataset.bug, done: b.dataset.d === '1' }));
     if (q('#breset')) q('#breset').onclick = async e => { if (q('#bconf').value.trim() !== 'REMISE A ZERO') return toast('Écris exactement REMISE A ZERO', true);
       if (!await confirmBox('Remise à zéro', 'Toutes les parties de ce serveur vont repartir de zéro (une sauvegarde est faite avant). Le serveur redémarre ensuite. Continuer ?', 'Tout remettre à zéro', 'red')) return;
