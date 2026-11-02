@@ -13,6 +13,8 @@ const fileVer = f => { try { return crypto.createHash('sha1').update(fs.readFile
 const CSS_V = fileVer('css/site.css'), JS_V = fileVer('js/site.js');
 
 module.exports = function makeSite({ engine, stats, ranking, IS_TEST, log, beta }) {
+  const DISCORD = process.env.DISCORD_URL || 'https://discord.gg/fHpxRftpuS';   // the game's Discord server (invitation that never expires)
+  const dcBtn = (T, cls) => `<a class="btn ${cls || 'ghost'} dcb" href="${DISCORD}" target="_blank" rel="noopener"><img src="/assets/img/messages.webp" alt="" width="22" height="22">${esc(T.discord)}</a>`;
   const PLAY = (process.env.PLAY_URL || (IS_TEST ? 'https://test.mekanikwar.com' : 'https://games.mekanikwar.com')).replace(/\/+$/, '') + '/';
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
   const fill = (s, o) => String(s).replace(/\{(\w+)\}/g, (m, k) => o && k in o ? o[k] : m);
@@ -40,7 +42,7 @@ module.exports = function makeSite({ engine, stats, ranking, IS_TEST, log, beta 
 <nav class="nav" id="nav">${nav}<span class="mlang">${sel}</span></nav><span class="dlang">${sel}</span><a class="btn sm" href="${PLAY}">${esc(T.play)}</a>
 <button class="burger" id="burger" aria-label="${esc(T.menu)}" aria-controls="nav" aria-expanded="false"><i></i></button></div></header>
 ${body}
-<footer><div class="wrap"><div>${c.D.legal.map(x => `<a href="${href(lang, '/legal/' + x.id)}">${esc(x.name)}</a>`).join('')}<a href="mailto:contact@mekanikwar.com">${esc(T.contact)}</a></div><div>© ${new Date().getFullYear()} Mekanik War: Titans · contact@mekanikwar.com</div></div></footer>
+<footer><div class="wrap"><div>${c.D.legal.map(x => `<a href="${href(lang, '/legal/' + x.id)}">${esc(x.name)}</a>`).join('')}<a href="${DISCORD}" target="_blank" rel="noopener">Discord</a><a href="mailto:contact@mekanikwar.com">${esc(T.contact)}</a></div><div>© ${new Date().getFullYear()} Mekanik War: Titans · contact@mekanikwar.com</div></div></footer>
 <div class="mobplay"><a class="btn" href="${PLAY}">${esc(T.playFree)}</a></div></body></html>`;
   }
   const crumb = (c, list) => `<div class="crumb">${list.map(([n, p]) => p ? `<a href="${c.B}/${c.lang}${p}">${esc(n)}</a>` : esc(n)).join(' › ')}</div>`;
@@ -82,7 +84,7 @@ ${body}
 <section class="pt0"><div class="wrap"><div class="sh"><div><h2>${esc(T.news.toUpperCase())}</h2><p>${esc(T.newsSub)}</p></div><a href="${c.B}/${lang}/news/">${esc(T.seeAll)}</a></div><div class="news">
  ${D.news.slice(0, 3).map(n => `<div class="card"><time datetime="${n.d}">${esc(n.date)}</time><p>${esc(n.items[0] || '')}</p></div>`).join('')}
 </div></div></section>
-<div class="band"><div class="wrap"><div><h2>${esc(T.ready)}</h2><div class="mut">${esc(T.readySub)}</div></div><a class="btn" href="${PLAY}">${esc(T.playNow)}</a></div></div>`;
+<div class="band"><div class="wrap"><div><h2>${esc(T.ready)}</h2><div class="mut">${esc(T.readySub)}</div></div><div class="bbtns">${dcBtn(T)}<a class="btn" href="${PLAY}">${esc(T.playNow)}</a></div></div></div>`;
     return page(c, 'Mekanik War: Titans', T.lead, body, { nav: 'home' });
   }
   function wikiIndex(c) {
@@ -222,6 +224,7 @@ ${trains.length ? `<h2 class="gh">${esc(T.cUnits)}</h2><div class="mini">${train
 <div class="bhead"><img src="/assets/img/titan_1.webp" alt="" width="120" height="120"><p class="intro">${esc(fill(T.betaIntro, { m: nf(lang, bi.places) }))}</p></div>
 <div class="bcount"><div><b>${nf(lang, bi.count)} / ${nf(lang, bi.places)}</b> <span class="mut">${esc(T.places)}</span></div><div class="bar"><i style="width:${pct}%"></i></div>${bi.open ? `<div class="mut sm">${esc(fill(T.left, { n: nf(lang, left) }))}</div>` : ''}</div>
 ${bi.msg ? `<div class="auto">${esc(bi.msg)}</div>` : ''}
+<div class="dcrow"><p class="mut">${esc(T.discordSub)}</p>${dcBtn(T)}</div>
 ${form}
 <h2 class="gh">${esc(T.how)}</h2><ol class="bsteps">${steps}</ol>
 ${bi.testers.length ? `<h2 class="gh">${esc(T.thanks)}</h2><p class="mut">${esc(T.thanksSub)}</p><div class="btesters">${bi.testers.map(n => `<span>${esc(n)}</span>`).join('')}</div>` : ''}</div>`;
