@@ -123,6 +123,9 @@ const __ACTIONS = {
   allyHelp(b, key, share, min) { return __in(b, () => { const q = state.queue, now = Date.now();
     if (!q || q.end <= now || `${b}|${q.slot}|${q.type}|${q.lvl}|${q.start}` !== key) return 'bad_order';
     q.end = Math.max(now, q.end - Math.max(min, Math.round((q.end - q.start) * share))); }); },
+  allyHelpRes(key, share, min) { const R = state.research, c = R && R.cur, now = Date.now();   // an ally helps the research in progress
+    if (!c || c.e <= now || `res|${c.t}|${c.l}|${c.s}` !== key) return 'bad_order';
+    c.e = Math.max(now, c.e - Math.max(min, Math.round((c.e - c.s) * share))); },
   // test buttons (admin and test accounts only)
   finish(b, two) { return __in(b, () => { if (two) withQ2(() => { if (state.queue) complete(); }); else if (state.queue) complete(); }); },
   demolish(slot, b) { if (typeof slot !== 'string' || slot.length > 8) return 'bad_order'; return __in(b, () => { const why = whyNotDemolish(slot); if (why) return why; demolish(slot); }); },
@@ -147,7 +150,7 @@ const __ACTIONS = {
   evGrant(i) { return evGrant(__int(i, 0, 20)) || undefined; },   // event tier (server only, after checking the score)
   evFinal(mask, rank, cr, id) { return evFinal(__int(mask, 0, 1 << 20), __int(rank, 0, 1e9), __int(cr, 0, 100000), __int(id, 0, 1e9)) || undefined; },   // end of an event: everything sent at once (server only)
   betaGrant(cr) { return betaGrant(__int(cr, 1, 100000)) || undefined; },   // the beta testers' reward (server only, from the management panel)
-  statSet(k) { if (k === 'ally') { const s = statsState(); s.ally = 1; return; } if (k === 'helps') { statAdd('helps', 1); return; } return 'bad_order'; },   // alliance joined, help given (server only)
+  statSet(k) { if (k === 'ally') { const s = statsState(); s.ally = 1; return; } if (k === 'helps') { statAdd('helps', 1); if (stat('helps') % 10 === 0) addItem('speed_1m', 1); return; } return 'bad_order'; },   // alliance joined, help given (server only)
   alFinal(mask, rank, id) { return alFinal(__int(mask, 0, 1 << 20), __int(rank, 0, 1e9), __int(id, 0, 1e9)) || undefined; },   // end of an Alliance Challenge (server only)
   evRank(rank, cr) { return evRank(__int(rank, 1, 1e9), __int(cr, 0, 100000)) || undefined; },   // event ranking reward (server only)
   payRevoke(prod, cr, cents) { if (!own(PAY_PRODUCTS, prod)) return 'bad_order'; return payRevoke(prod, cr, cents) || undefined; },
