@@ -107,7 +107,7 @@ const __ACTIONS = {
     if (!n) return 'bad_order';
     mapSel = { x: __int(x, 1, MAPN), y: __int(y, 1, MAPN) };
     const secs = marchStats(t, false).secs; for (const u in t) state.troops[u] -= t[u];
-    __events.push({ t: 'reinf', secs, q: t }); },
+    statAdd('reinf', 1); __events.push({ t: 'reinf', secs, q: t }); },
   reinfBack(q) { for (const u in (q || {})) if (own(UNITS, u)) state.troops[u] = (state.troops[u] || 0) + __int(q[u], 0, 1e9); },
   // resources to an ally: carried by a convoy of transport troops (Supply Trucks, Armored Carriers), travel time like a march
   allyGive(res, q, x, y) { const R = ['metal', 'wood', 'stone', 'fuel', 'rations'], t = {}; let tot = 0, n = 0;
@@ -118,7 +118,7 @@ const __ACTIONS = {
     const st = marchStats(t, false); if (tot > st.load) return _t('Not enough transport capacity: {a} / {b}', { a: fmtN(tot), b: fmtN(st.load) });
     for (const r of R) state.res[r] -= __int((res || {})[r], 0, 1e12);
     for (const u in t) state.troops[u] -= t[u];
-    __events.push({ t: 'convoy', secs: st.secs, q: t }); },
+    statAdd('gives', 1); __events.push({ t: 'convoy', secs: st.secs, q: t }); },
   allyGet(res) { for (const r of ['metal', 'wood', 'stone', 'fuel', 'rations']) state.res[r] = (state.res[r] || 0) + __int((res || {})[r], 0, 1e12); },
   allyHelp(b, key, share, min) { return __in(b, () => { const q = state.queue, now = Date.now();
     if (!q || q.end <= now || `${b}|${q.slot}|${q.type}|${q.lvl}|${q.start}` !== key) return 'bad_order';
@@ -146,6 +146,7 @@ const __ACTIONS = {
   payGrant(prod) { if (!own(PAY_PRODUCTS, prod)) return 'bad_order'; return payGrant(prod) || undefined; },
   evGrant(i) { return evGrant(__int(i, 0, 20)) || undefined; },   // event tier (server only, after checking the score)
   evFinal(mask, rank, cr, id) { return evFinal(__int(mask, 0, 1 << 20), __int(rank, 0, 1e9), __int(cr, 0, 100000), __int(id, 0, 1e9)) || undefined; },   // end of an event: everything sent at once (server only)
+  statSet(k) { if (k === 'ally') { const s = statsState(); s.ally = 1; return; } if (k === 'helps') { statAdd('helps', 1); return; } return 'bad_order'; },   // alliance joined, help given (server only)
   alFinal(mask, rank, id) { return alFinal(__int(mask, 0, 1 << 20), __int(rank, 0, 1e9), __int(id, 0, 1e9)) || undefined; },   // end of an Alliance Challenge (server only)
   evRank(rank, cr) { return evRank(__int(rank, 1, 1e9), __int(cr, 0, 100000)) || undefined; },   // event ranking reward (server only)
   payRevoke(prod, cr, cents) { if (!own(PAY_PRODUCTS, prod)) return 'bad_order'; return payRevoke(prod, cr, cents) || undefined; },
@@ -176,7 +177,7 @@ function __run(stJson, lang, action, argsJson, role) {
     const args = JSON.parse(argsJson), f = own(__ACTIONS, action) ? __ACTIONS[action] : null;
     if (!f || !Array.isArray(args) || !__safeArgs(args, 0)) error = 'bad_order';
     else if (STAFF_ONLY.has(action) && !['admin', 'tester'].includes(role)) error = 'forbidden';
-    else if (['payGrant', 'payCheck', 'payRevoke', 'evGrant', 'evRank', 'evFinal', 'alFinal', 'missionChat'].includes(action) && role !== 'server') error = 'forbidden';   // bought Credits: only the server, after a confirmed payment
+    else if (['payGrant', 'payCheck', 'payRevoke', 'evGrant', 'evRank', 'evFinal', 'alFinal', 'missionChat', 'statSet'].includes(action) && role !== 'server') error = 'forbidden';   // bought Credits: only the server, after a confirmed payment
     else { try { const r = f(...args); if (r) error = r; } catch (e) { error = 'bad_order'; } }
     __catchUp();
   }

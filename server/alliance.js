@@ -183,7 +183,7 @@ module.exports = function makeAlliances(C) {
     for (const m of A.members.all(a.id)) if (A.attacksBetween.get(uid, m.id, m.id, uid)) throw err(409, 'ally_attack_running');
     A.join.run(uid, a.id, 'member', Date.now()); A.reqDelUser.run(uid);
     const u = userOf(uid); note(a.id, 'join', { n: u.name, by: by || '' }); log('ALLIANCE', `${u.name} rejoint l'alliance ${a.name}${by ? ' (accepté par ' + by + ')' : ''}`);
-    tellAlly(a.id); push(uid, 'ally', {});
+    tellAlly(a.id); push(uid, 'ally', {}); hooks.join && hooks.join(uid);
   }
   function leaveNow(uid, a, k, by) {
     const u = userOf(uid);
@@ -205,7 +205,7 @@ module.exports = function makeAlliances(C) {
         if (!NAME_OK.test(name)) throw err(400, 'ally_bad_name');
         if (A.byName.get(name)) throw err(409, 'ally_name_taken');
         const id = Number(A.add.run(name, '', P.open ? 1 : 0, now).lastInsertRowid);
-        A.join.run(me.id, id, 'leader', now); A.reqDelUser.run(me.id);
+        A.join.run(me.id, id, 'leader', now); A.reqDelUser.run(me.id); hooks.join && hooks.join(me.id);
         note(id, 'create', { n: me.name }); log('ALLIANCE', `${me.name} crée l'alliance ${name}`);
         return { ok: true };
       }

@@ -513,7 +513,7 @@ async function api(req, res, url, ip) {
   if (url === '/api/act' && req.method === 'POST') {             // one order from the player: checked and run by the server
     const { a, args = [], lang } = await readBody(req, 20_000);
     const b = Q.base.get(me.id), act = clean(a);
-    if (ally.SERVER_ACTS.has(String(a)) || ['payGrant', 'payCheck', 'payRevoke', 'evGrant', 'evRank', 'evFinal', 'alFinal', 'missionChat'].includes(String(a))) { cheat(me, ip, `ordre réservé au serveur : ${act}`); return send(res, 403, { error: 'forbidden' }); }
+    if (ally.SERVER_ACTS.has(String(a)) || ['payGrant', 'payCheck', 'payRevoke', 'evGrant', 'evRank', 'evFinal', 'alFinal', 'missionChat', 'statSet'].includes(String(a))) { cheat(me, ip, `ordre réservé au serveur : ${act}`); return send(res, 403, { error: 'forbidden' }); }
     const refuse = err => { if (err === 'bad_order') refusedOrder(me, ip, act, args, err); const r0 = runFor(me, b, null, [], lang); return send(res, 200, { state: r0.state, events: r0.events, error: err, serverTime: Date.now() }); };
     if (a === 'launch' && Array.isArray(args) && args[0] && typeof args[0] === 'object') {
       const o = args[0]; delete o.pvp;                             // only the server says that the target is a player
@@ -994,7 +994,12 @@ catch (e) { log('ERREUR', 'console indisponible : ' + e.message); }
 
 // ---------- alliances ----------
 const ally = require('./alliance.js')({ db, Q, log, clean, push, runFor, DAY_FMT });
-ally.hooks.act = (uid, kind, other) => { try { events.onAct(uid, kind, other); } catch (e) { log('ERREUR', 'défi d\'alliance : ' + e.message); } };   // help and reinforcements count for the Alliance Challenge
+// a stat of the quests that only the server sees (alliance joined, help given): written in the player's game
+function statSet(uid, k) { try { const u = Q.user.get(uid), b = Q.base.get(uid); if (!u || !b || !b.state) return; const r = runFor({ ...u, role: 'server' }, b, 'statSet', [k], 'fr', true); if (!r.error) push(uid, 'sync', {}); } catch (e) { log('ERREUR', 'statistique de quête : ' + e.message); } }
+ally.hooks.act = (uid, kind, other) => { try { events.onAct(uid, kind, other); } catch (e) { log('ERREUR', 'défi d\'alliance : ' + e.message); } if (kind === 'help') statSet(uid, 'helps'); };
+ally.hooks.join = uid => statSet(uid, 'ally');
+// players already in an alliance before this version: the quest « join an alliance » is noted once
+setTimeout(() => { let n = 0; for (const r of db.prepare("SELECT m.user_id AS uid FROM ally_members m JOIN bases b ON b.user_id = m.user_id WHERE b.state IS NOT NULL AND COALESCE(json_extract(b.state, '$.stats.ally'), 0) = 0").all()) { statSet(r.uid, 'ally'); n++; } if (n) log('QUÊTES', `alliance notée pour ${n} membre(s) déjà en alliance`); }, 3000).unref();   // help and reinforcements count for the Alliance Challenge
 // ---------- chat ----------
 const chat = require('./chat.js')({ db, Q, log, clean, push, broadcast, ally });
 const events = require('./event.js')({ db, Q, log, runFor, broadcast, push, engine, IS_TEST });
