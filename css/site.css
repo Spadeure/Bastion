@@ -189,3 +189,7 @@ footer .wrap>div:first-child{display:flex;flex-wrap:wrap;gap:6px 14px}footer a{m
 @media (max-width:820px){.costs{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}.costs span{padding:5px 8px;font-size:15px;gap:6px}.costs img{width:20px;height:20px}
   .tech{padding:12px;gap:10px}.tech>img{width:44px;height:44px}.tech h3{font-size:16px}}
 @media (max-width:820px){.costs{grid-template-columns:repeat(3,minmax(0,1fr))}.costs .rn{display:none}.costs b{font-size:14px}}
+.hero .titan{height:auto}
+.mobplay{z-index:6}
+img{max-width:100%}
+@media (max-width:820px){.nav .mlang{display:block}}

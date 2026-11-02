@@ -7,6 +7,10 @@ const LANGS = [['en', 'English'], ['fr', 'Français'], ['es', 'Español'], ['de'
 const LANG_OK = new Set(LANGS.map(l => l[0]));
 const SITE_HOSTS = new Set(['mekanikwar.com', 'www.mekanikwar.com']);
 const CANON = 'https://mekanikwar.com';
+const fs = require('fs'), path = require('path'), crypto = require('crypto');
+// the version of the style and the script: their own fingerprint, so a phone never keeps an old copy
+const fileVer = f => { try { return crypto.createHash('sha1').update(fs.readFileSync(path.join(__dirname, '..', f))).digest('hex').slice(0, 10); } catch (e) { return String(Date.now()); } };
+const CSS_V = fileVer('css/site.css'), JS_V = fileVer('js/site.js');
 
 module.exports = function makeSite({ engine, stats, ranking, IS_TEST, log }) {
   const PLAY = (process.env.PLAY_URL || (IS_TEST ? 'https://test.mekanikwar.com' : 'https://games.mekanikwar.com')).replace(/\/+$/, '') + '/';
@@ -31,7 +35,7 @@ module.exports = function makeSite({ engine, stats, ranking, IS_TEST, log }) {
 <link rel="icon" type="image/png" href="/assets/app/favicon.png?v=2"><link rel="apple-touch-icon" href="/assets/app/apple-touch-icon.png?v=2">
 <link rel="canonical" href="${CANON}/${lang}${path}">${alt}<link rel="alternate" hreflang="x-default" href="${CANON}/en${path}">
 <meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(desc)}"><meta property="og:image" content="${CANON}/assets/app/icon-512.png"><meta property="og:type" content="website">
-<link rel="preload" href="/assets/fonts/black-ops-one-400-latin.woff2" as="font" type="font/woff2" crossorigin><link rel="stylesheet" href="/css/site.css?v=${engine.wikiData('en').ver}"><script src="/js/site.js?v=${engine.wikiData('en').ver}" defer></script></head><body>
+<link rel="preload" href="/assets/fonts/black-ops-one-400-latin.woff2" as="font" type="font/woff2" crossorigin><link rel="stylesheet" href="/css/site.css?v=${CSS_V}"><script src="/js/site.js?v=${JS_V}" defer></script></head><body>
 <header class="top"><div class="wrap"><a class="brand" href="${href(lang, '/')}"><img src="/assets/app/icon-192.png?v=2" alt="" width="38" height="38">MEKANIK WAR</a>
 <nav class="nav" id="nav">${nav}<span class="mlang">${sel}</span></nav><span class="dlang">${sel}</span><a class="btn sm" href="${PLAY}">${esc(T.play)}</a>
 <button class="burger" id="burger" aria-label="${esc(T.menu)}" aria-controls="nav" aria-expanded="false"><i></i></button></div></header>
