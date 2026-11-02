@@ -7,7 +7,7 @@
   --disp:'Black Ops One',Impact,system-ui,sans-serif;--ui:'Rajdhani',system-ui,-apple-system,Segoe UI,Roboto,sans-serif;--navw:236px}
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{min-height:100%;background:var(--bg);color:var(--txt);font:600 16px/1.35 var(--ui)}
-body{background:radial-gradient(circle at 70% 0%,#26301f 0,#0d1012 60%) fixed}
+body{min-height:100vh;background:radial-gradient(circle at 70% 0%,#26301f 0,#0d1012 60%) fixed;background-color:#0d1012}
 img{display:block}
 button,input,select,textarea{font:inherit;color:inherit}
 a{color:var(--brass2)}
@@ -66,7 +66,7 @@ h1{font-size:24px;margin-bottom:14px}h2{font-size:18px;margin-bottom:10px}h3{fon
 .card .ch{display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap}
 .card .ch img{width:36px;height:36px;object-fit:contain;flex:none}
 .card .ch h2{margin:0;flex:1}
-.kv{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;font-size:15px}
+.kv{display:grid;grid-template-columns:fit-content(40%) minmax(0,1fr);gap:4px 14px;font-size:15px}
 .kv>span:nth-child(odd){color:var(--mut)}
 .kv>span{min-width:0;overflow-wrap:anywhere}
 .big{font:30px/1.1 var(--disp);color:var(--brass2)}
