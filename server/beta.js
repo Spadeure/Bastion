@@ -57,7 +57,19 @@ module.exports = function makeBeta({ db, Q, log, clean, acc, runFor, push, NAME_
     if (B.byName.get(name)) throw err(409, 'name_taken');
     B.add.run(name, email, lang, now, 'site', null, ip); perIp.set(ip, [...L, now]);
     log('BÊTA', `Inscription à la bêta : ${clean(name)} · ${ip} · place ${count()} / ${S.places}${full() ? ' · COMPLET : inscriptions fermées' : ''}`);
+    if (full()) fullMail();
     return { ok: true, ...publicInfo() };
+  }
+
+  // the last place is taken: an e-mail to the game's mailbox (BETA_NOTIFY_EMAIL chooses another address, « off » sends nothing)
+  function fullMail() {
+    const to = process.env.BETA_NOTIFY_EMAIL || acc().SMTP_USER;
+    if (!to || /^(off|0|non)$/i.test(to)) return;
+    const names = B.all.all().map((r, i) => `${i + 1}. ${r.name}${r.email ? ' (' + r.email + ')' : ''}`).join('\n');
+    const text = `Bonne nouvelle : les ${S.places} places de la bêta sont prises ! Les inscriptions sur le site sont fermées automatiquement.\n\nProchaines étapes, dans le panel officiel (menu Bêta) :\n1. Écris la date du lancement dans le message de la page bêta, puis Enregistrer.\n2. Annonce la date sur Discord.\n3. Le jour J : « Lancer la bêta », puis « Envoyer les invitations ».\n\nLes inscrits :\n${names}`;
+    acc().sendMail(to, `Bêta complète : ${S.places} / ${S.places}`, text, '', '')
+      .then(ok => { if (ok) log('BÊTA', 'E-mail « bêta complète » envoyé à l\'administrateur'); })
+      .catch(e => log('ERREUR', 'e-mail « bêta complète » non envoyé : ' + e.message));
   }
 
   // ---------- the game ----------
