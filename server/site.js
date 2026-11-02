@@ -75,7 +75,7 @@ ${body}
  ${card('assets/img/command_3.webp', T.f1t, fill(T.f1, { n: nMain }))}${card('assets/img/tank.webp', T.f2t, fill(T.f2, { n: D.units.length }))}${card('assets/img/titan_1.webp', T.f3t, T.f3)}${card('assets/img/ally.webp', T.f4t, T.f4)}
 </div></div></section>
 <section class="pt0"><div class="wrap"><div class="sh"><div><h2>${esc(T.pictures)}</h2></div></div><div class="shots">
- <div class="shot" style="background-image:url(/assets/img/bg_wall4.jpg)"><span>${esc(T.pic1)}</span></div><div class="shot" style="background-image:url(/assets/img/fbg.jpg)"><span>${esc(T.pic2)}</span></div><div class="shot" style="background-image:url(/assets/img/op_bg_wall3.jpg)"><span>${esc(T.pic3)}</span></div>
+ <div class="shot" style="background-image:url(/assets/img/bg_wall4.jpg)"><span>${esc(T.pic1)}</span></div><div class="shot" style="background-image:url(/assets/img/site_map.jpg)"><span>${esc(T.pic2)}</span></div><div class="shot" style="background-image:url(/assets/img/op_bg_wall3.jpg)"><span>${esc(T.pic3)}</span></div>
 </div></div></section>
 <section class="pt0"><div class="wrap"><div class="sh"><div><h2>${esc(T.news.toUpperCase())}</h2><p>${esc(T.newsSub)}</p></div><a href="${c.B}/${lang}/news/">${esc(T.seeAll)}</a></div><div class="news">
  ${D.news.slice(0, 3).map(n => `<div class="card"><time datetime="${n.d}">${esc(n.date)}</time><p>${esc(n.items[0] || '')}</p></div>`).join('')}
