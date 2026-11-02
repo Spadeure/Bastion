@@ -39,6 +39,15 @@ module.exports = function makeBeta({ db, Q, log, clean, acc, runFor, push, NAME_
       if (!B.byUid.get(u.id)) { try { B.add.run(u.name, u.email || null, 'fr', now, 'compte', u.id, null); } catch (e) { B.add.run(u.name, null, 'fr', now, 'compte', u.id, null); } }
     metaSet('beta_seed', now);
   }
+  // a sign-up of the website by somebody who already has an account on this server (same e-mail, or same name): linked to that account
+  const userByEmail = db.prepare('SELECT id FROM users WHERE email = ? COLLATE NOCASE'), userByName = db.prepare('SELECT id FROM users WHERE name = ? COLLATE NOCASE');
+  function linkAll() {
+    for (const r of db.prepare('SELECT * FROM beta_signups WHERE uid IS NULL').all()) {
+      const u = (r.email && userByEmail.get(r.email)) || userByName.get(r.name);
+      if (u && !B.byUid.get(u.id)) B.setUid.run(u.id, r.id);
+    }
+  }
+  linkAll();
   const count = () => B.count.get().n;
   const full = () => count() >= S.places;
   const isOpen = () => S.open && !full();
@@ -57,6 +66,7 @@ module.exports = function makeBeta({ db, Q, log, clean, acc, runFor, push, NAME_
     if (B.byName.get(name)) throw err(409, 'name_taken');
     B.add.run(name, email, lang, now, 'site', null, ip); perIp.set(ip, [...L, now]);
     log('BÊTA', `Inscription à la bêta : ${clean(name)} · ${ip} · place ${count()} / ${S.places}${full() ? ' · COMPLET : inscriptions fermées' : ''}`);
+    linkAll();
     if (full()) fullMail();
     return { ok: true, ...publicInfo() };
   }
@@ -78,6 +88,7 @@ module.exports = function makeBeta({ db, Q, log, clean, acc, runFor, push, NAME_
   function access(u) {
     if (!S.on || !u || u.role === 'admin') return null;
     if (!S.started) return 'beta_soon';
+    if (!B.byUid.get(u.id)) linkAll();
     return B.byUid.get(u.id) ? null : 'beta_list';
   }
   function registerCheck(name, email, isAdmin) {
@@ -102,6 +113,7 @@ module.exports = function makeBeta({ db, Q, log, clean, acc, runFor, push, NAME_
 
   // ---------- the management panel ----------
   function adminView() {
+    linkAll();
     const users = new Map(db.prepare('SELECT id, name, seen FROM users').all().map(u => [u.id, u]));
     return { ...S, count: count(), mailOn: acc().mailOn(), test: IS_TEST,
       list: B.all.all().map(r => { const u = r.uid ? users.get(r.uid) : null;
