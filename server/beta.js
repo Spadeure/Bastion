@@ -31,7 +31,7 @@ module.exports = function makeBeta({ db, Q, log, clean, acc, runFor, push, NAME_
     setUid: db.prepare('UPDATE beta_signups SET uid = ? WHERE id = ?'),
     invited: db.prepare('UPDATE beta_signups SET invited = ? WHERE id = ?'),
     rewarded: db.prepare('UPDATE beta_signups SET rewarded = ? WHERE id = ?'),
-    testers: db.prepare('SELECT u.name FROM beta_signups s JOIN users u ON u.id = s.uid WHERE u.banned = 0 ORDER BY s.at'),
+    testers: db.prepare('SELECT COALESCE(u.name, s.name) AS name FROM beta_signups s LEFT JOIN users u ON u.id = s.uid WHERE COALESCE(u.banned, 0) = 0 ORDER BY s.at'),   // every signed-up tester, at once (the account name once the account exists)
   };
   // the accounts that already play on this server are testers from the start (once): the administrator and the first players
   if (!metaGet('beta_seed')) {
