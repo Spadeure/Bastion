@@ -178,7 +178,7 @@ ${trains.length ? `<h2 class="gh">${esc(T.cUnits)}</h2><div class="mini">${train
     const { T, D } = c;
     const G = [['grpRes', i => i.kind === 'crate'], ['grpSpeed', i => ['speed', 'march', 'train'].includes(i.kind)], ['grpBoost', i => i.kind === 'boost'], ['grpChest', i => i.kind === 'chest'], ['grpOther', () => true]];
     const seen = new Set(), parts = G.map(([k, f]) => { const l = D.items.filter(i => !seen.has(i.id) && f(i)); l.forEach(i => seen.add(i.id)); return [k, l]; }).filter(([, l]) => l.length);
-    const inner = `${crumb(c, [[T.wiki, '/wiki/'], [T.cItems]])}<h1 class="ph">${esc(T.cItems.toUpperCase())}</h1>${parts.map(([k, l]) => `<h2 class="gh">${esc(T[k])}</h2><div class="items">${l.map(i => `<div class="item" id="${i.id}"><img src="${img(i.img)}" alt="" loading="lazy"><div><b>${esc(i.name)}</b><span>${esc(i.desc)}</span></div></div>`).join('')}</div>`).join('')}`;
+    const inner = `${crumb(c, [[T.wiki, '/wiki/'], [T.cItems]])}<h1 class="ph">${esc(T.cItems.toUpperCase())}</h1>${parts.map(([k, l]) => `<h2 class="gh">${esc(T[k])}</h2><div class="items">${l.map(i => `<div class="item" id="${i.id}"><img src="${img(i.img)}" alt="" loading="lazy"><div><b>${esc(i.name)}</b><span>${esc(i.desc)}</span>${i.chances || ''}</div></div>`).join('')}</div>`).join('')}`;
     return page(c, `${T.cItems} · ${T.wiki} Mekanik War`, T.cItemsS, wikiFrame(c, 'items', inner), { nav: 'wiki' });
   }
   function alliances(c) {

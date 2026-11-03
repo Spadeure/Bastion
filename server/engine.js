@@ -113,7 +113,8 @@ function wikiData(lang) {
         return { id, name: nm(t.name), br: t.br, eff: _t(t.eff, { p: Math.round(t.p * 100) }), lab: t.lab || 1, max: mx, img: TECH_ART[id],
           req: Object.entries(t.req || {}).map(([r, l]) => ({ id: r, name: nm(TECH[r].name), l })), plans: t.plans ? itemName(t.plans) : '',
           cost: t.max === 1 ? t.cost : techCost(id, 1) }; });
-      const items = ITEM_ORDER.map(id => ({ id, kind: ITEMS[id].kind, name: itemName(id), desc: (() => { try { return itemDesc(id); } catch (e) { return ''; } })(), img: itemArt(id) || '' }));
+      const items = ITEM_ORDER.map(id => ({ id, kind: ITEMS[id].kind, name: itemName(id), ...(() => { let d = ''; try { d = String(itemDesc(id) || ''); } catch (e) {}   // chests: the text, then the table of chances (built by the game itself)
+        const k = d.indexOf('<details'); return { desc: (k < 0 ? d : d.slice(0, k)).replace(/<[^>]*>/g, '').trim(), chances: k < 0 ? '' : d.slice(k).replace(/<details[^>]*>/, '<details class="chances">') }; })(), img: itemArt(id) || '' }));
       const br = TECH_BR.map(([k, n]) => ({ id: k, name: nm(n) }));
       const res = Object.fromEntries([...RES, 'alloy', 'napalm'].map(r => [r, { name: resName(r), img: ICS[r] }]));
       const targets = FEAT_T.map(([t, n, ic]) => ({ id: t, name: nm(n), img: (MSPR[t === 'camp' ? 'camp4' : t] || {}).img || ic() }));

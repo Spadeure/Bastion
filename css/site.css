@@ -232,3 +232,13 @@ button.btn{cursor:pointer}
 
 /* Samsung Internet darkens every site that does not say it has a dark theme: this one is dark already, keep its own colours */
 @media (prefers-color-scheme: dark){:root{color-scheme:dark}}
+/* chests of the wiki: the chances of every reward */
+.item .chances{margin-top:8px;font-size:14px}
+.item .chances summary{cursor:pointer;color:var(--gold);font-weight:700;list-style:none}
+.item .chances summary::-webkit-details-marker{display:none}
+.item .chances summary:before{content:'▸ '}.item .chances[open] summary:before{content:'▾ '}
+.item .chr{border-left:3px solid var(--rc,#888);background:var(--bg);border-radius:6px;padding:5px 8px;margin-top:6px}
+.item .chr>b{display:block;color:var(--rc,#ccc);font-size:13px;margin-bottom:2px}
+.item .chr>div{display:flex;justify-content:space-between;gap:8px;color:var(--txt);font-size:13px;line-height:1.35}
+.item .chr>div span{color:var(--gold);font-weight:700;white-space:nowrap}
+.items{align-items:start}.item{align-items:flex-start}
