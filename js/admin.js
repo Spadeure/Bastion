@@ -100,7 +100,7 @@ function go(v) {
 // the server tag and the top bar (phone): which server this is
 function top(title) {
   const s = D && D.server, tag = s ? `<div class="srvtag ${s.test ? 'test' : 'off'}">${s.test ? 'SERVEUR DE TEST' : 'SERVEUR OFFICIEL'}</div>` : '';
-  return `<div id="mtop">${tag}<span class="sp"></span>${D && D.other ? `<a class="btn sec otherp" href="${esc(otherUrl())}">Panel ${esc(D.other.name)}</a>` : ''}<a class="btn sec" href="./">Jeu</a><button class="btn sec" onclick="document.getElementById('logout').click()">Quitter</button></div><h1>${esc(title)}</h1>`;
+  return `<div id="mtop">${tag}<span class="sp"></span>${D && D.other ? `<a class="btn sec otherp" href="${esc(otherUrl())}">Panel ${esc(D.other.name)}</a>` : ''}<a class="btn sec" href="./">Jeu</a><button class="btn sec" data-act="logout">Quitter</button></div><h1>${esc(title)}</h1>`;
 }
 // the panel of the other server: same computer, other port (official 58689 <-> test 55000)
 const otherUrl = () => `${location.protocol}//${location.hostname}:${D.other.port}/admin`;
@@ -136,7 +136,7 @@ function testCard(full) {
   const same = t.commit && t.commit === s.commit;
   return `<div class="card${same ? '' : ' warnc'}"><div class="ch"><img src="${IMG('radar')}" alt=""><h2>Serveur de test</h2></div>
     ${versionKv(t)}<p style="margin-top:8px" class="${same ? 'ok' : 'warn'}">${same ? 'Même version que l\'officiel.' : (t.commit ? 'Version différente de l\'officiel : prête à être déployée après tes tests.' : 'Commit inconnu (le serveur de test a une ancienne version).')}</p>
-    ${full || same || !t.commit ? '' : `<div class="row"><button class="btn ora" onclick="location.hash='maint'"><img src="${IMG('ui_build')}" alt="">Aller au déploiement</button></div>`}</div>`;
+    ${full || same || !t.commit ? '' : `<div class="row"><button class="btn ora" data-act="maint"><img src="${IMG('ui_build')}" alt="">Aller au déploiement</button></div>`}</div>`;
 }
 function deployCard() {
   const r = D.lastDeploy; if (!r) return '';
@@ -574,9 +574,12 @@ async function viewLogs() {
 // ---------- start ----------
 async function start() {
   document.body.classList.remove('nologin');
-  try { await loadDash(); } catch (e) { if (e.message !== 'Connecte-toi' && e.message !== 'Accès refusé') { $('#main').innerHTML = `<div class="login card warnc"><h2>Serveur injoignable</h2><p>${esc(e.message)}</p><button class="btn" onclick="location.reload()">Réessayer</button></div>`; } return; }
+  try { await loadDash(); } catch (e) { if (e.message !== 'Connecte-toi' && e.message !== 'Accès refusé') { $('#main').innerHTML = `<div class="login card warnc"><h2>Serveur injoignable</h2><p>${esc(e.message)}</p><button class="btn" data-act="reload">Réessayer</button></div>`; } return; }
   go((location.hash || '').slice(1) || 'dash');
 }
+// buttons drawn in the views (no inline onclick: the page's security rules block it)
+document.addEventListener('click', e => { const b = e.target.closest('[data-act]'); if (!b) return; const a = b.dataset.act;
+  if (a === 'logout') $('#logout').click(); else if (a === 'reload') location.reload(); else if (VIEWS[a]) go(a); });
 addEventListener('hashchange', () => { const v = location.hash.slice(1); if (token && v !== view && VIEWS[v]) go(v); });
 if (token) start(); else showLogin();
 })();
