@@ -156,6 +156,7 @@ const __ACTIONS = {
   evRank(rank, cr) { return evRank(__int(rank, 1, 1e9), __int(cr, 0, 100000)) || undefined; },   // event ranking reward (server only)
   payRevoke(prod, cr, cents) { if (!own(PAY_PRODUCTS, prod)) return 'bad_order'; return payRevoke(prod, cr, cents) || undefined; },
   heal(u) { if (u !== null && u !== undefined && !own(UNITS, u)) return 'bad_order'; return withBase('main', () => { const why = whyNotHeal(u || undefined); if (why) return why; heal(u || undefined); }); },
+  titanAssemble(b) { return __in(b, () => { const T = titanState(); if (!armorFound() || T.asm !== 0) return 'bad_order'; delete T.asm; }); },   // the 4 pieces become the armor (the animation is in the browser)
   finishTraining(bl, b) { return __in(b, () => { if (!TRAINERS.includes(bl)) return 'bad_order'; finishTraining(bl); }); },
   finishResearch() { checkResearch(true); },
   finishMarch(id) { finishMarch(id); },

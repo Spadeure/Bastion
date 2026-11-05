@@ -1226,3 +1226,48 @@ body.beta #shopBtn{display:none!important}
 .rfrow .sm{flex:none}
 .bar2{height:8px;border-radius:9px;background:#0b0e0f;border:1px solid #3a3120;overflow:hidden;margin-top:4px}
 .bar2 i{display:block;height:100%;background:linear-gradient(90deg,#d9a51f,#f6d24a)}
+/* Titan armor assembly (titan screen button, then the animation over the game) */
+.tasmw{color:var(--gold,#ffd23a)}
+.why.tasmb{display:flex;flex-direction:column;align-items:stretch;gap:8px;padding:10px 12px;border:1px solid rgba(255,210,58,.45);border-radius:8px;background:rgba(255,210,58,.07)}
+.tasmgo{font-size:17px;padding:11px 14px;letter-spacing:.5px;text-transform:uppercase;animation:tasmpulse 1.6s ease-in-out infinite}
+@keyframes tasmpulse{0%,100%{box-shadow:0 0 0 1px #5a3d05,0 0 0 rgba(255,200,60,0)}50%{box-shadow:0 0 0 1px #5a3d05,0 0 18px rgba(255,200,60,.75)}}
+#tasm{--ag:255,170,60;position:fixed;inset:0;z-index:400;overflow:hidden;background:rgba(4,5,6,.94);animation:tasmin .3s both}
+#tasm.tasm-op{--ag:120,200,255}#tasm.tasm-br{--ag:255,90,30}
+#tasm.out{animation:tasmout .3s both}
+@keyframes tasmin{from{opacity:0}to{opacity:1}}@keyframes tasmout{to{opacity:0}}
+#tasm .gl{position:absolute;left:50%;top:47%;width:400px;height:400px;margin:-200px 0 0 -200px;border-radius:50%;background:radial-gradient(circle,rgba(var(--ag),.5),rgba(var(--ag),0) 65%);opacity:0;animation:tasmglow 1.4s 2.75s ease-out forwards}
+@keyframes tasmglow{0%{opacity:0;transform:scale(.3)}25%{opacity:1;transform:scale(1.2)}100%{opacity:.7;transform:scale(1)}}
+#tasm .t0,#tasm .t1{position:absolute;left:50%;top:47%;width:min(230px,56vw);max-height:46vh;object-fit:contain;transform:translate(-50%,-50%)}
+#tasm .t0{animation:tasmt0 2.85s both}
+@keyframes tasmt0{0%{opacity:0;transform:translate(-50%,-46%) scale(.94)}12%{opacity:1;transform:translate(-50%,-50%) scale(1)}97%{opacity:1}100%{opacity:0}}
+#tasm .t1{opacity:0;filter:drop-shadow(0 0 16px rgba(var(--ag),.7));animation:tasmt1 1.6s 2.8s cubic-bezier(.2,1.5,.4,1) forwards}
+@keyframes tasmt1{0%{opacity:0;transform:translate(-50%,-50%) scale(1.22)}20%{opacity:1}100%{opacity:1;transform:translate(-50%,-50%) scale(1)}}
+#tasm .p{position:absolute;width:84px;height:84px;left:50%;top:47%;margin:-42px 0 0 -42px;filter:drop-shadow(0 0 10px rgba(var(--ag),.9))}
+#tasm .p img{width:100%;height:100%;object-fit:contain}
+#tasm .p1{animation:tasmf1 .5s .9s cubic-bezier(.5,0,.9,.5) both}#tasm .p2{animation:tasmf2 .5s 1.35s cubic-bezier(.5,0,.9,.5) both}
+#tasm .p3{animation:tasmf3 .5s 1.8s cubic-bezier(.5,0,.9,.5) both}#tasm .p4{animation:tasmf4 .5s 2.25s cubic-bezier(.5,0,.9,.5) both}
+@keyframes tasmf1{0%{transform:translate(-140px,-200px) rotate(-25deg) scale(1.2)}85%{opacity:1}100%{opacity:0;transform:translate(0,-40px) scale(.5)}}
+@keyframes tasmf2{0%{transform:translate(140px,-150px) rotate(25deg) scale(1.2)}85%{opacity:1}100%{opacity:0;transform:translate(-40px,-10px) scale(.5)}}
+@keyframes tasmf3{0%{transform:translate(-150px,110px) rotate(20deg) scale(1.2)}85%{opacity:1}100%{opacity:0;transform:translate(10px,-50px) scale(.5)}}
+@keyframes tasmf4{0%{transform:translate(140px,190px) rotate(-20deg) scale(1.2)}85%{opacity:1}100%{opacity:0;transform:translate(0,60px) scale(.5)}}
+#tasm .hit{position:absolute;left:50%;top:45%;width:180px;height:180px;margin:-90px 0 0 -90px;border-radius:50%;opacity:0;background:radial-gradient(circle,rgba(255,240,200,.95),rgba(var(--ag),0) 60%)}
+#tasm .h1{animation:tasmhit .4s 1.38s forwards}#tasm .h2{animation:tasmhit .4s 1.83s forwards}#tasm .h3{animation:tasmhit .4s 2.28s forwards}#tasm .h4{animation:tasmhit .4s 2.73s forwards}
+@keyframes tasmhit{0%{opacity:1;transform:scale(.3)}100%{opacity:0;transform:scale(1.6)}}
+#tasm .fl{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;animation:tasmfl .5s 2.8s ease-out forwards}
+@keyframes tasmfl{0%{opacity:.85}100%{opacity:0}}
+#tasm .ttl{position:absolute;left:0;right:0;top:9%;padding:0 14px;text-align:center;font-family:'Black Ops One',sans-serif;font-size:22px;text-transform:uppercase;color:#ffd23a;text-shadow:0 3px 0 #000,0 0 14px rgba(0,0,0,.9)}
+#tasm .ttl.a{animation:tasmfade 2.8s both}#tasm .ttl.b{opacity:0;animation:tasmslam .5s 2.9s cubic-bezier(.2,1.6,.4,1) forwards}
+@keyframes tasmfade{0%{opacity:0}10%{opacity:1}96%{opacity:1}100%{opacity:0}}
+@keyframes tasmslam{0%{opacity:0;transform:scale(2);filter:blur(5px)}60%{opacity:1;filter:blur(0)}100%{opacity:1;transform:scale(1)}}
+#tasm .cnt{position:absolute;left:0;right:0;top:72%;height:34px;text-align:center;font-family:'Black Ops One',sans-serif;font-size:26px;color:#fff;text-shadow:0 2px 0 #000}
+#tasm .cnt span{position:absolute;left:0;right:0;opacity:0}
+#tasm .c0{animation:tasmfade 1.3s .1s both}#tasm .c1{animation:tasmcn .45s 1.38s forwards}#tasm .c2{animation:tasmcn .45s 1.83s forwards}#tasm .c3{animation:tasmcn .45s 2.28s forwards}
+#tasm .c4{color:#ffd23a;animation:tasmslam .5s 2.73s forwards}
+@keyframes tasmcn{0%{opacity:1;transform:scale(1.5)}90%{opacity:1;transform:scale(1)}100%{opacity:0}}
+#tasm .end{position:absolute;left:18px;right:18px;top:79%;display:flex;flex-direction:column;align-items:center;gap:10px;opacity:0;pointer-events:none;animation:tasmup .45s 3.4s forwards}
+#tasm.done .end{pointer-events:auto}
+#tasm .end p{margin:0;text-align:center;color:#e8e2cc;font-size:15px}
+#tasm .end button{font-size:16px;padding:9px 26px}
+@keyframes tasmup{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+@media (min-width:761px){#tasm .t0,#tasm .t1{width:280px}#tasm .ttl{font-size:30px}#tasm .p{width:100px;height:100px;margin:-50px 0 0 -50px}}
+@media (prefers-reduced-motion:reduce){#tasm *{animation-duration:.01s!important;animation-delay:0s!important}#tasm .t0,#tasm .p,#tasm .ttl.a,#tasm .c0,#tasm .c1,#tasm .c2,#tasm .c3,#tasm .hit,#tasm .fl{display:none}}

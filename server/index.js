@@ -843,8 +843,8 @@ async function admin(req, res, me, ip, preset) {
     case 'titan_part': { st.titan = st.titan || { lvl: 1, xp: 0, hp: 100, away: false, parts: {} };   // gives one armor piece
       const pre = /^(r|b)_/.exec(String(p.s || '')), ok = pre ? (pre[1] === 'r' ? 'op' : 'br') : null, ps = pre ? String(p.s).slice(2) : p.s;   // r_xxx / b_xxx: a piece of the Rampart / Brasier Titan
       if (!['armor', 'weapon', 'reactor', 'legs'].includes(ps)) return send(res, 400, { error: 'bad_part' });
-      if (ok) { const o = st[ok]; if (!o) return send(res, 400, { error: 'bad_part' }); o.titan = o.titan || { lvl: 1, xp: 0, hp: 100, away: false, parts: {} }; o.titan.parts = o.titan.parts || {}; o.titan.parts[ps] = 1; }
-      else { st.titan.parts = st.titan.parts || {}; st.titan.parts[ps] = 1; } break; }
+      if (ok) { const o = st[ok]; if (!o) return send(res, 400, { error: 'bad_part' }); o.titan = o.titan || { lvl: 1, xp: 0, hp: 100, away: false, parts: {} }; o.titan.parts = o.titan.parts || {}; if (!o.titan.parts[ps]) { o.titan.parts[ps] = 1; if (Object.keys(o.titan.parts).length === 4) o.titan.asm = 0; } }
+      else { st.titan.parts = st.titan.parts || {}; if (!st.titan.parts[ps]) { st.titan.parts[ps] = 1; if (Object.keys(st.titan.parts).length === 4) st.titan.asm = 0; } } break; }   // the 4th piece: the armor waits to be assembled (as in the game)
     default: return send(res, 400, { error: 'unknown_action' });
   }
   b.state = JSON.stringify(st);

@@ -41,9 +41,9 @@ Lis ce fichier en entier au début de chaque conversation : il remplace le long 
 - Dans le code : `_t('English text', {p: valeur})`. Le serveur charge aussi ces fichiers (server/engine.js).
 
 ## Tests avant de pousser
-- `bash tests/run.sh` : syntaxe de tous les .js, traductions, copie du dépôt + serveur local port 8099, navigateur téléphone 390×844 et PC 1366×768 (fr + en), erreurs JS, débordement horizontal, captures.
+- `bash tests/run.sh` : syntaxe de tous les .js, tests des règles (tests/*.js), traductions, copie du dépôt + serveur local port 8099, navigateur téléphone 390×844 et PC 1366×768 (fr + en), erreurs JS, débordement horizontal, captures.
   - `--all-langs` : les 9 langues ; `--panel` : capture du panel ; `--shot nom="JS à exécuter"` : capture d'un écran précis.
-  - Mettre `MW_TEST_DIR=<scratchpad>/mw` devant pour ranger copie et captures dans le scratchpad.
+  - Mettre `MW_TEST_DIR=<scratchpad>/mw` devant pour ranger copie et captures dans le scratchpad ; `MW_TEST_PORT=8098` si le port 8099 est pris.
 - Compte local de test : Spadeure / motdepasse1 (créé tout seul). Chromium + Playwright sont préinstallés : ne pas réinstaller.
 - Regarder les captures (Read) avant de dire que c'est bon.
 
@@ -63,6 +63,8 @@ Lis ce fichier en entier au début de chaque conversation : il remplace le long 
 - Bande-annonce publiée (TikTok + YouTube Shorts).
 
 ## Où on en est (à réécrire à chaque fin de travail)
-- 2026-11-05 : traductions sorties de game.js vers js/i18n/ + outil tools/i18n.py ; scripts de test dans tests/ ; ce CLAUDE.md. Rien de visible pour les joueurs (pas de note PATCH).
-- Dernière note PATCH : 2026-11-05a.
+- 2026-11-05 : assemblage de l'armure du Titan (PATCH 2026-11-05b). Quand la 4e pièce est trouvée, le Titan reçoit `asm:0` (« armure à assembler ») : pas de combat tant que le joueur n'a pas appuyé sur « Assembler l'armure » (fiche du Titan) → ordre serveur `titanAssemble(base)` (harness.js) puis animation `titanAssembleFx(b)` (js/game.js, styles `#tasm` dans css/style.css), avec le skin et les pièces de chaque Titan (principal, Rempart, Brasier) et un bruit de métal. Les Titans déjà blindés (sans `asm`) ne changent pas. Le panel (titan_part) met aussi `asm:0` à la 4e pièce, pour tester. Test des règles : tests/titan_assemble.js.
+- 2026-11-05 : traductions sorties de game.js vers js/i18n/ + tools/i18n.py ; scripts de test dans tests/ ; ce CLAUDE.md.
+- Vidéo promo (TikTok / YouTube Shorts) faite : tournage Playwright au ralenti (screencast CDP + Animation.setPlaybackRate) sur une copie locale avec un compte de démo, montage ffmpeg. Les scripts étaient dans le scratchpad (non gardés).
+- Dernière note PATCH : 2026-11-05b.
 - À faire plus tard : fin de bêta (événement de lancement, boutique ouverte, annonce du parrainage) ; application Android (Capacitor) au lancement, iOS plus tard ; VPS ; Google Search Console.

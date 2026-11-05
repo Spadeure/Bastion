@@ -644,7 +644,7 @@ function dropTable(tl){ const L=tl.lvl;
 // Titan armor: 4 pieces only, found in Raider Camps level 5 and up (each victory, with or without the Titan).
 // Only a missing piece can drop; once the 4 are found, the Titan wears its armor and can go into battle.
 const ARMOR_CHANCE = {5:0.02, 6:0.04, 7:0.06, 8:0.09, 9:0.11, 10:0.15};
-const partChance = tl => tl.t==='camp' && !armorDone() ? (ARMOR_CHANCE[tl.lvl]||0) : 0;
+const partChance = tl => tl.t==='camp' && !armorFound() ? (ARMOR_CHANCE[tl.lvl]||0) : 0;
 function rollItems(tl){ const out=[]; for(const {r,p} of dropTable(tl)) if(Math.random()<p) out.push(r.roll()); return out.filter(id=>ITEMS[id]); }
 function supplyItem(){ const r=Math.random(); return (r<0.7?RARITY[0]: r<0.95?RARITY[1]: RARITY[2]).roll(); }
 // ---- using items ----
@@ -1591,7 +1591,7 @@ function attackPanel(){
   for(const tk of baseList()) withBase(tk, ()=>{ if(!hangarLvl()) return; const T=titanState(), ok=titanReady(), on=tkOf(atkTitan)===tk && !!atkTitan;
     h+=`<div class="row trow-t${on?' on':''}"><div class="top"><img class="uimg" src="${titanImg()}" alt=""><div style="flex:1;min-width:0"><b>${titanName()}</b>
       <div class="sub">${_t('Lv {l} · Health {h}%',{l:T.lvl,h:Math.floor(T.hp)})} · ${IC.troops} +${Math.round(titanTroopBonus()*100)}% ${_t('troop attack')}</div>
-      <button class="${on?'':'sec '}sm" data-act="ttoggle" data-k="${tk}"${ok?'':' disabled'}>${on?IC.ok+' ':''}${_t(ok?'Send the Titan':'Titan unavailable')}</button>${!armorDone()?`<div class="sub">${IC.lock} ${_t('Armor incomplete ({n} / 4): the Titan cannot go into battle.',{n:armorCount()})}</div>`:''}</div></div></div>`; });
+      <button class="${on?'':'sec '}sm" data-act="ttoggle" data-k="${tk}"${ok?'':' disabled'}>${on?IC.ok+' ':''}${_t(ok?'Send the Titan':'Titan unavailable')}</button>${armorFound() && !armorDone()?`<div class="sub">${IC.lock} ${_t('Armor to assemble: open the {t} screen to assemble it.',{t:_t('Titan')})}</div>`:!armorDone()?`<div class="sub">${IC.lock} ${_t('Armor incomplete ({n} / 4): the Titan cannot go into battle.',{n:armorCount()})}</div>`:''}</div></div></div>`; });
   if(!own.length && !baseList().some(k=>withBase(k,titanReady))) return h+`<p style="margin-top:10px">${_t('You have no troops. Train some at the Barracks.')}</p>`;
   for(const u of own){ const d=UNITS[u];
     h+=`<div class="row"><div class="top"><img class="uimg" src="${d.img}" alt=""><div style="flex:1;min-width:0"><b>${_t(d.name)}</b><div class="sub">${_t('Available: {n}',{n:fmtN(state.troops[u])})}</div>
@@ -2273,7 +2273,9 @@ function titanState(){ if(!state.titan) state.titan={lvl:1, xp:0, hp:100, away:f
     delete T.eq; delete T.inv; if(g && state.res) state.res.gold=(state.res.gold||0)+g; }
   return T; }
 const armorCount = () => EQ_SLOTS.filter(s=>titanState().parts[s]).length;
-const armorDone = () => armorCount()===4;
+const armorFound = () => armorCount()===4;   // the 4 pieces are in hand
+// assembled: a Titan whose 4th piece is found gets asm=0 and must be assembled (titan screen) before fighting; older ones have no asm = already assembled
+const armorDone = () => armorFound() && titanState().asm!==0;
 const titanMax = () => Math.min(10, Math.max(1, hangarLvl()));   // like the Great Dragon: level capped by its hangar, 10 max
 const xpNeed = L => Math.round(600*Math.pow(L,2.4));
 const tScale = L => L*(1+0.25*(L-1));   // stats grow faster at high level (level 10 = x32.5)
@@ -2294,19 +2296,20 @@ function rollDrop(tl){ const p=partChance(tl); if(!p || Math.random()>=p) return
 function findPart(s){ const T=titanState(); if(!EQ_NAME[s] || T.parts[s]) return; T.parts[s]=1;
   const rp=inOp(), n=armorCount();
   setTimeout(()=>toast(IC.drop+' '+(rp?_t('{t} armor piece found: {p} ({n} / 4)',{t:titanName(),p:_t(EQ_NAME[s]),n}):_t('Titan armor piece found: {p} ({n} / 4)',{p:_t(EQ_NAME[s]),n}))), 1200);
-  if(n===4) setTimeout(()=>toast(IC.titan_ic+' '+(rp?_t('Armor complete: your {t} can now go into battle!',{t:titanName()}):_t('Armor complete: your Titan can now go into battle!'))), 3600); }
+  if(n===4){ T.asm=0; setTimeout(()=>toast(IC.titan_ic+' '+_t('{t}: the 4 armor pieces are found! Open its screen to assemble the armor.',{t:titanName()})), 3600); } }
 function titanPanel(){
   const T=titanState(), st=titanStats(), need=xpNeed(T.lvl), stage=titanStage();
   let h=`<div class="hd"><div class="big tbig"><img class="bimg" src="${titanImg()}" alt=""></div><div style="flex:1">
       <h2>${titanName()} · ${_t('Lv')} ${T.lvl} / ${titanMax()}</h2><div class="sub">${_t(['Prototype','Armored'][stage])} · ${IC.power} ${fmtN(titanPower())} ${_t('power')}</div>
-      <div class="sub">${!armorDone()?IC.lock+' '+_t('Armor incomplete'):T.away?IC.atk+' '+_t('On a mission'):T.hp<30?IC.repair+' '+_t('Too damaged to fight (30% needed)'):IC.ok+' '+_t('Ready for battle')}</div></div></div>
+      <div class="sub">${armorFound() && !armorDone()?`<span class="tasmw">${IC.titan_ic} ${_t('Armor to assemble')}</span>`:!armorDone()?IC.lock+' '+_t('Armor incomplete'):T.away?IC.atk+' '+_t('On a mission'):T.hp<30?IC.repair+' '+_t('Too damaged to fight (30% needed)'):IC.ok+' '+_t('Ready for battle')}</div></div></div>
     <div class="tbar"><span>XP</span><div class="prog"><i style="width:${Math.min(100,T.xp/need*100)}%"></i></div><small>${fmtN(T.xp)} / ${fmtN(need)}</small></div>
     <div class="tbar"><span>${IC.hp}</span><div class="prog hpb"><i style="width:${Math.floor(T.hp)}%"></i></div><small>${Math.floor(T.hp)}% · +${repairRate()}%/h</small></div>
     ${T.lvl>=titanMax()?`<div class="why">${(inOp()?_t('Upgrade the {b} to raise the maximum level.',{b:_t(hangarName())}):_t('Upgrade the Titan Hangar to raise the maximum level.'))}</div>`:''}
     ${curBase()==='op'?`<div class="sub">${IC.def} ${_t('At home and fit to fight, it reinforces the Wall of your main base: defense +{p}%.',{p:Math.round(0.03*T.lvl*100)})}</div>`:''}${curBase()==='br'?`<div class="sub">${IC.atk} ${_t('At home and fit to fight, it fires up the troops of your main base: attack +{p}%.',{p:Math.round(0.02*T.lvl*100)})}</div>`:''}
     <div class="ust" style="margin:8px 0"><span>${IC.atk} ${fmtN(st.at)}</span><span>${IC.def} ${fmtN(st.df)}</span><span>${IC.hp} ${fmtN(st.hp)}</span><span>${IC.spd} ${st.sp}</span><span>${IC.load} ${fmtN(st.ld)}</span><span>${IC.troops} +${Math.round(titanTroopBonus()*100)}% ${_t('troop attack')}</span></div>
     <h3>${inOp()?_t('{t} armor',{t:titanName()}):_t('Titan armor')} · ${armorCount()} / 4</h3>
-    ${armorDone()?`<div class="why okk">${IC.ok} ${_t('Armor complete: your Titan can go into battle.')}</div>`:`<div class="why">${IC.lock} ${_t('Without its full armor, the Titan cannot go into battle.')}</div>`}
+    ${armorFound() && !armorDone()?`<div class="why okk tasmb"><div>${_t('The 4 pieces are found! Assemble the armor so your {t} can go into battle.',{t:titanName()})}</div><button class="tasmgo" data-act="tasm">${_t('Assemble the armor')}</button></div>`
+    : armorDone()?`<div class="why okk">${IC.ok} ${_t('Armor complete: your Titan can go into battle.')}</div>`:`<div class="why">${IC.lock} ${_t('Without its full armor, the Titan cannot go into battle.')}</div>`}
     <div class="eqgrid">${EQ_SLOTS.map(s=>{ const got=!!T.parts[s]; return `<div class="eqslot">${partIcon(s,got,58)}<b>${_t(EQ_NAME[s])}</b><small style="color:${got?'var(--ok)':'var(--mut)'}">${_t(got?'Found':'Missing')}</small></div>`; }).join('')}</div>
     ${curBase()==='br' ? `<p class="sub" style="margin-top:6px">${_t('The pieces of the Brasier Titan are found by winning on the Oil Fields level 5 to 10 ({a}% to {b}% per victory) and on the Fortified Oil Fields ({p}%).',{a:pctS(PLANS_PCT[5]),b:pctS(PLANS_PCT[10]),p:pctS(RP_CHANCE)})}</p>`
     : curBase()==='op' ? `<p class="sub" style="margin-top:6px">${_t('The pieces of the Rampart Titan are found by winning on the Rocky Mountains level 5 to 10 ({a}% to {b}% per victory) and on the Fortified Mountains ({p}%).',{a:pctS(PLANS_PCT[5]),b:pctS(PLANS_PCT[10]),p:pctS(RP_CHANCE)})}</p>`
@@ -2324,6 +2327,35 @@ const TITAN_STAGES_BR = {0:'assets/img/brasier_titan_0.webp', 1:'assets/img/bras
 const TITAN_SKIN = {op:TITAN_STAGES_OP, br:TITAN_STAGES_BR};
 const titanImg = () => (TITAN_SKIN[curBase()] || TITAN_STAGES)[titanStage()] || TITAN.img;
 const titanImgOf = k => withBase(OPK.includes(k) && hasOp(k) ? k : 'main', titanImg);
+// the armor assembly: the rusty Titan, the 4 pieces fly onto it one by one, a flash, and the armored Titan (each Titan with its own paint and pieces)
+function titanAssembleFx(b){
+  const old=document.getElementById('tasm'); if(old) old.remove();
+  const imgs=TITAN_SKIN[b]||TITAN_STAGES, name=withBase(b,titanName), parts=withBase(b,()=>EQ_SLOTS.map(PART_IMG));
+  const el=document.createElement('div'); el.id='tasm'; el.className='tasm-'+b;
+  el.innerHTML=`<div class="gl"></div><img class="t0" src="${imgs[0]}" alt=""><img class="t1" src="${imgs[1]}" alt="">
+    ${[1,2,3,4].map(i=>`<div class="hit h${i}"></div>`).join('')}${parts.map((src,i)=>`<div class="p p${i+1}"><img src="${src}" alt=""></div>`).join('')}
+    <div class="ttl a"></div><div class="ttl b"></div>
+    <div class="cnt">${[0,1,2,3,4].map(n=>`<span class="c${n}">${n} / 4</span>`).join('')}</div>
+    <div class="end"><p></p><button></button></div><div class="fl"></div>`;
+  el.querySelector('.ttl.a').textContent=_t('Assembling the armor…');
+  el.querySelector('.ttl.b').textContent=_t('{t} armored!',{t:name});
+  el.querySelector('.end p').textContent=b==='main' ? _t('Armor complete: your Titan can go into battle.') : _t('Armor complete: your {t} can now go into battle!',{t:name});
+  const go=el.querySelector('.end button'); go.textContent=_t('Continue');
+  const close=()=>{ el.classList.add('out'); setTimeout(()=>el.remove(),300); renderAll(); if(cur==='__titan') renderSheet(); };
+  go.addEventListener('click', close);
+  el.addEventListener('click', e=>{ if(e.target===el && el.classList.contains('done')) close(); });
+  document.body.appendChild(el);
+  setTimeout(()=>el.classList.add('done'), 3400);
+  [1380,1830,2280,2730].forEach(t=>setTimeout(()=>clankFx(false), t)); setTimeout(()=>clankFx(true), 2800);
+  if(navigator.vibrate) try{ navigator.vibrate([0,1380,40,410,40,410,40,410,90]); }catch(e){} }
+// a metal clank made by the browser (no sound file): a short noise burst and a low thump; louder for the last one
+function clankFx(big){ if(!alertSound || !audioCtx) return;
+  try{ const t0=audioCtx.currentTime, n=Math.floor(audioCtx.sampleRate*0.12), buf=audioCtx.createBuffer(1,n,audioCtx.sampleRate), d=buf.getChannelData(0);
+    for(let i=0;i<n;i++) d[i]=(Math.random()*2-1)*Math.pow(1-i/n,3);
+    const src=audioCtx.createBufferSource(), bp=audioCtx.createBiquadFilter(), g=audioCtx.createGain(); src.buffer=buf; bp.type='bandpass'; bp.frequency.value=big?900:2200; bp.Q.value=1.4;
+    src.connect(bp); bp.connect(g); g.connect(audioCtx.destination); g.gain.setValueAtTime(big?0.5:0.3,t0); src.start(t0);
+    const o=audioCtx.createOscillator(), og=audioCtx.createGain(); o.type='sine'; o.frequency.setValueAtTime(big?120:180,t0); o.frequency.exponentialRampToValueAtTime(40,t0+(big?0.5:0.15));
+    o.connect(og); og.connect(audioCtx.destination); og.gain.setValueAtTime(big?0.35:0.18,t0); og.gain.exponentialRampToValueAtTime(0.001,t0+(big?0.55:0.18)); o.start(t0); o.stop(t0+(big?0.6:0.2)); }catch(e){} }
 function openTitan(){ if(!hangarLvl()){ setView('city'); openSlot('hangar'); return; } openPanel('__titan'); }
 
 const TITAN = IMGS.titan; // the giant combat mech that lives in the Titan Hangar
@@ -2484,6 +2516,7 @@ function opNormalize(key){ const o=state[key]; if(o===undefined) return;
   const ti=(o.titan && typeof o.titan==='object' && !Array.isArray(o.titan)) ? o.titan : {};
   o.titan={lvl:Math.max(1,Math.min(10,Math.floor(Number(ti.lvl)||1))), xp:Math.max(0,Number(ti.xp)||0), hp:Math.max(0,Math.min(100,Number.isFinite(ti.hp)?ti.hp:100)), away:!!ti.away, parts:{}};
   for(const p of EQ_SLOTS) if(ti.parts && ti.parts[p]) o.titan.parts[p]=1;
+  if(ti.asm===0) o.titan.asm=0;   // 4 pieces found, armor not assembled yet
   if(!OUTPOSTS.has(o.x*1024+o.y)){ OUTPOSTS.set(o.x*1024+o.y, {name:typeof NET!=='undefined'&&NET.name?NET.name:'', t:o.t, x:o.x, y:o.y, lvl:(S.cc||{}).lvl||1}); invalidateCells(opCells(o.x,o.y)); } }
 // ===== STATE =====
 const KEY = 'bastion_step1d';
@@ -3323,6 +3356,10 @@ function onAct(e){
   if(a==='reptab'){ repTab=btn.dataset.t; repPage=0; renderSheet(); }
   if(a==='repview'){ repView=btn.dataset.t; renderSheet(); }
   if(a==='repp'){ repPage=+btn.dataset.p; renderSheet(); sheetTop(); }
+  if(a==='tasm'){ if(btn.disabled) return; btn.disabled=true; const b=curBase();   // assemble the Titan armor: the server checks, then the animation plays
+    if(ONLINE){ act('titanAssemble',[b]).then(ok=>{ if(ok) titanAssembleFx(b); else btn.disabled=false; }); }
+    else { const T=titanState(); if(armorFound() && T.asm===0){ delete T.asm; save(); titanAssembleFx(b); } }
+    return; }
   if(a==='repreadall'){ for(const r of state.reports) r.read=true; if(ONLINE) act('readAllReports',[]); else save(); renderSheet(); updateRepBadge(); }
   if(/^al/.test(a||'') && cur==='__ally'){ allyClick(a, btn); return; }
   if(/^ch/.test(a||'') && cur==='__chat'){ chatClick(a, btn); return; }
@@ -4705,6 +4742,9 @@ let tickTimer=0;
 // Add the newest entry at the TOP, with a new id. Every line is translated in I18N.
 // =====================================================================
 const PATCH = [
+  {id:'2026-11-05b', d:'2026-11-05', items:[
+    "Titan: once the 4 armor pieces are found, press « Assemble the armor » in its screen and watch the pieces lock onto your Titan, one by one. The Rampart and Brasier Titans too, each with its own paint. Titans already armored stay as they are."
+  ]},
   {id:'2026-11-05a', d:'2026-11-05', items:[
     "Brasier outpost: new sharper backgrounds for the city, at every stage of the wall."
   ]},
