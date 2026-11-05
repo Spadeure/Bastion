@@ -65,11 +65,13 @@ module.exports = function makeBeta({ db, Q, log, clean, acc, runFor, push, NAME_
     if (L.length >= 3) throw err(429, 'too_many');
     if (B.byEmail.get(email)) throw err(409, 'email_taken');
     if (B.byName.get(name)) throw err(409, 'name_taken');
-    B.add.run(name, email, lang, now, 'site', null, ip); perIp.set(ip, [...L, now]);
+    const id = Number(B.add.run(name, email, lang, now, 'site', null, ip).lastInsertRowid); perIp.set(ip, [...L, now]);
     log('BÊTA', `Inscription à la bêta : ${clean(name)} · ${ip} · place ${count()} / ${S.places}${full() ? ' · COMPLET : inscriptions fermées' : ''}`);
     linkAll();
+    const now2 = S.on && S.started;   // the beta is running: the invitation (with the game link) leaves at once
+    if (now2) invite([id], 'inscription').catch(e => log('ERREUR', 'invitation immédiate non envoyée : ' + e.message));
     if (full()) fullMail();
-    return { ok: true, ...publicInfo() };
+    return { ok: true, sent: now2, ...publicInfo() };
   }
 
   // the last place is taken: an e-mail to the game's mailbox (BETA_NOTIFY_EMAIL chooses another address, « off » sends nothing)
@@ -77,7 +79,7 @@ module.exports = function makeBeta({ db, Q, log, clean, acc, runFor, push, NAME_
     const to = process.env.BETA_NOTIFY_EMAIL || acc().SMTP_USER;
     if (!to || /^(off|0|non)$/i.test(to)) return;
     const names = B.all.all().map((r, i) => `${i + 1}. ${r.name}${r.email ? ' (' + r.email + ')' : ''}`).join('\n');
-    const text = `Bonne nouvelle : les ${S.places} places de la bêta sont prises ! Les inscriptions sur le site sont fermées automatiquement.\n\nProchaines étapes, dans le panel officiel (menu Bêta) :\n1. Écris la date du lancement dans le message de la page bêta, puis Enregistrer.\n2. Annonce la date sur Discord.\n3. Le jour J : « Lancer la bêta », puis « Envoyer les invitations ».\n\nLes inscrits :\n${names}`;
+    const text = S.started ? `Bonne nouvelle : les ${S.places} places de la bêta sont prises ! Les inscriptions sur le site sont fermées automatiquement.\n\nLa bêta est déjà lancée : chaque inscrit a reçu le lien du jeu par e-mail au moment de son inscription. Pour ajouter des places : panel officiel › Bêta › Nombre de places, puis Rouvrir les inscriptions.\n\nListe des inscrits :\n${names}` : `Bonne nouvelle : les ${S.places} places de la bêta sont prises ! Les inscriptions sur le site sont fermées automatiquement.\n\nProchaines étapes, dans le panel officiel (menu Bêta) :\n1. Écris la date du lancement dans le message de la page bêta, puis Enregistrer.\n2. Annonce la date sur Discord.\n3. Le jour J : « Lancer la bêta », puis « Envoyer les invitations ».\n\nLes inscrits :\n${names}`;
     acc().sendMail(to, `Bêta complète : ${S.places} / ${S.places}`, text, '', '')
       .then(ok => { if (ok) log('BÊTA', 'E-mail « bêta complète » envoyé à l\'administrateur'); })
       .catch(e => log('ERREUR', 'e-mail « bêta complète » non envoyé : ' + e.message));
@@ -122,16 +124,36 @@ module.exports = function makeBeta({ db, Q, log, clean, acc, runFor, push, NAME_
         return { id: r.id, name: r.name, email: r.email || '', lang: r.lang, at: r.at, src: r.src, invited: r.invited, rewarded: r.rewarded, bonus: r.bonus, bugs: r.uid ? (bugsOf.get(r.uid) || {}).n || 0 : 0, account: u ? u.name : '', seen: u ? u.seen : 0 }; }),
       bugs: db.prepare('SELECT * FROM bug_reports ORDER BY done, id DESC LIMIT 200').all() };
   }
+  // the invitation: [subject, text for a new player, button, text for a player who already has an account on this server]
   const MAIL = {
-    fr: ['Ta place pour la bêta', 'Bonjour {n},\n\nTa place pour la bêta de Mekanik War: Titans est confirmée. Merci de nous aider à préparer le jeu !\n\nCrée ton compte avec CETTE adresse e-mail ({e}), sinon le jeu ne te reconnaîtra pas. Tu peux choisir le nom de commandant que tu veux.\n{m}\nPour jouer : {u}\n\nUn bug, une idée ? Dans le jeu : Paramètres › Signaler un bug.', 'Jouer à la bêta'],
-    en: ['Your place in the beta', 'Hello {n},\n\nYour place in the Mekanik War: Titans beta is confirmed. Thank you for helping us get the game ready!\n\nCreate your account with THIS e-mail address ({e}), otherwise the game will not recognise you. You can choose any commander name.\n{m}\nTo play: {u}\n\nA bug, an idea? In the game: Settings › Report a bug.', 'Play the beta'],
+    fr: ['Ta place pour la bêta', 'Bonjour {n},\n\nTa place pour la bêta de Mekanik War: Titans est confirmée. Merci de nous aider à préparer le jeu !\n\nCrée ton compte avec CETTE adresse e-mail ({e}), sinon le jeu ne te reconnaîtra pas. Tu peux choisir le nom de commandant que tu veux.\n{m}\nPour jouer : {u}\n\nUn bug, une idée ? Dans le jeu : Paramètres › Signaler un bug.', 'Jouer à la bêta',
+      'Bonjour {n},\n\nLa bêta de Mekanik War: Titans est ouverte ! Merci de nous aider à préparer le jeu.\n\nConnecte-toi avec ton compte habituel.\n{m}\nPour jouer : {u}\n\nUn bug, une idée ? Dans le jeu : Paramètres › Signaler un bug.'],
+    en: ['Your place in the beta', 'Hello {n},\n\nYour place in the Mekanik War: Titans beta is confirmed. Thank you for helping us get the game ready!\n\nCreate your account with THIS e-mail address ({e}), otherwise the game will not recognise you. You can choose any commander name.\n{m}\nTo play: {u}\n\nA bug, an idea? In the game: Settings › Report a bug.', 'Play the beta',
+      'Hello {n},\n\nThe Mekanik War: Titans beta is open! Thank you for helping us get the game ready.\n\nLog in with your usual account.\n{m}\nTo play: {u}\n\nA bug, an idea? In the game: Settings › Report a bug.'],
+    es: ['Tu plaza en la beta', 'Hola {n}:\n\nTu plaza en la beta de Mekanik War: Titans está confirmada. ¡Gracias por ayudarnos a preparar el juego!\n\nCrea tu cuenta con ESTA dirección de correo ({e}); si no, el juego no te reconocerá. Puedes elegir el nombre de comandante que quieras.\n{m}\nPara jugar: {u}\n\n¿Un error, una idea? En el juego: Ajustes › Informar de un error.', 'Jugar a la beta',
+      'Hola {n}:\n\n¡La beta de Mekanik War: Titans está abierta! Gracias por ayudarnos a preparar el juego.\n\nInicia sesión con tu cuenta de siempre.\n{m}\nPara jugar: {u}\n\n¿Un error, una idea? En el juego: Ajustes › Informar de un error.'],
+    de: ['Dein Platz in der Beta', 'Hallo {n},\n\ndein Platz in der Beta von Mekanik War: Titans ist bestätigt. Danke, dass du uns hilfst, das Spiel vorzubereiten!\n\nErstelle dein Konto mit DIESER E-Mail-Adresse ({e}), sonst erkennt dich das Spiel nicht. Den Kommandantennamen kannst du frei wählen.\n{m}\nZum Spielen: {u}\n\nEin Fehler, eine Idee? Im Spiel: Einstellungen › Fehler melden.', 'Beta spielen',
+      'Hallo {n},\n\ndie Beta von Mekanik War: Titans ist offen! Danke, dass du uns hilfst, das Spiel vorzubereiten.\n\nMelde dich mit deinem gewohnten Konto an.\n{m}\nZum Spielen: {u}\n\nEin Fehler, eine Idee? Im Spiel: Einstellungen › Fehler melden.'],
+    it: ['Il tuo posto nella beta', 'Ciao {n},\n\nil tuo posto nella beta di Mekanik War: Titans è confermato. Grazie per aiutarci a preparare il gioco!\n\nCrea il tuo account con QUESTO indirizzo e-mail ({e}), altrimenti il gioco non ti riconoscerà. Puoi scegliere il nome da comandante che vuoi.\n{m}\nPer giocare: {u}\n\nUn bug, un\'idea? Nel gioco: Impostazioni › Segnala un bug.', 'Gioca alla beta',
+      'Ciao {n},\n\nla beta di Mekanik War: Titans è aperta! Grazie per aiutarci a preparare il gioco.\n\nAccedi con il tuo solito account.\n{m}\nPer giocare: {u}\n\nUn bug, un\'idea? Nel gioco: Impostazioni › Segnala un bug.'],
+    pt: ['O teu lugar na beta', 'Olá {n},\n\no teu lugar na beta de Mekanik War: Titans está confirmado. Obrigado por nos ajudares a preparar o jogo!\n\nCria a tua conta com ESTE endereço de e-mail ({e}), senão o jogo não te reconhece. Podes escolher o nome de comandante que quiseres.\n{m}\nPara jogar: {u}\n\nUm bug, uma ideia? No jogo: Configurações › Relatar um bug.', 'Jogar a beta',
+      'Olá {n},\n\na beta de Mekanik War: Titans está aberta! Obrigado por nos ajudares a preparar o jogo.\n\nInicia sessão com a tua conta habitual.\n{m}\nPara jogar: {u}\n\nUm bug, uma ideia? No jogo: Configurações › Relatar um bug.'],
+    pl: ['Twoje miejsce w becie', 'Cześć {n},\n\ntwoje miejsce w becie Mekanik War: Titans jest potwierdzone. Dziękujemy, że pomagasz nam przygotować grę!\n\nZałóż konto z TYM adresem e-mail ({e}), inaczej gra cię nie rozpozna. Nazwę dowódcy możesz wybrać dowolną.\n{m}\nAby zagrać: {u}\n\nBłąd, pomysł? W grze: Ustawienia › Zgłoś błąd.', 'Zagraj w betę',
+      'Cześć {n},\n\nbeta Mekanik War: Titans jest otwarta! Dziękujemy, że pomagasz nam przygotować grę.\n\nZaloguj się na swoje zwykłe konto.\n{m}\nAby zagrać: {u}\n\nBłąd, pomysł? W grze: Ustawienia › Zgłoś błąd.'],
+    tr: ['Betadaki yerin', 'Merhaba {n},\n\nMekanik War: Titans betasındaki yerin onaylandı. Oyunu hazırlamamıza yardım ettiğin için teşekkürler!\n\nHesabını BU e-posta adresiyle ({e}) oluştur, yoksa oyun seni tanımaz. İstediğin komutan adını seçebilirsin.\n{m}\nOynamak için: {u}\n\nBir hata, bir fikir mi? Oyunda: Ayarlar › Hata bildir.', 'Betayı oyna',
+      'Merhaba {n},\n\nMekanik War: Titans betası açıldı! Oyunu hazırlamamıza yardım ettiğin için teşekkürler.\n\nHer zamanki hesabınla giriş yap.\n{m}\nOynamak için: {u}\n\nBir hata, bir fikir mi? Oyunda: Ayarlar › Hata bildir.'],
+    ru: ['Твоё место в бете', 'Привет, {n}!\n\nТвоё место в бете Mekanik War: Titans подтверждено. Спасибо, что помогаешь нам готовить игру!\n\nСоздай аккаунт с ЭТИМ адресом e-mail ({e}), иначе игра тебя не узнает. Имя командира можешь выбрать любое.\n{m}\nИграть: {u}\n\nОшибка, идея? В игре: Настройки › Сообщить об ошибке.', 'Играть в бету',
+      'Привет, {n}!\n\nБета Mekanik War: Titans открыта! Спасибо, что помогаешь нам готовить игру.\n\nВойди в свой обычный аккаунт.\n{m}\nИграть: {u}\n\nОшибка, идея? В игре: Настройки › Сообщить об ошибке.'],
   };
+  const userInfo = db.prepare('SELECT id, role FROM users WHERE id = ?');
   async function invite(ids, by) {
     let sent = 0, fail = 0;
     for (const r of B.all.all()) {
       if (!r.email || (ids && !ids.includes(r.id)) || (!ids && r.invited)) continue;
-      const L = MAIL[r.lang === 'fr' ? 'fr' : 'en'], url = acc().BASE + '/';
-      const text = L[1].replace('{n}', r.name).replace('{e}', r.email).replace('{m}', S.msg ? '\n' + S.msg + '\n' : '').replace('{u}', url);
+      const u = r.uid ? userInfo.get(r.uid) : null;
+      if (u && u.role === 'admin') { B.invited.run(Date.now(), r.id); continue; }   // the administrator needs no invitation
+      const L = MAIL[r.lang] || MAIL.en, url = acc().BASE + '/';
+      const text = L[u ? 3 : 1].replace('{n}', r.name).replace('{e}', r.email).replace('{m}', S.msg ? '\n' + S.msg + '\n' : '').replace('{u}', url);
       try { if (await acc().sendMail(r.email, L[0], text, L[2], url)) { B.invited.run(Date.now(), r.id); sent++; } else fail++; }
       catch (e) { fail++; log('ERREUR', `invitation à la bêta pour ${r.name} non envoyée : ${e.message}`); }
     }
@@ -169,7 +191,11 @@ module.exports = function makeBeta({ db, Q, log, clean, acc, runFor, push, NAME_
     const op = String(P.op || '');
     if (op === 'set') {
       if (P.on !== undefined) { S.on = !!P.on; if (!S.on) S.started = false; }
+      const was = S.started;
       if (P.started !== undefined) S.started = !!P.started && S.on;
+      const launched = S.started && !was;
+      if (launched && P.msg === undefined && S.msg) { log('BÊTA', `message de la page bêta effacé au lancement : « ${clean(S.msg).slice(0, 60)} »`); S.msg = ''; }   // « the date will be announced… » is out of date
+      if (launched) setTimeout(() => invite(null, by + ' (lancement)').catch(e => log('ERREUR', 'invitations du lancement : ' + e.message)), 0);
       if (P.open !== undefined) S.open = !!P.open;
       if (P.places !== undefined) S.places = int(P.places, 1, 10000);
       if (P.msg !== undefined) S.msg = txt(P.msg, 300);

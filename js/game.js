@@ -4745,6 +4745,9 @@ let tickTimer=0;
 // every Titan's armor pieces, for the admin menus (main Titan, then each outpost Titan: prefix r_ / b_ as the server expects)
 const ADM_PARTS = () => [...EQ_SLOTS.map(s=>[s,_t('Titan')+' · '+_t(EQ_NAME[s])]), ...EQ_SLOTS.map(s=>['r_'+s,_t('Rampart Titan')+' · '+_t(EQ_NAME[s])]), ...EQ_SLOTS.map(s=>['b_'+s,_t('Brasier Titan')+' · '+_t(EQ_NAME[s])])];
 const PATCH = [
+  {id:'2026-11-06a', d:'2026-11-06', items:[
+    "Open beta: the beta is open! Your friends can sign up on mekanikwar.com/beta: they receive the link of the game by e-mail right away, while places remain."
+  ]},
   {id:'2026-11-05b', d:'2026-11-05', items:[
     "Titan: once the 4 armor pieces are found, press « Assemble the armor » in its screen and watch the pieces lock onto your Titan, one by one. The Rampart and Brasier Titans too, each with its own paint. Titans already armored stay as they are."
   ]},

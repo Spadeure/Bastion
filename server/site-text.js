@@ -1,6 +1,7 @@
 // Mekanik War · the texts of the website (mekanikwar.com), in the 9 languages of the game.
 // The game data (names of units, buildings, research, items, news) comes from the game itself, already translated.
 const EN = {
+  betaHOn: "OPEN BETA", openNow: "The beta is open! Sign up and you receive the link of the game by e-mail right away. Nothing to download: you play in your browser, on PC or phone.", bandOn: "Open beta: {n} places left · play now", fOkOn: "You are in! The link of the game is on its way to your mailbox (look in the spam folder too). Create your account with this same e-mail address.", h2On: "Right after signing up, you receive an e-mail with the link of the game.",   // the beta is running
   home: 'Home', wiki: 'Wiki', news: 'News', rankings: 'Rankings', play: 'PLAY', playFree: 'PLAY FOR FREE', playNow: 'PLAY NOW', discoverWiki: 'Discover the wiki', menu: 'Menu', language: 'Language',
   lead: 'Build your base, raise your army and send your combat Titan to the front. A free online military strategy game, set in the near future.',
   plat: 'Right in your browser · PC, Android, iPhone · nothing to download',
@@ -56,6 +57,7 @@ const EN = {
   updateOf: 'Update of {d}', legal: 'Legal information', notFound: 'Page not found', back: 'Back to the home page', allUnits: 'All units', allBlds: 'All buildings',
 };
 const FR = {
+  betaHOn: "BÊTA OUVERTE", openNow: "La bêta est ouverte ! Inscris-toi et reçois tout de suite le lien du jeu par e-mail. Rien à télécharger : tu joues dans ton navigateur, sur PC ou téléphone.", bandOn: "Bêta ouverte : {n} places restantes · joue maintenant", fOkOn: "C'est fait ! Le lien du jeu arrive dans ta boîte mail (regarde aussi dans les spams). Crée ton compte avec cette même adresse e-mail.", h2On: "Juste après ton inscription, tu reçois un e-mail avec le lien du jeu.",   // the beta is running
   home: 'Accueil', wiki: 'Wiki', news: 'Nouveautés', rankings: 'Classements', play: 'JOUER', playFree: 'JOUER GRATUITEMENT', playNow: 'JOUER MAINTENANT', discoverWiki: 'Découvrir le wiki', menu: 'Menu', language: 'Langue',
   lead: 'Bâtis ta base, forme ton armée et envoie ton Titan de combat au front. Un jeu de stratégie militaire gratuit, en ligne, dans le futur proche.',
   plat: 'Directement dans le navigateur · PC, Android, iPhone · aucun téléchargement',
@@ -111,6 +113,7 @@ const FR = {
   updateOf: 'Mise à jour du {d}', legal: 'Informations légales', notFound: 'Page introuvable', back: 'Retour à l\'accueil', allUnits: 'Toutes les unités', allBlds: 'Tous les bâtiments',
 };
 const ES = {
+  betaHOn: "BETA ABIERTA", openNow: "¡La beta está abierta! Inscríbete y recibe al momento el enlace del juego por correo. Nada que descargar: juegas en tu navegador, en PC o móvil.", bandOn: "Beta abierta: quedan {n} plazas · juega ya", fOkOn: "¡Listo! El enlace del juego llega a tu correo (mira también en spam). Crea tu cuenta con esta misma dirección de correo.", h2On: "Justo después de inscribirte, recibes un correo con el enlace del juego.",   // the beta is running
   home: 'Inicio', wiki: 'Wiki', news: 'Novedades', rankings: 'Clasificaciones', play: 'JUGAR', playFree: 'JUGAR GRATIS', playNow: 'JUGAR AHORA', discoverWiki: 'Descubrir la wiki', menu: 'Menú', language: 'Idioma',
   lead: 'Construye tu base, forma tu ejército y envía tu Titán de combate al frente. Un juego de estrategia militar gratuito y en línea, en un futuro cercano.',
   plat: 'Directamente en el navegador · PC, Android, iPhone · sin descargas',
@@ -166,6 +169,7 @@ const ES = {
   updateOf: 'Actualización del {d}', legal: 'Información legal', notFound: 'Página no encontrada', back: 'Volver al inicio', allUnits: 'Todas las unidades', allBlds: 'Todos los edificios',
 };
 const DE = {
+  betaHOn: "OFFENE BETA", openNow: "Die Beta ist offen! Melde dich an und du erhältst sofort den Link zum Spiel per E-Mail. Nichts herunterzuladen: Du spielst im Browser, auf PC oder Handy.", bandOn: "Offene Beta: noch {n} Plätze · jetzt spielen", fOkOn: "Geschafft! Der Link zum Spiel ist unterwegs in dein Postfach (schau auch im Spam-Ordner nach). Erstelle dein Konto mit genau dieser E-Mail-Adresse.", h2On: "Direkt nach der Anmeldung erhältst du eine E-Mail mit dem Link zum Spiel.",   // the beta is running
   home: 'Startseite', wiki: 'Wiki', news: 'Neuigkeiten', rankings: 'Ranglisten', play: 'SPIELEN', playFree: 'KOSTENLOS SPIELEN', playNow: 'JETZT SPIELEN', discoverWiki: 'Wiki entdecken', menu: 'Menü', language: 'Sprache',
   lead: 'Baue deine Basis, stelle deine Armee auf und schicke deinen Kampf-Titanen an die Front. Ein kostenloses Online-Strategiespiel in der nahen Zukunft.',
   plat: 'Direkt im Browser · PC, Android, iPhone · kein Download',
@@ -221,6 +225,7 @@ const DE = {
   updateOf: 'Update vom {d}', legal: 'Rechtliche Hinweise', notFound: 'Seite nicht gefunden', back: 'Zurück zur Startseite', allUnits: 'Alle Einheiten', allBlds: 'Alle Gebäude',
 };
 const IT = {
+  betaHOn: "BETA APERTA", openNow: "La beta è aperta! Iscriviti e ricevi subito il link del gioco per e-mail. Niente da scaricare: giochi nel browser, su PC o telefono.", bandOn: "Beta aperta: {n} posti rimasti · gioca ora", fOkOn: "Fatto! Il link del gioco sta arrivando nella tua casella (guarda anche nello spam). Crea il tuo account con questo stesso indirizzo e-mail.", h2On: "Subito dopo l'iscrizione ricevi un'e-mail con il link del gioco.",   // the beta is running
   home: 'Home', wiki: 'Wiki', news: 'Novità', rankings: 'Classifiche', play: 'GIOCA', playFree: 'GIOCA GRATIS', playNow: 'GIOCA ORA', discoverWiki: 'Scopri la wiki', menu: 'Menu', language: 'Lingua',
   lead: 'Costruisci la tua base, addestra il tuo esercito e manda il tuo Titano da combattimento al fronte. Un gioco di strategia militare gratuito e online, nel prossimo futuro.',
   plat: 'Direttamente nel browser · PC, Android, iPhone · niente da scaricare',
@@ -276,6 +281,7 @@ const IT = {
   updateOf: 'Aggiornamento del {d}', legal: 'Informazioni legali', notFound: 'Pagina non trovata', back: 'Torna alla home', allUnits: 'Tutte le unità', allBlds: 'Tutti gli edifici',
 };
 const PT = {
+  betaHOn: "BETA ABERTA", openNow: "A beta está aberta! Inscreve-te e recebe logo o link do jogo por e-mail. Nada para descarregar: jogas no navegador, no PC ou no telemóvel.", bandOn: "Beta aberta: {n} lugares restantes · joga já", fOkOn: "Feito! O link do jogo está a chegar à tua caixa de correio (vê também no spam). Cria a tua conta com este mesmo endereço de e-mail.", h2On: "Logo a seguir à inscrição, recebes um e-mail com o link do jogo.",   // the beta is running
   home: 'Início', wiki: 'Wiki', news: 'Novidades', rankings: 'Classificações', play: 'JOGAR', playFree: 'JOGAR GRÁTIS', playNow: 'JOGAR AGORA', discoverWiki: 'Descobrir a wiki', menu: 'Menu', language: 'Idioma',
   lead: 'Constrói a tua base, forma o teu exército e envia o teu Titã de combate para a frente. Um jogo de estratégia militar gratuito e online, num futuro próximo.',
   plat: 'Diretamente no navegador · PC, Android, iPhone · nada para descarregar',
@@ -331,6 +337,7 @@ const PT = {
   updateOf: 'Atualização de {d}', legal: 'Informação legal', notFound: 'Página não encontrada', back: 'Voltar ao início', allUnits: 'Todas as unidades', allBlds: 'Todos os edifícios',
 };
 const PL = {
+  betaHOn: "OTWARTA BETA", openNow: "Beta jest otwarta! Zapisz się, a od razu dostaniesz e-mailem link do gry. Nic do pobierania: grasz w przeglądarce, na komputerze lub telefonie.", bandOn: "Otwarta beta: zostało {n} miejsc · graj teraz", fOkOn: "Gotowe! Link do gry jest już w drodze do twojej skrzynki (sprawdź też spam). Załóż konto z tym samym adresem e-mail.", h2On: "Zaraz po zapisaniu się dostajesz e-mail z linkiem do gry.",   // the beta is running
   home: 'Strona główna', wiki: 'Wiki', news: 'Nowości', rankings: 'Rankingi', play: 'GRAJ', playFree: 'GRAJ ZA DARMO', playNow: 'GRAJ TERAZ', discoverWiki: 'Poznaj wiki', menu: 'Menu', language: 'Język',
   lead: 'Zbuduj bazę, stwórz armię i wyślij swojego bojowego Tytana na front. Darmowa gra strategiczno-wojskowa online w niedalekiej przyszłości.',
   plat: 'Prosto w przeglądarce · PC, Android, iPhone · nic do pobrania',
@@ -386,6 +393,7 @@ const PL = {
   updateOf: 'Aktualizacja z {d}', legal: 'Informacje prawne', notFound: 'Nie znaleziono strony', back: 'Wróć na stronę główną', allUnits: 'Wszystkie jednostki', allBlds: 'Wszystkie budynki',
 };
 const TR = {
+  betaHOn: "AÇIK BETA", openNow: "Beta açıldı! Kaydol, oyunun bağlantısı hemen e-postana gelsin. İndirecek bir şey yok: tarayıcında, bilgisayarda ya da telefonda oynarsın.", bandOn: "Açık beta: {n} yer kaldı · hemen oyna", fOkOn: "Tamamdır! Oyunun bağlantısı e-posta kutuna geliyor (spam klasörüne de bak). Hesabını bu aynı e-posta adresiyle oluştur.", h2On: "Kaydolduktan hemen sonra oyunun bağlantısını içeren bir e-posta alırsın.",   // the beta is running
   home: 'Ana sayfa', wiki: 'Wiki', news: 'Yenilikler', rankings: 'Sıralamalar', play: 'OYNA', playFree: 'ÜCRETSİZ OYNA', playNow: 'ŞİMDİ OYNA', discoverWiki: 'Wiki\'yi keşfet', menu: 'Menü', language: 'Dil',
   lead: 'Üssünü kur, ordunu yetiştir ve savaş Titan\'ını cepheye gönder. Yakın gelecekte geçen, ücretsiz çevrim içi bir askerî strateji oyunu.',
   plat: 'Doğrudan tarayıcıda · PC, Android, iPhone · indirme yok',
@@ -441,6 +449,7 @@ const TR = {
   updateOf: '{d} güncellemesi', legal: 'Yasal bilgiler', notFound: 'Sayfa bulunamadı', back: 'Ana sayfaya dön', allUnits: 'Tüm birlikler', allBlds: 'Tüm binalar',
 };
 const RU = {
+  betaHOn: "ОТКРЫТАЯ БЕТА", openNow: "Бета открыта! Запишись — и сразу получишь ссылку на игру по e-mail. Ничего скачивать не нужно: играешь в браузере, на ПК или телефоне.", bandOn: "Открытая бета: осталось мест — {n} · играй сейчас", fOkOn: "Готово! Ссылка на игру уже летит на твою почту (загляни и в спам). Создай аккаунт с этим же адресом e-mail.", h2On: "Сразу после записи ты получаешь письмо со ссылкой на игру.",   // the beta is running
   home: 'Главная', wiki: 'Вики', news: 'Новости', rankings: 'Рейтинги', play: 'ИГРАТЬ', playFree: 'ИГРАТЬ БЕСПЛАТНО', playNow: 'ИГРАТЬ СЕЙЧАС', discoverWiki: 'Открыть вики', menu: 'Меню', language: 'Язык',
   lead: 'Построй базу, собери армию и отправь своего боевого Титана на фронт. Бесплатная онлайн-стратегия о войне ближайшего будущего.',
   plat: 'Прямо в браузере · ПК, Android, iPhone · ничего не нужно скачивать',

@@ -388,7 +388,7 @@ async function viewBeta() {
     $('#main').innerHTML = top('Bêta') + `
       <div class="card ${B.on ? 'warnc' : ''}"><div class="ch"><img src="${IMG('quests')}" alt=""><h2>Mode bêta</h2><span class="badge ${B.on ? 'ban' : ''}">${!B.on ? 'désactivé' : B.started ? 'BÊTA LANCÉE' : 'JEU FERMÉ'}</span></div>
         <p class="small">${!B.on ? 'Le jeu est ouvert à tout le monde.'
-          : B.started ? '<b>Bêta lancée</b> : seuls les comptes de la liste des inscrits peuvent jouer (et créer leur compte avec la même adresse e-mail). Les autres comptes sont refusés. La boutique payante est cachée.'
+          : B.started ? '<b>Bêta lancée</b> : seuls les comptes de la liste des inscrits peuvent jouer (et créer leur compte avec la même adresse e-mail). Chaque nouvel inscrit reçoit le lien du jeu par e-mail dès son inscription. Les autres comptes sont refusés. La boutique payante est cachée.'
           : '<b>Jeu fermé</b> : personne ne peut jouer ni créer de compte, sauf toi. Les joueurs voient « La bêta n\'a pas encore commencé ». Le jour J, clique sur « Lancer la bêta ».'}</p>
         <div class="row">${B.on ? `<button class="btn ${B.started ? 'sec' : 'ora'}" id="bstart"><img src="${IMG(B.started ? 'ui_lock' : 'ui_ok')}" alt="">${B.started ? 'Refermer le jeu (bêta en pause)' : 'Lancer la bêta (ouvrir aux inscrits)'}</button>` : ''}
           <button class="btn ${B.on ? 'sec' : 'ora'}" id="bon"><img src="${IMG(B.on ? 'ui_close' : 'ui_ok')}" alt="">${B.on ? 'Désactiver le mode bêta (jeu ouvert à tous)' : 'Activer le mode bêta'}</button></div></div>
@@ -436,7 +436,7 @@ async function viewBeta() {
       post({ op: 'set', on: !B.on }, B.on ? 'Mode bêta désactivé' : 'Mode bêta activé : jeu fermé'); };
     const bs = $('#bstart'); if (bs) bs.onclick = async () => {
       if (!await confirmBox(B.started ? 'Refermer le jeu' : 'Lancer la bêta', B.started ? 'Plus personne ne pourra jouer sauf toi (les parties sont gardées). Continuer ?'
-        : 'Les comptes de la liste des inscrits pourront jouer, et créer leur compte avec leur adresse e-mail. Pense à envoyer les invitations. Continuer ?', B.started ? 'Refermer' : 'Lancer', 'ora')) return;
+        : 'Les comptes de la liste des inscrits pourront jouer. Chaque inscrit reçoit tout de suite l\'e-mail avec le lien du jeu, et les nouveaux inscrits le reçoivent dès leur inscription. Le message de la page bêta (la date du lancement) est effacé. Continuer ?', B.started ? 'Refermer' : 'Lancer', 'ora')) return;
       post({ op: 'set', started: !B.started }, B.started ? 'Jeu refermé' : 'Bêta lancée !'); };
     $('#bopen').onclick = () => post({ op: 'set', open: !B.open }, B.open ? 'Inscriptions fermées' : 'Inscriptions rouvertes');
     $('#bsave').onclick = () => post({ op: 'set', places: +$('#bpl').value, msg: $('#bmsg').value }, 'Enregistré');

@@ -64,9 +64,11 @@ Lis ce fichier en entier au début de chaque conversation : il remplace le long 
 - Bande-annonce publiée (TikTok + YouTube Shorts).
 
 ## Où on en est (à réécrire à chaque fin de travail)
+- 2026-11-06 : BÊTA OUVERTE (PATCH 2026-11-06a). Bêta lancée = inscriptions toujours ouvertes jusqu'aux places max ; chaque inscription envoie tout de suite l'e-mail avec le lien du jeu (server/beta.js `signup` → `invite([id])`) ; au lancement (panel › Bêta › Lancer), tous les inscrits non invités reçoivent le lien et le message « date de lancement » est effacé. E-mail d'invitation en 9 langues, avec une version « tu as déjà un compte ». Site : titre « BÊTA OUVERTE », bandeau vert, étape 2 « lien tout de suite », et les boutons JOUER du site mènent à /beta/ (inscription) sauf sur la page bêta (→ jeu). Clés site-text : betaHOn, openNow, bandOn, fOkOn, h2On. Un e-mail raté se renvoie avec « Envoyer les invitations » (panel).
+- Idée suivante proposée : compteur de visites du site (provenance TikTok/YouTube/Google…) dans le panel.
 - 2026-11-05 : menu admin du jeu : pièces des 3 Titans dans « se donner » et « donner à un joueur » (`ADM_PARTS`) ; bouton « Panel de gestion » réparé (onclick interdit par le CSP → data-act=admweb).
 - 2026-11-05 : assemblage de l'armure du Titan (PATCH 2026-11-05b). Quand la 4e pièce est trouvée, le Titan reçoit `asm:0` (« armure à assembler ») : pas de combat tant que le joueur n'a pas appuyé sur « Assembler l'armure » (fiche du Titan) → ordre serveur `titanAssemble(base)` (harness.js) puis animation `titanAssembleFx(b)` (js/game.js, styles `#tasm` dans css/style.css), avec le skin et les pièces de chaque Titan (principal, Rempart, Brasier) et un bruit de métal. Les Titans déjà blindés (sans `asm`) ne changent pas. Le panel (titan_part) met aussi `asm:0` à la 4e pièce, pour tester. Test des règles : tests/titan_assemble.js.
 - 2026-11-05 : traductions sorties de game.js vers js/i18n/ + tools/i18n.py ; scripts de test dans tests/ ; ce CLAUDE.md.
 - Vidéo promo (TikTok / YouTube Shorts) faite : tournage Playwright au ralenti (screencast CDP + Animation.setPlaybackRate) sur une copie locale avec un compte de démo, montage ffmpeg. Les scripts étaient dans le scratchpad (non gardés).
-- Dernière note PATCH : 2026-11-05b.
+- Dernière note PATCH : 2026-11-06a.
 - À faire plus tard : fin de bêta (événement de lancement, boutique ouverte, annonce du parrainage) ; application Android (Capacitor) au lancement, iOS plus tard ; VPS ; Google Search Console.

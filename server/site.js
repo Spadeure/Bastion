@@ -17,7 +17,9 @@ module.exports = function makeSite({ engine, stats, ranking, IS_TEST, log, beta 
   const dcBtn = (T, cls) => `<a class="btn ${cls || 'ghost'} dcb" href="${DISCORD}" target="_blank" rel="noopener"><img src="/assets/img/messages.webp" alt="" width="22" height="22">${esc(T.discord)}</a>`;
   const BETA_CR = +process.env.BETA_CREDITS || 1200;   // the testers' reward announced on the beta page (the same number is given from the panel)
   // beta mode on but not launched yet: the play buttons open a message (and the beta page) instead of the game; they work again as soon as the beta is launched
-  const playA = c => c.soon ? `href="${c.B}/${c.lang}/beta/" data-soon="${esc(c.T.soonMsg)}" data-join="${esc(c.T.join)}"` : `href="${PLAY}"`;
+  // beta running with places left: the play buttons lead to the sign-up (the game refuses an address that is not on the list); on the beta page itself, to the game
+  const playA = c => c.soon ? `href="${c.B}/${c.lang}/beta/" data-soon="${esc(c.T.soonMsg)}" data-join="${esc(c.T.join)}"`
+    : c.signup && c.path !== '/beta/' ? `href="${c.B}/${c.lang}/beta/"` : `href="${PLAY}"`;
   const PLAY = (process.env.PLAY_URL || (IS_TEST ? 'https://test.mekanikwar.com' : 'https://games.mekanikwar.com')).replace(/\/+$/, '') + '/';
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
   const fill = (s, o) => String(s).replace(/\{(\w+)\}/g, (m, k) => o && k in o ? o[k] : m);
@@ -71,7 +73,7 @@ ${body}
     const card = (im, t, p) => `<div class="card"><img src="${img(im)}" alt="" loading="lazy"><h3>${esc(t)}</h3><p>${esc(p)}</p></div>`;
     const nMain = D.blds.filter(b => b.main).length;
     const bi = beta ? beta.publicInfo() : null;
-    const bband = bi && bi.open ? `<a class="betaband" href="${c.B}/${lang}/beta/"><span><b>${esc(fill(T.band, { n: nf(lang, bi.places - bi.count) }))}</b></span><span class="btn sm">${esc(T.join)}</span></a>` : '';
+    const bband = bi && bi.open ? `<a class="betaband" href="${c.B}/${lang}/beta/"><span><b>${esc(fill(bi.on && bi.started ? T.bandOn : T.band, { n: nf(lang, bi.places - bi.count) }))}</b></span><span class="btn sm">${esc(T.join)}</span></a>` : '';
     const body = `${bband}<div class="hero"><div class="wrap"><div>
   <h1>MEKANIK WAR<small>TITANS</small></h1><p class="lead">${esc(T.lead)}</p>
   <div class="cta"><a class="btn" ${playA(c)}>${esc(T.playFree)}</a><a class="btn ghost" href="${c.B}/${lang}/wiki/">${esc(T.discoverWiki)}</a></div>
@@ -217,13 +219,15 @@ ${trains.length ? `<h2 class="gh">${esc(T.cUnits)}</h2><div class="mini">${train
     const { T, lang } = c, bi = beta ? beta.publicInfo() : { open: false, full: false, count: 0, places: 50, msg: '', testers: [] };
     const pct = Math.min(100, Math.round(bi.count / Math.max(1, bi.places) * 100)), left = Math.max(0, bi.places - bi.count);
     const err = { bad_name: T.eName, bad_email: T.eEmail, email_taken: T.eTaken, name_taken: T.eNameTaken, full: T.eFull, closed: T.closed, too_many: T.eMany, net: T.eNet };
-    const form = bi.open ? `<form class="bform" id="bform" data-lang="${lang}" data-ok="${esc(T.fOk)}" data-err='${esc(JSON.stringify(err))}' novalidate>
+    const run = bi.on && bi.started;   // the beta is running: sign up = the game link by e-mail at once
+    const form = bi.open ? `<form class="bform" id="bform" data-lang="${lang}" data-ok="${esc(run ? T.fOkOn : T.fOk)}" data-err='${esc(JSON.stringify(err))}' novalidate>
   <label>${esc(T.fName)}<input name="name" maxlength="16" autocomplete="nickname" required></label>
   <label>${esc(T.fEmail)}<input name="email" type="email" maxlength="120" autocomplete="email" required></label>
   <button class="btn" type="submit">${esc(T.fSend)}</button><p class="mut sm">${esc(T.fNote)}</p><p class="bmsg" id="bres" hidden></p></form>`
       : `<div class="card bclosed"><p>${esc(T.closed)}</p></div>`;
-    const steps = [T.h1, T.h2, T.h3, T.h4].map((t, i) => `<li><b>${i + 1}</b><p>${esc(t)}</p></li>`).join('');
-    const body = `<div class="wrap narrow">${crumb(c, [[T.home, '/'], [T.beta]])}<h1 class="ph">${esc(T.betaH)}</h1>
+    const steps = [T.h1, run ? T.h2On : T.h2, T.h3, T.h4].map((t, i) => `<li><b>${i + 1}</b><p>${esc(t)}</p></li>`).join('');
+    const body = `<div class="wrap narrow">${crumb(c, [[T.home, '/'], [T.beta]])}<h1 class="ph">${esc(run ? T.betaHOn : T.betaH)}</h1>
+${run && bi.open ? `<div class="bopen">${esc(T.openNow)}</div>` : ''}
 <div class="bhead"><img src="/assets/img/titan_1.webp" alt="" width="120" height="120"><p class="intro">${esc(fill(T.betaIntro, { m: nf(lang, bi.places), cr: nf(lang, BETA_CR) }))}</p></div>
 <div class="bcount"><div><b>${nf(lang, bi.count)} / ${nf(lang, bi.places)}</b> <span class="mut">${esc(T.places)}</span></div><div class="bar"><i style="width:${pct}%"></i></div>${bi.open ? `<div class="mut sm">${esc(fill(T.left, { n: nf(lang, left) }))}</div>` : ''}</div>
 ${bi.msg ? `<div class="auto">${esc(bi.msg)}</div>` : ''}
@@ -246,7 +250,7 @@ ${bi.testers.length ? `<h2 class="gh">${esc(T.thanks)}</h2><p class="mut">${esc(
   // ---------- routing ----------
   const cache = new Map();   // rendered pages: kept 2 minutes (the wiki only changes when the game is updated, i.e. at a restart)
   function render(lang, rest, B) {
-    const T = TXT[lang], D = engine.wikiData(lang), bi = beta ? beta.publicInfo() : null, c = { T, D, lang, B, path: rest, soon: !!(bi && bi.on && !bi.started) };
+    const T = TXT[lang], D = engine.wikiData(lang), bi = beta ? beta.publicInfo() : null, c = { T, D, lang, B, path: rest, soon: !!(bi && bi.on && !bi.started), signup: !!(bi && bi.on && bi.started && bi.open) };
     const m = rest.match(/^\/wiki\/(units|buildings)\/([a-z0-9_]+)$/);
     if (rest === '/' ) return [200, home(c)];
     if (rest === '/wiki/') return [200, wikiIndex(c)];
@@ -276,7 +280,7 @@ ${bi.testers.length ? `<h2 class="gh">${esc(T.thanks)}</h2><p class="mut">${esc(
     const leaf = /^\/(wiki\/(units|buildings)\/[a-z0-9_]+|legal\/[a-z]+|search\.json)\/?$/.test(p);
     if (leaf && p.endsWith('/')) p = p.slice(0, -1); else if (!leaf && !p.endsWith('/')) p += '/';
     if ((lm[2] || '/') !== p) { res.writeHead(301, { Location: `${B}/${lm[1]}${p}` }); res.end(); return true; }
-    const bs = beta ? beta.publicInfo() : null, key = `${B}|${lm[1]}|${p}|${bs && bs.on && !bs.started ? 'soon' : ''}`, live = p === '/beta/' || p === '/';   // the beta page shows the places left: kept 5 seconds only
+    const bs = beta ? beta.publicInfo() : null, key = `${B}|${lm[1]}|${p}|${bs && bs.on ? (!bs.started ? 'soon' : bs.open ? 'signup' : '') : ''}`, live = p === '/beta/' || p === '/';   // the beta page shows the places left: kept 5 seconds only
     let e = cache.get(key);
     if (!e || Date.now() - e.at > (live ? 5_000 : 120_000)) {
       try { const [code, html, type] = render(lm[1], p, B); e = { at: Date.now(), code, html, type: type || 'text/html; charset=utf-8' }; }

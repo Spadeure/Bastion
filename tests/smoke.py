@@ -61,8 +61,8 @@ def main():
                 # 2. le jeu, connecté (la connexion d'un autre écran remplace la session : on se reconnecte à chaque fois)
                 t = api(a.url, '/api/login', {'name': NAME, 'password': PASS}).get('token')
                 page.evaluate(f"localStorage.setItem('bastion_token','{t}')")
-                page.goto(a.url + '/', wait_until='networkidle')
-                page.wait_for_timeout(2500)
+                page.goto(a.url + '/', wait_until='load')   # not « networkidle »: the live stream (/api/stream) stays open on purpose
+                page.wait_for_timeout(3500)
                 ok = page.evaluate("typeof NET!=='undefined' && !!NET.token && !document.getElementById('lgo')")
                 if not ok: errs.append("le jeu ne s'est pas ouvert (toujours sur l'écran de connexion)")
                 page.screenshot(path=f'{a.out}/{vname}-{lang}-2-jeu.png')
