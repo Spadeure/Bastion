@@ -38,7 +38,8 @@ function load() {
     __rnd: n => crypto.randomInt(n),
   };
   ctx = vm.createContext(sandbox);
-  for (const f of ['js/loot.js', 'js/game.js']) vm.runInContext(fs.readFileSync(path.join(ROOT, f), 'utf8'), ctx, { filename: f });
+  const langFiles = fs.readdirSync(path.join(ROOT, 'js', 'i18n')).filter(n => n.endsWith('.js')).sort().map(n => 'js/i18n/' + n);   // the translations
+  for (const f of ['js/loot.js', ...langFiles, 'js/game.js']) vm.runInContext(fs.readFileSync(path.join(ROOT, f), 'utf8'), ctx, { filename: f });
   vm.runInContext(fs.readFileSync(path.join(__dirname, 'harness.js'), 'utf8'), ctx, { filename: 'harness.js' });
   console.log('[moteur] Règles du jeu chargées sur le serveur');
 }

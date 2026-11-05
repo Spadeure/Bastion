@@ -910,7 +910,7 @@ function serveFile(req, res, url) {
   const stamped = /[?&]v=/.test(req.url || '');
   const file = path.normalize(path.join(ROOT, url === '/' ? 'index.html' : url));
   const rel = path.relative(ROOT, file).split(path.sep)[0];
-  if (file !== ROOT && !file.startsWith(ROOT + path.sep) || ['server', 'data', '.git', 'node_modules', 'package.json'].includes(rel)) { res.writeHead(403); return res.end('Forbidden'); }
+  if (file !== ROOT && !file.startsWith(ROOT + path.sep) || ['server', 'data', '.git', 'node_modules', 'package.json', 'tools', 'tests', 'CLAUDE.md', 'README.md'].includes(rel)) { res.writeHead(403); return res.end('Forbidden'); }
   loadFile(file, (err, e) => {
     if (err) { res.writeHead(404); return res.end('Not found'); }
     const h = { ...SEC_HEADERS, 'Content-Type': e.type, 'ETag': e.etag, 'Vary': 'Accept-Encoding', 'Cache-Control': stamped ? 'public, max-age=31536000, immutable' : /\.(webp|jpg|png|woff2)$/.test(file) ? 'public, max-age=86400' : 'no-cache' };   // a stamped file never changes: a new version has a new address
