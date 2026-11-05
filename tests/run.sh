@@ -27,7 +27,7 @@ echo "== 3. Copie du dépôt et serveur local (port $PORT)"
 if curl -s -o /dev/null "http://127.0.0.1:$PORT/"; then echo "ERREUR : le port $PORT est déjà pris (un autre serveur tourne). Relance avec MW_TEST_PORT=8098"; exit 1; fi
 rm -rf "$WORK/app"; mkdir -p "$WORK/app" "$OUT"
 (cd "$REPO" && tar --exclude=./data --exclude=./node_modules -cf - .) | (cd "$WORK/app" && tar -xf -)
-(cd "$WORK/app" && PORT=$PORT node server/launcher.js > "$WORK/server.log" 2>&1) &
+(cd "$WORK/app" && PORT=$PORT exec node server/launcher.js > "$WORK/server.log" 2>&1) &   # exec: $! is the launcher itself, so it can be stopped
 SRV=$!
 for i in $(seq 1 60); do curl -s -o /dev/null "http://127.0.0.1:$PORT/" && break; sleep 0.5; done
 
