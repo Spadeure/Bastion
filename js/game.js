@@ -4659,7 +4659,7 @@ function adminPanel(){
   const sel=(id,opts)=>`<select id="${id}" class="asel">${opts.map(([v,t])=>`<option value="${v}">${t}</option>`).join('')}</select>`;
   const num=(id,v,max)=>`<input id="${id}" type="number" class="anum" min="1" max="${max}" value="${v}">`;
   let h=`<div class="hd"><div class="big">${IC.crown}</div><div style="flex:1;min-width:0"><h2>${_t('Administration')}</h2><div class="sub">${_t(NET.role==='admin'?'Administrator account':'Test account')} · ${NET.name}</div></div></div>`;
-  if(NET.role==='admin') h+=`<div class="arow"><button class="sm" onclick="window.open('admin','_blank')">${IC.settings} ${_t('Management panel')}</button></div>`;
+  if(NET.role==='admin') h+=`<div class="arow"><button class="sm" data-act="admweb">${IC.settings} ${_t('Management panel')}</button></div>`;
   if(NET.role==='admin') h+=`<div class="itabs">${[['me','My base'],['players','Players']].map(([k,l])=>`<button class="tab2${admTab===k?' on':''}" data-act="admtab" data-t="${k}">${_t(l)}</button>`).join('')}</div>`;
   if(NET.role==='admin' && admTab==='players') return h+adminPlayers(sel,num);
   h+=`<h3>${_t('Resources')}</h3><div class="arow">${[1e5,1e6,1e7,1e8].map(n=>`<button class="sm" data-act="adm" data-a="give_res" data-p='{"res":"all","amount":${n}}'>+${fmtN(n)} ${_t('all')}</button>`).join('')}</div>
@@ -4671,7 +4671,7 @@ function adminPanel(){
   <h3>${_t('Base and research')}</h3><div class="arow">${sel('a_blvl',[1,2,3,4,5,6,7,8,9,10].map(l=>[l,_t('Lv')+' '+l]))}<button class="sm" data-act="admblvl">${_t('All buildings to this level')}</button></div>
   <div class="arow">${sel('a_rlvl',[0,1,2,3,4,5,6,7,8,9,10].map(l=>[l,_t('Lv')+' '+l]))}<button class="sm" data-act="admrlvl">${_t('All research to this level')}</button></div>
   <h3>${_t('Titan')}</h3><div class="arow">${sel('a_tlvl',[1,2,3,4,5,6,7,8,9,10].map(l=>[l,_t('Lv')+' '+l]))}<button class="sm" data-act="admtitan">${_t('Set level and repair')}</button></div>
-  <div class="arow">${sel('a_part',[...EQ_SLOTS.map(s=>[s,_t(EQ_NAME[s])]), ...EQ_SLOTS.map(s=>['r_'+s,_t('Rampart Titan')+' · '+_t(EQ_NAME[s])])])}<button class="sm" data-act="admpart">${_t('Give')}</button></div>`;
+  <div class="arow">${sel('a_part',ADM_PARTS())}<button class="sm" data-act="admpart">${_t('Give')}</button></div>`;
   if(NET.role==='admin'){
     h+=`<h3>${_t('Test accounts')}</h3><div class="arow"><input id="a_nname" class="atxt" maxlength="16" placeholder="${_t('Commander name')}"><input id="a_npass" class="atxt" maxlength="100" placeholder="${_t('Password')}">
       ${sel('a_nrole',[['player',_t('Normal player')],['tester',_t('Test account')],['admin',_t('Administrator account')]])}<button class="sm" data-act="admcreate">${_t('Create')}</button></div>
@@ -4693,7 +4693,7 @@ function adminPlayers(sel,num){
     <div class="sub">${_t('Resources')}</div><div class="arow">${sel('g_res',[['all',_t('all')],...[...RES,'alloy'].map(r=>[r,resName(r)])])}${num('g_resn',100000,1e10)}<button class="sm" data-act="admgive" data-k="res">${_t('Give')}</button></div>
     <div class="sub">${_t('Items')}</div><div class="arow">${sel('g_item',ITEM_ORDER.map(id=>[id,itemName(id)]))}${num('g_itemn',1,100000)}<button class="sm" data-act="admgive" data-k="item">${_t('Give')}</button></div>
     <div class="sub">${_t('Troops')}</div><div class="arow">${sel('g_unit',UNIT_ORDER.map(u=>[u,_t(UNITS[u].name)]))}${num('g_unitn',100,1e7)}<button class="sm" data-act="admgive" data-k="unit">${_t('Give')}</button></div>
-    <div class="sub">${_t('Titan armor')}</div><div class="arow">${sel('g_part',EQ_SLOTS.map(s=>[s,_t(EQ_NAME[s])]))}<button class="sm" data-act="admgive" data-k="part">${_t('Give')}</button></div>`; }
+    <div class="sub">${_t('Titan armor')}</div><div class="arow">${sel('g_part',ADM_PARTS())}<button class="sm" data-act="admgive" data-k="part">${_t('Give')}</button></div>`; }
 async function adminGive(k){
   const v=id=>(document.getElementById(id)||{}).value, t=admTarget; if(!t) return;
   const req = k==='res' ? ['give_res',{res:v('g_res'), amount:+v('g_resn')}] : k==='item' ? ['give_item',{id:v('g_item'), n:+v('g_itemn')}]
@@ -4729,6 +4729,7 @@ function adminAct(a, btn){
   if(a==='admrlvl') adminDo('set_research',{lvl:+v('a_rlvl')});
   if(a==='admtitan') adminDo('titan',{lvl:+v('a_tlvl')});
   if(a==='admpart') adminDo('titan_part',{s:v('a_part')});
+  if(a==='admweb') window.open('admin','_blank');   // the management panel (no inline onclick: the CSP forbids it)
   if(a==='admcreate') adminDo('create_account',{name:v('a_nname'), password:v('a_npass'), role:v('a_nrole')}).then(j=>{ if(j&&j.name) toast(IC.ok+' '+_t('Account created: {n}',{n:j.name})); });
   if(a==='admtab'){ admTab=btn.dataset.t; if(admTab==='players') adminAccounts=null; renderSheet(); }
   if(a==='admpick'){ admTarget=btn.dataset.n; renderSheet(); }
@@ -4741,6 +4742,8 @@ let tickTimer=0;
 // ===== WHAT'S NEW (patch notes): opens by itself once after each update, and from the Menu =====
 // Add the newest entry at the TOP, with a new id. Every line is translated in I18N.
 // =====================================================================
+// every Titan's armor pieces, for the admin menus (main Titan, then each outpost Titan: prefix r_ / b_ as the server expects)
+const ADM_PARTS = () => [...EQ_SLOTS.map(s=>[s,_t('Titan')+' · '+_t(EQ_NAME[s])]), ...EQ_SLOTS.map(s=>['r_'+s,_t('Rampart Titan')+' · '+_t(EQ_NAME[s])]), ...EQ_SLOTS.map(s=>['b_'+s,_t('Brasier Titan')+' · '+_t(EQ_NAME[s])])];
 const PATCH = [
   {id:'2026-11-05b', d:'2026-11-05', items:[
     "Titan: once the 4 armor pieces are found, press « Assemble the armor » in its screen and watch the pieces lock onto your Titan, one by one. The Rampart and Brasier Titans too, each with its own paint. Titans already armored stay as they are."

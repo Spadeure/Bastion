@@ -30,6 +30,7 @@ Lis ce fichier en entier au début de chaque conversation : il remplace le long 
 - Prompts d'images/vidéos (Gemini, Veo) : en anglais.
 - Modification visible par les joueurs = une entrée dans `PATCH` (js/game.js, chercher `const PATCH = [`), la plus récente en haut, nouvel id (`2026-11-05b`, ou une nouvelle date `AAAA-MM-JJa`), traduite dans les 9 langues.
 - CSP : pas de JavaScript inline (pas de `onclick="…"` dans le HTML généré : `data-act` + écouteur délégué).
+- Nouveau Titan, nouvelle pièce, nouvel objet ou nouvelle troupe → l'ajouter AUSSI aux menus de dons admin : menu admin du jeu (js/game.js, `ADM_PARTS` pour les pièces : « se donner » et « donner à un joueur ») ET panel web (js/admin.js, section « Dons »), et vérifier que le serveur sait le donner (server/index.js, fonction `admin`).
 - Image remplacée → ajouter/incrémenter `?v=N` dans son chemin (sinon 1 jour de cache).
 - Les .js et .css reçoivent automatiquement `?v=<version>` (server/index.js, buildIndex) : rien à faire pour eux.
 
@@ -63,6 +64,7 @@ Lis ce fichier en entier au début de chaque conversation : il remplace le long 
 - Bande-annonce publiée (TikTok + YouTube Shorts).
 
 ## Où on en est (à réécrire à chaque fin de travail)
+- 2026-11-05 : menu admin du jeu : pièces des 3 Titans dans « se donner » et « donner à un joueur » (`ADM_PARTS`) ; bouton « Panel de gestion » réparé (onclick interdit par le CSP → data-act=admweb).
 - 2026-11-05 : assemblage de l'armure du Titan (PATCH 2026-11-05b). Quand la 4e pièce est trouvée, le Titan reçoit `asm:0` (« armure à assembler ») : pas de combat tant que le joueur n'a pas appuyé sur « Assembler l'armure » (fiche du Titan) → ordre serveur `titanAssemble(base)` (harness.js) puis animation `titanAssembleFx(b)` (js/game.js, styles `#tasm` dans css/style.css), avec le skin et les pièces de chaque Titan (principal, Rempart, Brasier) et un bruit de métal. Les Titans déjà blindés (sans `asm`) ne changent pas. Le panel (titan_part) met aussi `asm:0` à la 4e pièce, pour tester. Test des règles : tests/titan_assemble.js.
 - 2026-11-05 : traductions sorties de game.js vers js/i18n/ + tools/i18n.py ; scripts de test dans tests/ ; ce CLAUDE.md.
 - Vidéo promo (TikTok / YouTube Shorts) faite : tournage Playwright au ralenti (screencast CDP + Animation.setPlaybackRate) sur une copie locale avec un compte de démo, montage ffmpeg. Les scripts étaient dans le scratchpad (non gardés).
