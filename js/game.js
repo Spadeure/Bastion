@@ -440,7 +440,8 @@ const techMax = t => TECH[t].max || MAX;
 const UNIT_TECH = {rifleman:{drill:1}, sniper:{ballistics:2}, assault:{ballistics:3,armor:3}, truck:{logistics:1}, drone:{engines:1},
   apc:{armor:3,logistics:3}, tank:{armor:6,ballistics:5}, artillery:{ballistics:7,engines:4}, heli:{engines:3,ballistics:2}, gunship:{engines:6,armor:5}, mastodon:{mastodon_prog:1}, flamer:{flamer_prog:1}};
 // painted technology icons (Gemini): filled in when the icon sheet arrives, e.g. TECH_ART.extraction='assets/img/tech_extraction.webp'
-const TECH_ART = {}; for(const t of Object.keys(TECH)) TECH_ART[t]=`assets/img/tech_${t}.webp`;
+const TECH_ART_V = {avionics:2};   // a research picture replaced: raise its number (the browsers keep images 1 day)
+const TECH_ART = {}; for(const t of Object.keys(TECH)) TECH_ART[t]=`assets/img/tech_${t}.webp`+(TECH_ART_V[t]?'?v='+TECH_ART_V[t]:'');
 TECH_ART.intel='assets/img/radar.webp';   // until its own painted icon exists
 TECH_ART.command='assets/img/rally.webp';
 TECH_ART.outpost_rempart='assets/img/outpost_rempart.webp'; TECH_ART.mastodon_prog='assets/img/mastodon_prog.webp';
