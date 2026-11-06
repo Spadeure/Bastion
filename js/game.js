@@ -3726,7 +3726,20 @@ function goBuild(t, b){ showBase(b||'main'); const k=firstSlot(t) || (SLOTS.find
 function goTarget(t, l){ setView('map'); let best=null, bd=1e9; const R0=60;
   for(let dx=-R0;dx<=R0;dx+=2) for(let dy=-R0;dy<=R0;dy+=2){ const x=state.pos.x+dx, y=state.pos.y+dy, tl=tileAt(x,y); if(!tl || tl.t!==t) continue; const d=dx*dx+dy*dy+(tl.lvl===l?0:1e6); if(d<bd){ bd=d; best={x,y}; } }
   if(best){ camCenter(best.x,best.y); mapSel=best; drawMap(); updateCoords(); openPanel('__tile'); } }
-function goAttack(){ setView('map'); for(let r=2;r<40;r+=2) for(let dx=-r;dx<=r;dx+=2){ const x=state.pos.x+dx,y=state.pos.y+r, t=tileAt(x,y); if(t&&t.t==='camp'&&t.lvl===1){ camCenter(x,y); mapSel={x,y}; drawMap(); openPanel('__tile'); return; } } }
+// the nearest Raider Camp of a level (1 by default) around the base: centers the map on it and opens it
+function goAttack(lvl){
+  lvl = Number.isInteger(lvl) ? lvl : 1; setView('map');
+  const px=state.pos.x, py=state.pos.y; let best=null, bd=1e9;
+  for(let r=2;r<=60 && !best;r+=2){   // ring after ring: the first ring holding one gives the nearest camps
+    for(let dx=-r;dx<=r;dx+=2) for(let dy=-r;dy<=r;dy+=2){
+      if(Math.max(Math.abs(dx),Math.abs(dy))!==r) continue;
+      const x=px+dx, y=py+dy, t=tileAt(x,y);
+      if(t && t.t==='camp' && t.lvl===lvl){ const d=dx*dx+dy*dy; if(d<bd){ bd=d; best={x,y}; } }
+    }
+  }
+  if(!best) return;
+  camCenter(best.x,best.y); mapSel=best; drawMap(); openPanel('__tile');
+}
 // q(id, category, title, progress, reward, go, icon)
 const QUESTS=[];
 const Q_=(id,cat,title,prog,reward,go,icon)=>QUESTS.push({id,cat,title,prog:()=>withBase('main',prog),reward,go,icon});   // progress always counted with the main base active
@@ -3740,7 +3753,7 @@ Q_('t_housing','tuto',()=>_t('Build a {b}',{b:_t('Housing Block')}),()=>[Math.mi
 Q_('t_barracks','tuto',()=>_t('Build a {b}',{b:_t('Barracks')}),()=>[Math.min(1,countType('barracks')),1],R(all5(4000),{speed_15m:2}),()=>goBuild('barracks'),()=>bImg('barracks'));
 Q_('t_recruits','tuto',()=>_t('Train {n} Recruits',{n:100}),()=>{ const D=defenseState(),mm=marching(); return [Math.min(100,(state.troops.recruit||0)+(D.recruit||0)+(mm.recruit||0)),100]; },R({rations:5000},{train_30:1}),()=>goBuild('barracks'),()=>UNITS.recruit.img);
 Q_('t_rally','tuto',()=>_t('Build a {b}',{b:_t('Rally Point')}),()=>[Math.min(1,countType('rally')),1],R(all5(4000),{speed_15m:2}),()=>goBuild('rally'),()=>bImg('rally'));
-Q_('t_attack','tuto',()=>_t('Win a battle against a Raider Camp'),()=>[Math.min(1,statsState().campWins||0),1],R(all5(6000),{chest_bronze:1, wheel_ticket:1}),goAttack,()=>MSPR.camp1.img);
+Q_('t_attack','tuto',()=>_t('Win a battle against a Raider Camp'),()=>[Math.min(1,statsState().campWins||0),1],R(all5(6000),{chest_bronze:1, wheel_ticket:1}),()=>goAttack(1),()=>MSPR.camp1.img);
 Q_('t_lab','tuto',()=>_t('Build a {b}',{b:_t('Research Lab')}),()=>[Math.min(1,countType('lab')),1],R(all5(6000),{speed_1h:1}),()=>goBuild('lab'),()=>bImg('lab'));
 Q_('t_research','tuto',()=>_t('Research any technology'),()=>[Math.min(1,techTotal()),1],R(all5(8000),{chest_bronze:1, speed_1h:1, wheel_ticket:2}),()=>openResearch(),()=>ICS.research);
 // ---- long goals, in chains ----
@@ -3802,7 +3815,7 @@ const TUTO2 = [
   ['t_garrison', ()=>_t('Build a {b}',{b:_t('Garrison')}), ()=>[Math.min(1,countType('garrison')),1], R(all5(10000),{speed_15m:3}), ()=>goBuild('garrison'), ()=>bImg('garrison')],
   ['t_cal',      ()=>_t('Collect a gift of the calendar'), ()=>[Math.min(1,stat('cals')),1], R(all5(6000),{speed_15m:2}), ()=>openCal(), ()=>ICS.cal],
   ['t_mine3',    ()=>_t('Upgrade a {b} to level {l}',{b:_t('Metal Mine'),l:3}), ()=>[Math.min(3,bldLevel('mine')),3], R(all5(12000),{speed_1h:1}), ()=>goBuild('mine'), ()=>bImg('mine')],
-  ['t_camp2',    ()=>_t('Win against a {t} level {l}',{t:_t('Raider Camp'),l:2}), ()=>[Math.min(2,(statsState().wmax||{}).camp||0),2], R(all5(15000),{chest_bronze:1}), goAttack, ()=>MSPR.camp1.img],
+  ['t_camp2',    ()=>_t('Win against a {t} level {l}',{t:_t('Raider Camp'),l:2}), ()=>[Math.min(2,(statsState().wmax||{}).camp||0),2], R(all5(15000),{chest_bronze:1}), ()=>goAttack(2), ()=>MSPR.camp2.img],
   ['t_factory',  ()=>_t('Build a {b}',{b:_t('Vehicle Factory')}), ()=>[Math.min(1,countType('factory')),1], R(all5(15000),{speed_1h:2}), ()=>goBuild('factory'), ()=>bImg('factory')],
   ['t_hospital', ()=>_t('Build a {b}',{b:_t('Field Hospital')}), ()=>[Math.min(1,countType('hospital')),1], R(all5(15000),{speed_1h:2}), ()=>goBuild('hospital'), ()=>bImg('hospital')],
   ['t_ally',     ()=>_t('Join or create an alliance'), ()=>[Math.min(1,stat('ally')),1], R(all5(20000),{wheel_ticket:2, speed_1h:2}), ()=>{ closeSheet(); openAlliance(); }, ()=>ICS.ally],
@@ -4763,7 +4776,8 @@ const ADM_PARTS = () => [...EQ_SLOTS.map(s=>[s,_t('Titan')+' · '+_t(EQ_NAME[s])
 const PATCH = [
   {id:'2026-11-06d', d:'2026-11-06', items:[
     "Map: the forests, farms, mines, oil fields and hills no longer have white edges or white spots between the branches, fences and towers.",
-    "The phone's browser no longer translates the game on its own (it changed some names, like the Rally Point in the tutorial): the game already has its own languages."
+    "The phone's browser no longer translates the game on its own (it changed some names, like the Rally Point in the tutorial): the game already has its own languages.",
+    "Tutorial: the « Go » button of the quest « Win against a Raider Camp level 2 » now opens the nearest level 2 camp (before, it opened a level 1 camp)."
   ]},
   {id:'2026-11-06c', d:'2026-11-06', items:[
     "Training speed: two new researches in the Military branch, Assembly Lines (Vehicle Factory) and Aircraft Maintenance (Helipad), up to +25% each. The Garrison screen now shows the bonus of all your garrisons together (they speed up the Barracks, the Vehicle Factory and the Helipad), and each training screen shows what its speed is made of."
