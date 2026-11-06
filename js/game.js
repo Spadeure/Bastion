@@ -4762,7 +4762,8 @@ let tickTimer=0;
 const ADM_PARTS = () => [...EQ_SLOTS.map(s=>[s,_t('Titan')+' · '+_t(EQ_NAME[s])]), ...EQ_SLOTS.map(s=>['r_'+s,_t('Rampart Titan')+' · '+_t(EQ_NAME[s])]), ...EQ_SLOTS.map(s=>['b_'+s,_t('Brasier Titan')+' · '+_t(EQ_NAME[s])])];
 const PATCH = [
   {id:'2026-11-06d', d:'2026-11-06', items:[
-    "Map: the forests, farms, mines, oil fields and hills no longer have white edges or white spots between the branches, fences and towers."
+    "Map: the forests, farms, mines, oil fields and hills no longer have white edges or white spots between the branches, fences and towers.",
+    "The phone's browser no longer translates the game on its own (it changed some names, like the Rally Point in the tutorial): the game already has its own languages."
   ]},
   {id:'2026-11-06c', d:'2026-11-06', items:[
     "Training speed: two new researches in the Military branch, Assembly Lines (Vehicle Factory) and Aircraft Maintenance (Helipad), up to +25% each. The Garrison screen now shows the bonus of all your garrisons together (they speed up the Barracks, the Vehicle Factory and the Helipad), and each training screen shows what its speed is made of."
