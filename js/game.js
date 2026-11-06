@@ -103,7 +103,7 @@ const B = {
   barracks: {name:'Barracks', icon:IC.troops, color:'#6b7442', unique:true, cost:{metal:170,wood:190,stone:150,fuel:75,rations:110}, time:12,
              desc:'Trains infantry units.'},
   garrison: {name:'Garrison', icon:IC.def, color:'#4f6a5a', cost:{metal:140,wood:160,stone:165,fuel:40,rations:95}, time:10,
-             desc:'Houses and trains defensive troops. You can build several.'},
+             desc:'Houses defensive troops and speeds up training in the Barracks, Vehicle Factory and Helipad of its base. You can build several: their bonuses add up.'},
   housing:  {name:'Housing Block', icon:IC.base, color:'#7d6a52', cost:{metal:90,wood:170,stone:125,fuel:30,rations:80}, time:8,
              desc:'Raises population, which supplies workers and recruits. You can build several.'},
   warehouse:{name:'Warehouse', icon:IC.load, color:'#7a5a3c', unique:true, cost:{metal:125,wood:210,stone:170,fuel:40,rations:105}, time:10,
@@ -318,7 +318,8 @@ const goldIncome = () => Math.round(30 + popMax()*0.2);  // taxes paid by your p
 function troopPower(){ let p=0; const mm=marching(), D=defenseState(); for(const u in UNITS) p+=((state.troops[u]||0)+(D[u]||0)+(mm[u]||0))*UNITS[u].power; return p; }
 // every Garrison LEVEL speeds up all training (+3% each): upgrading counts as much as building more Garrisons
 const garrisonLevels = () => { let n=0; for(const k in state.slots){ const b=state.slots[k]; if(b.type==='garrison') n+=b.lvl; } return n; };
-const trainSpeed = bl => 1 + 0.05*bldLevel(bl) + 0.03*garrisonLevels() + techB('drill');
+const trainTech = bl => techB('drill') + (bl==='factory' ? techB('assembly') : bl==='helipad' ? techB('avionics') : 0);   // research part of the training speed
+const trainSpeed = bl => 1 + 0.05*bldLevel(bl) + 0.03*garrisonLevels() + trainTech(bl);
 const TRAIN_SCALE = 4;   // Dragons of Atlantis pace: big orders take hours
 const unitTime = (u,n) => Math.max(1, Math.round(UNITS[u].time*TRAIN_SCALE*n/trainSpeed(UNITS[u].bld)));
 const UCOST = [...RES,'alloy','napalm'];   // what a troop can cost: the normal resources, and Heavy Alloy for the outpost troops
@@ -411,6 +412,9 @@ const TECH = {
   // construction speed speeds up the whole game: expensive
   engineering:{name:'Engineering', br:'eco', ic:'build', p:0.05, eff:'Construction speed +{p}%', lab:3, req:{forestry:2,extraction:2}, m:3, g:1.95, tm:2, cost:{metal:265,wood:355,stone:325,fuel:125,rations:230}, time:70},
   drill:      {name:'Intensive Training', br:'mil', ic:'troops', p:0.05, eff:'Troop training speed +{p}%', lab:1, req:{}, m:1.5, g:1.9, tm:1.3, cost:{metal:155,wood:210,stone:145,fuel:65,rations:125}, time:45},
+  // the Vehicle Factory and the Helipad are unique: their own speed research, 5 levels (+25 % at most)
+  assembly:   {name:'Assembly Lines', br:'mil', ic:'troops', p:0.05, max:5, eff:'Vehicle Factory training speed +{p}%', lab:3, req:{drill:2}, m:5, g:2, tm:2, cost:{metal:260,wood:190,stone:230,fuel:150,rations:140}, time:55},
+  avionics:   {name:'Aircraft Maintenance', br:'mil', ic:'troops', p:0.05, max:5, eff:'Helipad training speed +{p}%', lab:4, req:{drill:3}, m:5.5, g:2, tm:2.2, cost:{metal:240,wood:170,stone:200,fuel:210,rations:150}, time:60},
   // combat technologies are the most powerful: very expensive, slow and with prerequisites that grow
   ballistics: {name:'Ballistics', br:'mil', ic:'atk', p:0.03, eff:'Troop attack +{p}%', lab:2, req:{drill:2}, m:4, g:2, tm:2.5, cost:{metal:230,wood:205,stone:140,fuel:125,rations:155}, time:60},
   armor:      {name:'Armor Plating', br:'mil', ic:'def', p:0.03, eff:'Troop defense +{p}%', lab:2, req:{drill:2}, m:4, g:2, tm:2.5, cost:{metal:260,wood:165,stone:250,fuel:105,rations:175}, time:60},
@@ -1118,9 +1122,19 @@ function unitPanelIn(){
     <div id="tc-${u}">${trainCost(u,n)}</div>
     <div class="ubtns"><button class="danger" data-act="unitback">${IC.back} ${_t('Back')}</button><div id="ta-${u}">${trainBtn(u,n)}</div></div>`;
   return h; }
+const fmtX = x => (Math.round(x*100)/100).toLocaleString(LANG,{minimumFractionDigits:2,maximumFractionDigits:2});
+// all the garrisons of this base together: their bonus adds up, for the Barracks, the Vehicle Factory and the Helipad
+function garrisonBox(b){
+  const G=garrisonLevels(), n=countType('garrison'), pct=G*3;
+  const tr=TRAINERS.filter(t=>bldLevel(t)>0).map(t=>`<div><span>${_t(B[t].name)} · ${_t('Lv')} ${bldLevel(t)}</span><b>×${fmtX(trainSpeed(t))}</b></div>`).join('');
+  return `<h3>${IC.def} ${_t('Bonus of all your garrisons')}</h3><div class="garbox">
+    <div class="gtop"><div class="gbig">+${fmtI(pct)} %</div><div class="sub">${_t('training speed in the Barracks, Vehicle Factory and Helipad of this base')}</div></div>
+    <div class="gstats"><div><b>${fmtI(n)}</b><small>${_t('garrisons built')}</small></div><div><b>${fmtI(G)}</b><small>${_t('total levels')}</small></div><div><b>+3 %</b><small>${_t('per garrison level')}</small></div></div>
+    ${b.lvl<MAX?`<div class="gnext">${_t('Next level of this garrison: +{p}%. Each new garrison or level adds +3%.',{p:fmtI(pct+3)})}</div>`:''}
+    ${tr?`<div class="gtrain"><div class="sub">${_t('Real training speed (garrisons + building + research):')}</div>${tr}</div>`:''}</div>`; }
 function trainSection(bl){
   const q=state.training[bl]||[];
-  let h=`<h3>${IC.troops} ${_t('Train troops')}</h3>${inOp()?`<div class="sub">${IC.base} ${_t('Troops trained here join your army at the main base.')}</div>`:''}<div class="sub">${_t('Population {a} / {b} · Training speed +{p}%',{a:fmtN(popFree()),b:fmtN(popMax()),p:Math.round((trainSpeed(bl)-1)*100)})}</div><div class="sub">${_t('Each Garrison level speeds up all training by 3%. The Intensive Training research adds more.')}</div>`;
+  let h=`<h3>${IC.troops} ${_t('Train troops')}</h3>${inOp()?`<div class="sub">${IC.base} ${_t('Troops trained here join your army at the main base.')}</div>`:''}<div class="sub">${_t('Population {a} / {b} · Training speed +{p}%',{a:fmtN(popFree()),b:fmtN(popMax()),p:Math.round((trainSpeed(bl)-1)*100)})}</div><div class="sub tspd">${_t('Speed ×{x}: this building +{a}% · garrisons +{g}% · research +{r}%',{x:fmtX(trainSpeed(bl)),a:Math.round(bldLevel(bl)*5),g:garrisonLevels()*3,r:Math.round(trainTech(bl)*100)})}</div>`;
   if(q.length){ h+=`<div class="row">`;
     q.forEach((j,i)=>{ const d=UNITS[j.u];
       h+=`<div class="tq"><img src="${d.img}" alt=""><div class="tqi"><b>${fmtI(j.n)} × ${_t(d.name)}</b>${i===0
@@ -2374,7 +2388,7 @@ function effect(t,l){
     case 'wall': return _t('For now: adds power. The outpost cannot be attacked, and marches leave from your main base.');
     case 'rally': { const w=curBase()==='br' ? ['Oil Fields','Fortified Oil Fields'] : ['Rocky Mountains','Fortified Mountains'];
       return _t('Troops per march +{p}% (all your marches) · Travel time -{s}% to the {a} and {b}',{p:Math.round(l*OP_RALLY_TROOPS*100),s:Math.round(Math.min(0.5,l*OP_RALLY_SPEED)*100),a:_t(w[0]),b:_t(w[1])}); }
-    case 'garrison': return _t('Training speed of all troops in this base +{p}%',{p:l*3});
+    case 'garrison': return _t('Training speed in the Barracks, Vehicle Factory and Helipad +{p}%',{p:l*3});
     case 'warehouse': return _t('{r} storage: {n}',{r:resName(opDef(curBase()).res),n:fmtN(alloyCapAt(l))});
     case 'ophangar': return _t('Rampart Titan maximum level: {n}',{n:Math.min(10,l)});
     case 'brhangar': return _t('{t} maximum level: {n}',{t:_t('Brasier Titan'),n:Math.min(10,l)});
@@ -2383,7 +2397,7 @@ function effect(t,l){
     case 'command':  return _t('Max building level: {l}',{l});
     case 'wall':     return _t('Defense bonus +{p}%',{p:l*5});
     case 'barracks': return _t('Infantry training speed +{p}%',{p:l*5});
-    case 'garrison': return _t('Defensive troop capacity +{n}',{n:l*200})+' · '+_t('Training speed of all troops +{p}%',{p:l*3});
+    case 'garrison': return _t('Defensive troop capacity +{n}',{n:l*200})+' · '+_t('Training speed in the Barracks, Vehicle Factory and Helipad +{p}%',{p:l*3});
     case 'housing':  return _t('Population +{n}',{n:l*100});
     case 'warehouse':return _t('Storage: {n} per resource',{n:fmtN(capAt(l))})+' · '+_t('Protected from looting: {n} of each resource ({g} gold)',{n:fmtN(protAt(l).p),g:fmtN(protAt(l).g)});
     case 'lab':      return _t('Research speed +{p}%',{p:l*5});
@@ -3158,6 +3172,7 @@ function renderSheet(){
     h+=`<div class="hd"><div class="big" style="background:${d.color}">${bigIcon(d,b.lvl)}</div><div><h2>${_t(d.name)}</h2><div class="sub">${_t('Level {l} / {m}',{l:b.lvl,m:MAX})} · ${IC.power} ${fmtI(bPower(b.type,b.lvl))} ${_t('power')}</div></div></div>
         <p>${_t(d.desc)}</p><div class="eff">${_t('Current:')} ${effect(b.type,b.lvl)}</div>`;
     if(TRAINERS.includes(b.type)) h+=trainSection(b.type);
+    if(b.type==='garrison') h+=garrisonBox(b);
     if(b.type==='hospital' && curBase()==='main') h+=hospitalSection();
     if(b.type==='garrison' && curBase()==='main') h+=`<h3>${IC.def} ${_t('Defense')}</h3><div class="sub">${_t('Garrison places: {a} / {b}',{a:fmtN(defUsed()),b:fmtN(defCap())})}</div><button data-act="opendef" style="margin-top:6px">${IC.def} ${_t('Manage defense')}</button>`;
     if(b.type==='lab'){ const rc=researchState().cur; h+=`<h3>${IC.research} ${_t('Research')}</h3><div class="sub">${rc?_t('In progress:')+' '+_t(TECH[rc.t].name)+' · '+_t('Lv')+' '+rc.l:_t('No research in progress')}</div><button data-act="openres" style="margin-top:6px">${IC.research} ${_t('Open research')}</button>`; }
@@ -4745,6 +4760,9 @@ let tickTimer=0;
 // every Titan's armor pieces, for the admin menus (main Titan, then each outpost Titan: prefix r_ / b_ as the server expects)
 const ADM_PARTS = () => [...EQ_SLOTS.map(s=>[s,_t('Titan')+' · '+_t(EQ_NAME[s])]), ...EQ_SLOTS.map(s=>['r_'+s,_t('Rampart Titan')+' · '+_t(EQ_NAME[s])]), ...EQ_SLOTS.map(s=>['b_'+s,_t('Brasier Titan')+' · '+_t(EQ_NAME[s])])];
 const PATCH = [
+  {id:'2026-11-06c', d:'2026-11-06', items:[
+    "Training speed: two new researches in the Military branch, Assembly Lines (Vehicle Factory) and Aircraft Maintenance (Helipad), up to +25% each. The Garrison screen now shows the bonus of all your garrisons together (they speed up the Barracks, the Vehicle Factory and the Helipad), and each training screen shows what its speed is made of."
+  ]},
   {id:'2026-11-06b', d:'2026-11-06', items:[
     "Display: the tutorial card uses the whole width of the screen again (long steps were squeezed into a narrow column), and long messages at the bottom of the screen go to the next line instead of being cut off."
   ]},
