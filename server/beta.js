@@ -10,7 +10,8 @@ module.exports = function makeBeta({ db, Q, log, clean, acc, runFor, push, NAME_
       src TEXT NOT NULL DEFAULT 'site', invited INTEGER NOT NULL DEFAULT 0, uid INTEGER, rewarded INTEGER NOT NULL DEFAULT 0, ip TEXT);
     CREATE UNIQUE INDEX IF NOT EXISTS beta_email ON beta_signups (email COLLATE NOCASE) WHERE email IS NOT NULL;
     CREATE TABLE IF NOT EXISTS bug_reports (id INTEGER PRIMARY KEY, uid INTEGER NOT NULL, name TEXT NOT NULL, at INTEGER NOT NULL, text TEXT NOT NULL, info TEXT, done INTEGER NOT NULL DEFAULT 0);`);
-  try { db.exec('ALTER TABLE beta_signups ADD COLUMN bonus INTEGER NOT NULL DEFAULT 0'); } catch (e) {}   // the bonus of the most helpful testers (time it was given)
+  try { db.exec('ALTER TABLE beta_signups ADD COLUMN bonus INTEGER NOT NULL DEFAULT 0'); } catch (e) {}
+  try { db.exec('ALTER TABLE beta_signups ADD COLUMN origin TEXT'); } catch (e) {}   // where the visitor came from (tiktok, youtube… server/visits.js)   // the bonus of the most helpful testers (time it was given)
   const metaGet = k => { const r = db.prepare('SELECT v FROM meta WHERE k = ?').get(k); try { return r ? JSON.parse(r.v) : null; } catch (e) { return null; } };
   const metaSet = (k, v) => db.prepare('INSERT INTO meta (k, v) VALUES (?, ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v').run(k, JSON.stringify(v));
   const err = (code, error) => Object.assign(new Error(error), { code, error });
@@ -56,7 +57,7 @@ module.exports = function makeBeta({ db, Q, log, clean, acc, runFor, push, NAME_
   // ---------- the website ----------
   function publicInfo() { return { open: isOpen(), full: full(), count: count(), places: S.places, msg: S.msg, on: S.on, started: S.started, testers: B.testers.all().map(r => r.name) }; }
   const perIp = new Map();   // address -> sign-up times (3 a day at most)
-  function signup(P, ip) {
+  function signup(P, ip, origin) {
     if (!isOpen()) throw err(409, full() ? 'full' : 'closed');
     const name = txt(P.name, 16), email = txt(P.email, 120).toLowerCase(), lang = /^[a-z]{2}$/.test(P.lang || '') ? P.lang : 'en';
     if (!NAME_OK.test(name)) throw err(400, 'bad_name');
@@ -66,7 +67,8 @@ module.exports = function makeBeta({ db, Q, log, clean, acc, runFor, push, NAME_
     if (B.byEmail.get(email)) throw err(409, 'email_taken');
     if (B.byName.get(name)) throw err(409, 'name_taken');
     const id = Number(B.add.run(name, email, lang, now, 'site', null, ip).lastInsertRowid); perIp.set(ip, [...L, now]);
-    log('BÊTA', `Inscription à la bêta : ${clean(name)} · ${ip} · place ${count()} / ${S.places}${full() ? ' · COMPLET : inscriptions fermées' : ''}`);
+    if (origin) db.prepare('UPDATE beta_signups SET origin = ? WHERE id = ?').run(String(origin).slice(0, 30), id);
+    log('BÊTA', `Inscription à la bêta : ${clean(name)} · ${ip}${origin ? ' · venu de ' + clean(origin) : ''} · place ${count()} / ${S.places}${full() ? ' · COMPLET : inscriptions fermées' : ''}`);
     linkAll();
     const now2 = S.on && S.started;   // the beta is running: the invitation (with the game link) leaves at once
     if (now2) invite([id], 'inscription').catch(e => log('ERREUR', 'invitation immédiate non envoyée : ' + e.message));
@@ -121,7 +123,7 @@ module.exports = function makeBeta({ db, Q, log, clean, acc, runFor, push, NAME_
     const users = new Map(db.prepare('SELECT id, name, seen FROM users').all().map(u => [u.id, u]));
     return { ...S, count: count(), mailOn: acc().mailOn(), test: IS_TEST,
       list: B.all.all().map(r => { const u = r.uid ? users.get(r.uid) : null;
-        return { id: r.id, name: r.name, email: r.email || '', lang: r.lang, at: r.at, src: r.src, invited: r.invited, rewarded: r.rewarded, bonus: r.bonus, bugs: r.uid ? (bugsOf.get(r.uid) || {}).n || 0 : 0, account: u ? u.name : '', seen: u ? u.seen : 0 }; }),
+        return { id: r.id, name: r.name, email: r.email || '', lang: r.lang, at: r.at, src: r.src, origin: r.origin || '', invited: r.invited, rewarded: r.rewarded, bonus: r.bonus, bugs: r.uid ? (bugsOf.get(r.uid) || {}).n || 0 : 0, account: u ? u.name : '', seen: u ? u.seen : 0 }; }),
       bugs: db.prepare('SELECT * FROM bug_reports ORDER BY done, id DESC LIMIT 200').all() };
   }
   // the invitation: [subject, text for a new player, button, text for a player who already has an account on this server]

@@ -432,7 +432,7 @@ async function api(req, res, url, ip) {
     if (isBlocked(ip)) return send(res, 429, { error: 'too_many' });
     blockIfTooMany(ip, strike(ip), 'inscriptions à la bêta');
     const P = await readBody(req, 5_000);
-    try { return send(res, 200, beta.signup(P, ip)); } catch (e) { if (!e.code) throw e; return send(res, e.code, { error: e.error }); }
+    try { return send(res, 200, beta.signup(P, ip, visits.originOf(ip, req.headers['user-agent']))); } catch (e) { if (!e.code) throw e; return send(res, e.code, { error: e.error }); }
   }
 
   if (url === '/api/register' && req.method === 'POST') {
@@ -1075,7 +1075,9 @@ const beta = require('./beta.js')({ db, Q, log, clean, acc: () => acc, runFor, p
 const referral = require('./referral.js')({ db, Q, log, clean, runFor, push, lastIp });
 // ---------- the public website mekanikwar.com (server/site.js): home page, wiki built from the game rules, news, rankings ----------
 const siteStats = { at: 0, v: null };
-const site = require('./site.js')({ engine, IS_TEST, log, beta,
+// the visits of the website (server/visits.js): no cookie, no address kept; read in the panel (Visites)
+const visits = require('./visits.js')({ db, log, DAY_FMT });
+const site = require('./site.js')({ engine, IS_TEST, log, beta, onView: (req, page) => visits.hit(req, ipOf(req), page),
   stats: () => { if (!siteStats.v || Date.now() - siteStats.at > 60_000) { siteStats.at = Date.now();
     siteStats.v = { players: db.prepare('SELECT COUNT(*) AS n FROM users WHERE banned = 0').get().n, alliances: db.prepare('SELECT COUNT(*) AS n FROM alliances').get().n }; } return siteStats.v; },
   ranking: by => { const r = ranking(by, 0); if (IS_TEST || by === 'ally') return r;   // the administrator of the official server is never ranked
@@ -1087,5 +1089,5 @@ const panel = require('./panel.js')({
   db, Q, log, send, readBody, broadcast, push, streams, onlineSince, lastIp, watch, cheat, clean, STAMP,
   ROOT, DATA, ADMIN_NAME, IS_TEST, GIT, PATCH_ID, VERSION, STARTED, REASON_FR, NAME_OK,
   BACKUP_DIR, backupDb: () => backupDb(true), createAccount, unbanPlayer, admin, engine, UNIT_IDS,
-  orderBucket, chat, events, acc: () => acc, beta,
+  orderBucket, chat, events, acc: () => acc, beta, visits,
 });

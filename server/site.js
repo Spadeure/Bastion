@@ -12,7 +12,7 @@ const fs = require('fs'), path = require('path'), crypto = require('crypto');
 const fileVer = f => { try { return crypto.createHash('sha1').update(fs.readFileSync(path.join(__dirname, '..', f))).digest('hex').slice(0, 10); } catch (e) { return String(Date.now()); } };
 const CSS_V = fileVer('css/site.css'), JS_V = fileVer('js/site.js');
 
-module.exports = function makeSite({ engine, stats, ranking, IS_TEST, log, beta }) {
+module.exports = function makeSite({ engine, stats, ranking, IS_TEST, log, beta, onView }) {
   const DISCORD = process.env.DISCORD_URL || 'https://discord.gg/fHpxRftpuS';   // the game's Discord server (invitation that never expires)
   const dcBtn = (T, cls) => `<a class="btn ${cls || 'ghost'} dcb" href="${DISCORD}" target="_blank" rel="noopener"><img src="/assets/img/messages.webp" alt="" width="22" height="22">${esc(T.discord)}</a>`;
   const BETA_CR = +process.env.BETA_CREDITS || 1200;   // the testers' reward announced on the beta page (the same number is given from the panel)
@@ -267,19 +267,19 @@ ${bi.testers.length ? `<h2 class="gh">${esc(T.thanks)}</h2><p class="mut">${esc(
   const isSiteHost = host => SITE_HOSTS.has(String(host || '').toLowerCase().split(':')[0]);
   // returns true when the request was a page of the website (false: let the game server serve it, e.g. /assets/...)
   function handle(req, res, url, host, SEC) {
-    const onSite = isSiteHost(host), B = onSite ? '' : '/site';
+    const onSite = isSiteHost(host), B = onSite ? '' : '/site', qs = (req.url || '').includes('?') ? '?' + (req.url || '').split('?')[1].slice(0, 200) : '';   // ?src=tiktok survives the redirects
     let rest = onSite ? url : url.replace(/^\/site(?=\/|$)/, '');
     if (!onSite && rest === url) return false;
     if (onSite && /^\/(assets|css|js)\//.test(url)) return false;   // pictures, fonts, styles: the normal files of the game
     if (onSite && url === '/robots.txt') { res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' }); res.end(`User-agent: *\nAllow: /\nSitemap: ${CANON}/sitemap.xml\n`); return true; }
     if (onSite && url === '/sitemap.xml') { res.writeHead(200, { 'Content-Type': 'application/xml; charset=utf-8', 'Cache-Control': 'public, max-age=3600' }); res.end(sitemap()); return true; }
-    if (rest === '' || rest === '/') { res.writeHead(302, { Location: `${B}/${best(req)}/`, 'Cache-Control': 'no-cache', Vary: 'Accept-Language' }); res.end(); return true; }
+    if (rest === '' || rest === '/') { res.writeHead(302, { Location: `${B}/${best(req)}/${qs}`, 'Cache-Control': 'no-cache', Vary: 'Accept-Language' }); res.end(); return true; }
     const lm = rest.match(/^\/([a-z]{2})(\/.*)?$/);
-    if (!lm || !LANG_OK.has(lm[1])) { if (!onSite || /\.[a-z0-9]+$/i.test(rest)) return false; res.writeHead(302, { Location: `${B}/${best(req)}${rest.startsWith('/') ? rest : '/'}` }); res.end(); return true; }
+    if (!lm || !LANG_OK.has(lm[1])) { if (!onSite || /\.[a-z0-9]+$/i.test(rest)) return false; res.writeHead(302, { Location: `${B}/${best(req)}${rest.startsWith('/') ? rest : '/'}${qs}` }); res.end(); return true; }
     let p = lm[2] || '/';
     const leaf = /^\/(wiki\/(units|buildings)\/[a-z0-9_]+|legal\/[a-z]+|search\.json)\/?$/.test(p);
     if (leaf && p.endsWith('/')) p = p.slice(0, -1); else if (!leaf && !p.endsWith('/')) p += '/';
-    if ((lm[2] || '/') !== p) { res.writeHead(301, { Location: `${B}/${lm[1]}${p}` }); res.end(); return true; }
+    if ((lm[2] || '/') !== p) { res.writeHead(301, { Location: `${B}/${lm[1]}${p}${qs}` }); res.end(); return true; }
     const bs = beta ? beta.publicInfo() : null, key = `${B}|${lm[1]}|${p}|${bs && bs.on ? (!bs.started ? 'soon' : bs.open ? 'signup' : '') : ''}`, live = p === '/beta/' || p === '/';   // the beta page shows the places left: kept 5 seconds only
     let e = cache.get(key);
     if (!e || Date.now() - e.at > (live ? 5_000 : 120_000)) {
@@ -289,7 +289,9 @@ ${bi.testers.length ? `<h2 class="gh">${esc(T.thanks)}</h2><p class="mut">${esc(
     }
     const h = { ...SEC, 'Content-Type': e.type, 'Cache-Control': live ? 'no-cache' : 'public, max-age=120' };
     if (!onSite) h['X-Robots-Tag'] = 'noindex';   // the preview on the game addresses is never indexed
-    res.writeHead(e.code, h); res.end(req.method === 'HEAD' ? undefined : e.html); return true;
+    res.writeHead(e.code, h); res.end(req.method === 'HEAD' ? undefined : e.html);
+    if (onSite && onView && e.code === 200 && e.type.startsWith('text/html')) onView(req, p);   // the visit counter (server/visits.js)
+    return true;
   }
   function sitemap() {
     const D = engine.wikiData('en'), paths = ['/', '/beta/', '/wiki/', '/wiki/units/', '/wiki/buildings/', '/wiki/research/', '/wiki/titan/', '/wiki/outposts/', '/wiki/map/', '/wiki/items/', '/wiki/alliances/', '/wiki/guide/', '/news/', '/rankings/',

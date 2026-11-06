@@ -7,7 +7,7 @@ const fs = require('fs'), path = require('path');
 
 module.exports = function makePanel(C) {
   const { db, Q, log, send, readBody, broadcast, push, streams, onlineSince, lastIp, watch, cheat, clean, STAMP,
-    DATA, ADMIN_NAME, IS_TEST, GIT, PATCH_ID, VERSION, STARTED, REASON_FR, BACKUP_DIR, backupDb, createAccount, unbanPlayer, admin, engine, UNIT_IDS, orderBucket, chat, events, acc, beta } = C;
+    DATA, ADMIN_NAME, IS_TEST, GIT, PATCH_ID, VERSION, STARTED, REASON_FR, BACKUP_DIR, backupDb, createAccount, unbanPlayer, admin, engine, UNIT_IDS, orderBucket, chat, events, acc, beta, visits } = C;
   const TEST_URL = (process.env.TEST_URL || 'https://test.mekanikwar.com').replace(/\/+$/, '');
   // the other server, for the link between the two panels (same computer at home, other port)
   const OTHER = IS_TEST ? { name: 'OFFICIEL', port: +process.env.OFFICIAL_PORT || 58689 } : { name: 'TEST', port: +process.env.TEST_PORT || 55000 };
@@ -279,6 +279,7 @@ module.exports = function makePanel(C) {
       catch (e) { return send(res, e.code || 500, { error: { bad_name: 'nom invalide (3 à 16 lettres, chiffres, espaces, - ou _)', bad_password: 'mot de passe trop court (6 caractères minimum)', name_taken: 'ce nom est déjà pris' }[e.message] || e.message }); }
     }
     // ----- beta test: settings, list of the testers, invitations, reward, bug reports, reset of the server -----
+    if (req.method === 'GET' && name === 'visits') return send(res, 200, { ...visits.report(+(new URLSearchParams((req.url || '').split('?')[1] || '').get('d')) || 30), now: Date.now() });   // the website's visits
     if (req.method === 'GET' && name === 'beta') return send(res, 200, { ...beta.adminView(), launcher: LAUNCHER, now: Date.now() });
     if (req.method === 'POST' && name === 'beta') {
       try { const r = await beta.adminAct(P, by); if (P.op === 'set') { changed(); if (P.on !== undefined || P.started !== undefined) broadcast('reload', {}); } return send(res, 200, r); }   // open games reload: the accounts not allowed any more go back to the login screen

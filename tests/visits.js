@@ -1,0 +1,23 @@
+// Compteur de visites du site (server/visits.js) : visiteurs uniques, robots ignorés, provenance, inscrits : node tests/visits.js
+const { DatabaseSync } = require('node:sqlite');
+const db = new DatabaseSync(':memory:');
+db.exec("CREATE TABLE beta_signups (id INTEGER PRIMARY KEY, name TEXT, email TEXT, lang TEXT, at INTEGER, src TEXT, invited INTEGER DEFAULT 0, uid INTEGER, rewarded INTEGER DEFAULT 0, ip TEXT, bonus INTEGER DEFAULT 0, origin TEXT)");
+const DAY_FMT = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Paris', year: 'numeric', month: '2-digit', day: '2-digit' });
+const V = require('../server/visits.js')({ db, log: () => {}, DAY_FMT });
+const UA = 'Mozilla/5.0 (Linux; Android 14) Mobile Safari';
+const req = (url, ua = UA, ref) => ({ method: 'GET', url, headers: { 'user-agent': ua, host: 'mekanikwar.com', ...(ref ? { referer: ref } : {}) } });
+let ok = true; const check = (what, c) => { console.log((c ? 'OK   ' : 'ÉCHEC') + ' ' + what); if (!c) ok = false; };
+V.hit(req('/fr/beta/?src=tiktok'), '1.1.1.1', '/beta/'); V.hit(req('/fr/'), '1.1.1.1', '/');
+V.hit(req('/fr/', UA, 'https://www.google.fr/'), '2.2.2.2', '/');
+V.hit(req('/fr/', UA, 'https://mekanikwar.com/fr/wiki/'), '3.3.3.3', '/');
+V.hit(req('/fr/', 'Mozilla/5.0 (compatible; Googlebot/2.1)'), '4.4.4.4', '/');
+V.hit(req('/fr/', UA, 'https://m.youtube.com/shorts/x'), '5.5.5.5', '/');
+const o = V.originOf('1.1.1.1', UA);
+db.prepare("INSERT INTO beta_signups (name, at, src, origin) VALUES ('a', ?, 'site', ?)").run(Date.now(), o);
+const r = V.report(7), t = r.days[r.days.length - 1], src = Object.fromEntries(r.sources.map(s => [s.k, s]));
+check('visiteurs uniques (robot ignoré, visiteur revenu compté 1 fois)', t.uniq === 4);
+check('pages vues', t.views === 5);
+check('provenances : tiktok, google, direct, youtube', src.tiktok && src.google && src.direct && src.youtube && src.tiktok.n === 1);
+check('l\'inscrit est rattaché à TikTok', o === 'tiktok' && src.tiktok.signups === 1 && t.signups === 1);
+check('visiteurs de la page bêta', t.beta === 1);
+process.exit(ok ? 0 : 1);

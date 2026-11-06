@@ -90,7 +90,7 @@ let view = 'dash', D = null, timers = [];
 const every = (ms, f) => timers.push(setInterval(f, ms));
 function stopTimers() { timers.forEach(clearInterval); timers = []; }
 let DEPLOY_DUR = 15;   // maintenance length chosen for the next deployment (minutes)
-const VIEWS = { dash: viewDash, maint: viewMaint, players: viewPlayers, beta: viewBeta, chat: viewChat, ann: viewAnn, events: viewEvents, logs: viewLogs };
+const VIEWS = { dash: viewDash, maint: viewMaint, players: viewPlayers, beta: viewBeta, visits: viewVisits, chat: viewChat, ann: viewAnn, events: viewEvents, logs: viewLogs };
 document.querySelectorAll('#menu [data-v]').forEach(b => b.onclick = () => go(b.dataset.v));
 function go(v) {
   view = VIEWS[v] ? v : 'dash'; try { history.replaceState(null, '', '#' + view); } catch (e) {}
@@ -412,7 +412,7 @@ async function viewBeta() {
         ${B.mailOn ? '' : '<p class="note">Les e-mails ne sont pas réglés sur ce serveur (SMTP) : les invitations ne partiront pas.</p>'}
         <div class="plist">${B.list.map((r, i) => `<div class="prow brow">
           <div class="pn"><span class="mut small">${i + 1}.</span><b>${esc(r.name)}</b></div>
-          <div class="small bem">${esc(r.email || '—')}<br><span class="mut">${esc(SRC[r.src] || r.src)} · ${dt(r.at)}</span></div>
+          <div class="small bem">${esc(r.email || '—')}<br><span class="mut">${esc(SRC[r.src] || r.src)}${r.origin ? ' · venu de ' + esc(srcName(r.origin)) : ''} · ${dt(r.at)}</span></div>
           <div class="small">${r.account ? `<span class="ok">compte : ${esc(r.account)}</span>` : '<span class="mut">pas encore de compte</span>'}<br><span class="mut">${r.invited ? 'invité le ' + dt(r.invited) : 'pas invité'}${r.rewarded ? ' · récompensé' : ''}${r.bugs ? ' · ' + r.bugs + ' bug(s) signalé(s)' : ''}</span>${r.bonus ? '<br><span class="ok">bonus donné le ' + dt(r.bonus) + '</span>' : ''}</div>
           <div class="row bact" style="margin:0">${r.account && !r.bonus ? `<button class="btn sec sm" data-bonus="${r.id}" data-n="${esc(r.name)}">Bonus</button>` : ''}${r.email ? `<button class="btn sec sm" data-inv="${r.id}" title="Envoyer l'invitation">E-mail</button>` : ''}<button class="btn red sm" data-del="${r.id}" data-n="${esc(r.name)}">Retirer</button></div></div>`).join('') || '<p class="mut">Personne pour le moment.</p>'}</div></div>`;
     if (tab === 'bugs') T.innerHTML = `<div class="card"><div class="ch"><img src="${IMG('ui_warn')}" alt=""><h2>Bugs signalés par les joueurs</h2></div>
@@ -462,6 +462,54 @@ async function viewBeta() {
 }
 
 // ===== events: the Power Tournament =====
+// ===== the visits of the website (server/visits.js): no cookie, no address kept =====
+const SRC_NAME = { direct: 'Direct', tiktok: 'TikTok', youtube: 'YouTube', google: 'Google', bing: 'Bing', moteurs: 'Autres moteurs de recherche', reddit: 'Reddit',
+  discord: 'Discord', facebook: 'Facebook', instagram: 'Instagram', x: 'X (Twitter)', jeuxvideo: 'jeuxvideo.com', itch: 'itch.io', steam: 'Steam', dayz: 'Communauté DayZ', inconnue: 'Inconnue (avant le compteur)' };
+const srcName = k => SRC_NAME[k] || k;
+const PAGE_NAME = { '/': 'Accueil', '/beta/': 'Bêta', '/wiki/': 'Wiki', '/news/': 'Nouveautés', '/rankings/': 'Classements' };
+async function viewVisits() {
+  let V = null, n = 7;
+  const SITE = 'https://mekanikwar.com/fr/beta/';
+  const LINKS = [['tiktok', 'Bio TikTok'], ['youtube', 'Description YouTube'], ['discord', 'Discord'], ['reddit', 'Reddit'], ['dayz', 'Communauté DayZ']];
+  const draw = () => {
+    const d = V.days, last = d[d.length - 1] || {}, prev = d[d.length - 2] || {};
+    const sum = k => d.reduce((a, x) => a + (x[k] || 0), 0);
+    const uniq = sum('uniq'), views = sum('views'), beta = sum('beta'), sign = sum('signups');
+    const max = Math.max(1, ...d.map(x => x.uniq));
+    const fmtDay = s => { const [y, m, j] = s.split('-'); return `${j}/${m}`; };
+    $('#main').innerHTML = top('Visites du site') + `
+      <div class="tabs">${[[7, '7 jours'], [30, '30 jours'], [90, '90 jours']].map(([v, l]) => `<button class="tab${n === v ? ' on' : ''}" data-n="${v}">${l}</button>`).join('')}</div>
+      <div class="grid">
+      <div class="card"><div class="ch"><img src="${IMG('radar')}" alt=""><h2>En bref</h2></div>
+        <div class="stat"><div><span class="big">${fmtN(last.uniq)}</span><small>visiteurs aujourd'hui</small></div><div><span class="big">${fmtN(prev.uniq)}</span><small>hier</small></div>
+          <div><span class="big">${fmtN(uniq)}</span><small>sur ${n} jours</small></div></div>
+        <div class="kv" style="margin-top:10px"><span>Pages vues</span><span><b>${fmtN(views)}</b> sur ${n} jours</span>
+          <span>Page bêta</span><span><b>${fmtN(beta)}</b> visiteur(s)</span>
+          <span>Inscriptions bêta</span><span><b>${fmtN(sign)}</b> sur ${n} jours${beta ? ` · <b>${Math.round(sign / beta * 100)} %</b> des visiteurs de la page bêta` : ''}</span></div>
+        <p class="mut small" style="margin-top:8px">Sans cookie, aucune adresse IP gardée, les robots sont ignorés. Tes propres visites comptent aussi. Un visiteur = une personne par jour.</p></div>
+      <div class="card"><div class="ch"><img src="${IMG('map')}" alt=""><h2>D'où viennent-ils ?</h2></div>
+        ${V.sources.length ? `<div class="vtab"><b>Provenance</b><b>Visiteurs</b><b>Inscrits</b>${V.sources.map(s => `<span>${esc(srcName(s.k))}</span><span>${fmtN(s.n)}</span><span>${s.signups ? '<b class="ok">' + fmtN(s.signups) + '</b>' : '—'}</span>`).join('')}</div>`
+          : '<p class="mut">Pas encore de visite.</p>'}
+        <p class="mut small" style="margin-top:8px">« Direct » = adresse tapée, favori, ou appli qui cache d'où vient le visiteur (souvent TikTok et Instagram) : utilise les liens ci-dessous pour les reconnaître.</p></div>
+      <div class="card wide"><div class="ch"><img src="${IMG('reports')}" alt=""><h2>Jour par jour</h2><span class="mut small">barre = visiteurs · <b class="ok">+n</b> = inscriptions bêta</span></div>
+        <div class="vbars">${d.slice().reverse().map(x => `<div class="vr"><span class="mut">${fmtDay(x.day)}</span><i style="width:${Math.max(x.uniq ? 2 : 0, Math.round(x.uniq / max * 100))}%"></i><b>${fmtN(x.uniq)}</b><span>${x.signups ? '<b class="ok">+' + x.signups + '</b>' : ''}</span></div>`).join('')}</div></div>
+      <div class="card"><div class="ch"><img src="${IMG('news')}" alt=""><h2>Pages les plus vues</h2></div>
+        ${V.pages.length ? `<div class="vtab two">${V.pages.map(p => `<span>${esc(PAGE_NAME[p.k] || p.k)}</span><span>${fmtN(p.n)}</span>`).join('')}</div>` : '<p class="mut">Pas encore de visite.</p>'}</div>
+      <div class="card"><div class="ch"><img src="${IMG('messages')}" alt=""><h2>Tes liens à partager</h2></div>
+        <p class="small">Mets le bon lien à chaque endroit : le panel saura d'où vient chaque visiteur, et chaque inscrit.</p>
+        ${LINKS.map(([k, l]) => `<div class="vlink"><span><b>${l}</b><br><span class="mono small">${SITE}?src=${k}</span></span><button class="btn sm sec" data-copy="${SITE}?src=${k}">Copier</button></div>`).join('')}</div>
+      </div>`;
+    $('#main').querySelectorAll('[data-n]').forEach(b => b.onclick = async () => { n = +b.dataset.n; if (await load()) draw(); });
+    $('#main').querySelectorAll('[data-copy]').forEach(b => b.onclick = async () => {
+      try { await navigator.clipboard.writeText(b.dataset.copy); toast('Lien copié'); }
+      catch (e) { const t = document.createElement('textarea'); t.value = b.dataset.copy; document.body.appendChild(t); t.select(); try { document.execCommand('copy'); toast('Lien copié'); } catch (x) { toast('Copie impossible : recopie le lien à la main', true); } t.remove(); } });
+  };
+  const load = async () => (V = await run(null, () => api('GET', 'visits?d=' + n)));
+  $('#main').innerHTML = top('Visites du site') + '<p class="mut">Chargement…</p>';
+  if (await load()) draw();
+  every(60000, async () => { if (await load()) draw(); });
+}
+
 async function viewEvents() {
   const ST = { planned: ['Prévu', 'admin'], running: ['En cours', 'ok'], ended: ['Terminé', ''] };
   const NM = { power: 'Tournoi de puissance', ally: "Défi d'alliance" }, ICO = { power: 'power', ally: 'ally' };

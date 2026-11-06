@@ -175,3 +175,15 @@ textarea{width:100%;min-height:72px;resize:vertical}
 
 /* Samsung Internet darkens every site that does not say it has a dark theme: this one is dark already, keep its own colours */
 @media (prefers-color-scheme: dark){:root{color-scheme:dark}}
+
+/* the visits of the website */
+.vtab{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:5px 16px;font-size:15px;align-items:center}
+.vtab.two{grid-template-columns:minmax(0,1fr) auto}
+.vtab>b{font-size:13px;color:#b9a77a;text-transform:uppercase;letter-spacing:.5px}
+.vtab>span:nth-child(3n+1){overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.vbars{display:flex;flex-direction:column;gap:4px;max-height:420px;overflow-y:auto}
+.vr{display:grid;grid-template-columns:46px minmax(0,1fr) 48px 34px;gap:8px;align-items:center;font-size:14px}
+.vr i{display:block;height:14px;border-radius:4px;background:linear-gradient(90deg,#b8913a,#f3c534);min-width:0}
+.vr b{text-align:right}
+.vlink{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:8px 0;border-top:1px solid #2c2a1e}
+.vlink .mono{word-break:break-all}

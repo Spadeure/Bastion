@@ -68,6 +68,7 @@ fr: {
 <li><b>Adresse e-mail</b> : seulement pour confirmer ton compte et t'envoyer un lien si tu oublies ton mot de passe. Jamais de publicité, jamais transmise à d'autres.</li>
 <li><b>Ta partie</b> (base, troupes, objets, achats) : pour faire tourner le jeu.</li>
 <li><b>Adresse IP et heures de connexion</b> : sécurité, lutte contre la triche et les attaques, pendant 12 mois au plus.</li>
+<li><b>Statistiques de visite du site</b> (mekanikwar.com) : nombre de pages vues, nombre de visiteurs par jour et site d'origine (par exemple TikTok ou Google). Sans cookie, rien n'est enregistré sur ton appareil et ton adresse IP n'est pas gardée : un visiteur est reconnu seulement pendant la journée, par une empreinte anonyme oubliée à minuit.</li>
 <li><b>Messages du chat</b> : le chat général et d'alliance garde les 200 derniers messages, les messages privés 30 jours.</li>
 <li><b>Achats</b> : produit, prix, date, acceptation des conditions de vente : obligation comptable, 10 ans.</li></ul>
 <p>Les données de carte bancaire sont traitées uniquement par Stripe (voir la politique de confidentialité de Stripe). Le jeu ne les voit jamais.</p>
@@ -140,6 +141,7 @@ en: {
 <li><b>E-mail address</b>: only to confirm your account and send you a link if you forget your password. Never any advertising, never given to anyone.</li>
 <li><b>Your game</b> (base, troops, items, purchases): to run the game.</li>
 <li><b>IP address and login times</b>: security, fight against cheating and attacks, 12 months at most.</li>
+<li><b>Website visit statistics</b> (mekanikwar.com): number of pages viewed, number of visitors per day and site of origin (for example TikTok or Google). No cookie, nothing is stored on your device and your IP address is not kept: a visitor is only recognised during the day, by an anonymous fingerprint forgotten at midnight.</li>
 <li><b>Chat messages</b>: the general and alliance chats keep the latest 200 messages, private messages 30 days.</li>
 <li><b>Purchases</b>: product, price, date, acceptance of the terms of sale: accounting obligation, 10 years.</li></ul>
 <p>Card data is processed by Stripe only (see Stripe's privacy policy). The game never sees it.</p>
