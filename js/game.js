@@ -4745,6 +4745,9 @@ let tickTimer=0;
 // every Titan's armor pieces, for the admin menus (main Titan, then each outpost Titan: prefix r_ / b_ as the server expects)
 const ADM_PARTS = () => [...EQ_SLOTS.map(s=>[s,_t('Titan')+' · '+_t(EQ_NAME[s])]), ...EQ_SLOTS.map(s=>['r_'+s,_t('Rampart Titan')+' · '+_t(EQ_NAME[s])]), ...EQ_SLOTS.map(s=>['b_'+s,_t('Brasier Titan')+' · '+_t(EQ_NAME[s])])];
 const PATCH = [
+  {id:'2026-11-06b', d:'2026-11-06', items:[
+    "Display: the tutorial card uses the whole width of the screen again (long steps were squeezed into a narrow column), and long messages at the bottom of the screen go to the next line instead of being cut off."
+  ]},
   {id:'2026-11-06a', d:'2026-11-06', items:[
     "Open beta: the beta is open! Your friends can sign up on mekanikwar.com/beta: they receive the link of the game by e-mail right away, while places remain."
   ]},
