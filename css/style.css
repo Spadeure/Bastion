@@ -1283,3 +1283,27 @@ body.beta #shopBtn{display:none!important}
 .garbox .gtrain{display:flex;flex-direction:column;gap:4px;border-top:1px solid #3b3520;padding-top:8px}
 .garbox .gtrain>div{display:flex;justify-content:space-between;gap:8px;font-size:14px}.garbox .gtrain>div.sub{display:block;margin:0}.garbox .gtrain b{color:#ffd23a}
 .tspd{color:#a6e36b}
+/* ---------- chat: bar at the bottom left + docked chat window (phone and PC) ---------- */
+.chatbar .cbi{position:relative;flex:none;display:flex}
+.chatbar .cbi .ic{width:24px;height:24px}
+.chatbar .cbn{position:absolute;top:-7px;right:-9px;min-width:16px;padding:0 4px;box-sizing:border-box;border-radius:9px;background:#c4302b;border:1px solid #ffffff66;color:#fff;font:700 10px/15px var(--ui);font-style:normal;text-align:center}
+.chatbar .cbt{color:var(--mut)}
+@media (max-width:760px){
+  .chatbar{display:flex!important;left:8px;width:min(64vw,330px);max-width:none;bottom:150px;padding:5px 10px 5px 8px;font-size:13px;border-radius:10px}
+  .chatbar[style*="display: none"],.chatbar[style*="display:none"]{display:none!important}
+}
+body:has(#sheet.cdock.open) .chatbar{visibility:hidden}
+body:has(#sheet.cdock.open) #back{background:transparent}
+#sheet.cdock{top:auto!important;bottom:var(--cdb,90px)!important;left:6px!important;right:6px!important;margin:0!important;max-width:none!important;
+  height:min(56vh,560px);max-height:none!important;display:flex;flex-direction:column;overflow:hidden;transform:translateY(12px)!important}
+#sheet.cdock.open{transform:none!important}
+#sheet.cdock #sheetBody{flex:1;min-height:0;display:flex;flex-direction:column;overflow:auto}
+#sheet.cdock .hd{margin:0}
+#sheet.cdock .hd .big{width:30px;height:30px}
+#sheet.cdock .hd h2{font-size:17px;margin:0}
+#sheet.cdock .hd .sub{display:none}
+#sheet.cdock .itabs{margin-top:6px}
+#sheet.cdock .chlog{flex:1;height:auto!important;min-height:90px;margin-top:6px}
+#sheet.cdock .chin{margin-top:6px}
+@media (min-width:761px){ #sheet.cdock{left:14px!important;right:auto!important;width:440px} }
+.chatbar{overflow:visible}

@@ -866,7 +866,7 @@ async function openChest(req, res, me, ip) {
 }
 
 // ---------- static files (the game itself): kept in memory, compressed once ----------
-const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.webp': 'image/webp', '.jpg': 'image/jpeg', '.png': 'image/png', '.woff2': 'font/woff2', '.json': 'application/json', '.svg': 'image/svg+xml' };
+const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.webp': 'image/webp', '.jpg': 'image/jpeg', '.png': 'image/png', '.woff2': 'font/woff2', '.json': 'application/json', '.svg': 'image/svg+xml', '.mp3': 'audio/mpeg' };
 const TEXT = new Set(['.html', '.js', '.css', '.json', '.svg']);
 const fileCache = new Map();   // path -> {data, br, gz, etag, type, mtime}
 function loadFile(file, cb) {

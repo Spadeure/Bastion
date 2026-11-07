@@ -13,7 +13,8 @@ fr: {
 <h3>Achats</h3>
 <p>Aucun achat en argent réel n'est possible pour le moment.</p>
 <h3>Images et crédits</h3>
-<p>Les images du jeu ont été créées avec l'aide de Google Gemini, puis retravaillées pour le jeu. Le code, les textes et les règles du jeu appartiennent à l'éditeur.</p>`,
+<p>Les images du jeu ont été créées avec l'aide de Google Gemini, puis retravaillées pour le jeu. Le code, les textes et les règles du jeu appartiennent à l'éditeur.</p>
+<p>Sons : "Oculus Audio Pack 01" by Oculus VR, LLC (https://developers.meta.com/vr/downloads/package/oculus-audio-pack-1/), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), découpés et mixés pour le jeu.</p>`,
   mentions: `<h3>Éditeur</h3>
 <p>Mekanik War: Titans est un jeu édité par <b>{name}</b>, entrepreneur individuel (micro-entreprise).<br>SIRET : {siret}<br>Adresse : {address}<br>Contact : {email}</p>
 <p>Directeur de la publication : {name}.</p>
@@ -22,7 +23,8 @@ fr: {
 <h3>Paiements</h3>
 <p>Les paiements par carte sont traités par Stripe Payments Europe, Ltd. (Dublin, Irlande). Le jeu ne voit et ne garde jamais les numéros de carte.</p>
 <h3>Images et crédits</h3>
-<p>Les images du jeu ont été créées avec l'aide de Google Gemini, puis retravaillées pour le jeu. Le code, les textes et les règles du jeu appartiennent à l'éditeur.</p>`,
+<p>Les images du jeu ont été créées avec l'aide de Google Gemini, puis retravaillées pour le jeu. Le code, les textes et les règles du jeu appartiennent à l'éditeur.</p>
+<p>Sons : "Oculus Audio Pack 01" by Oculus VR, LLC (https://developers.meta.com/vr/downloads/package/oculus-audio-pack-1/), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), découpés et mixés pour le jeu.</p>`,
   cgu: `<p>Version du {ver}. En créant un compte, tu acceptes ces règles.</p>
 <h3>1. Le jeu</h3>
 <p>Mekanik War: Titans est un jeu de stratégie en ligne gratuit. Certains contenus facultatifs sont payants (voir les Conditions de vente). Le jeu évolue : des règles, des objets ou des équilibrages peuvent changer pour garder un jeu juste et intéressant.</p>
@@ -86,6 +88,7 @@ en: {
 <p>No real-money purchase is possible for now.</p>
 <h3>Images and credits</h3>
 <p>The game's images were created with the help of Google Gemini, then reworked for the game. The code, texts and game rules belong to the publisher.</p>
+<p>Sounds: "Oculus Audio Pack 01" by Oculus VR, LLC (https://developers.meta.com/vr/downloads/package/oculus-audio-pack-1/), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), cut and mixed for the game.</p>
 <p><i>The French version of these pages is the reference version.</i></p>`,
   mentions: `<h3>Publisher</h3>
 <p>Mekanik War: Titans is published by <b>{name}</b>, sole trader (micro-entreprise, France).<br>SIRET: {siret}<br>Address: {address}<br>Contact: {email}</p>
@@ -95,6 +98,7 @@ en: {
 <p>Card payments are processed by Stripe Payments Europe, Ltd. (Dublin, Ireland). The game never sees nor keeps card numbers.</p>
 <h3>Images and credits</h3>
 <p>The game's images were created with the help of Google Gemini, then reworked for the game. The code, texts and game rules belong to the publisher.</p>
+<p>Sounds: "Oculus Audio Pack 01" by Oculus VR, LLC (https://developers.meta.com/vr/downloads/package/oculus-audio-pack-1/), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), cut and mixed for the game.</p>
 <p><i>The French version of these pages is the reference version.</i></p>`,
   cgu: `<p>Version of {ver}. By creating an account, you accept these rules. <i>The French version is the reference version.</i></p>
 <h3>1. The game</h3>

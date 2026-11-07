@@ -1156,6 +1156,8 @@ function troopsPanel(){
 const MENU = [['troops','Troops',()=>openTroops()],['shop','Shop',()=>openShop()],['quests','Quests',()=>openQuests()],['wheel','Wheel of fortune',()=>openWheel()],
   ['messages','Messages',()=>openChat()],['reports','Reports',()=>openReports()],['crown','Ranking',()=>openRanking()],['ally','Alliance',()=>openAlliance()],['inventory','Inventory',()=>openInventory()],
   ['defense','Defense',()=>openDefense()],['research','Research',()=>openResearch()],['news',"What's new",()=>openNews()],['referral','Invite friends',()=>openRef()],['settings','Settings',()=>openSettings()]];
+const sfxOn = () => typeof SFX!=='undefined' && SFX.on;
+const sfxVol = () => typeof SFX!=='undefined' ? SFX.vol : 0.65;
 function settingsPanel(){
   return `<h2>${_t('Settings')}</h2><h3>${_t('Language')}</h3><div class="menug">${LANGS.map(([c,n])=>`<button class="sbtn mitem${c===LANG?' on':''}" data-act="lang" data-l="${c}"><em>${n}</em>${c===LANG?' '+IC.ok:''}</button>`).join('')}</div>
   <h3>${_t('Community')}</h3><p class="sub" style="margin-bottom:8px">${_t('News, help, ideas and bug reports: talk with the other commanders and the game team on our Discord.')}</p><button class="sec" data-act="discord">${IC.messages} ${_t('Join the Discord')}</button>
@@ -1163,6 +1165,8 @@ function settingsPanel(){
   ${ONLINE?`<h3>${_t('Report a bug')}</h3><p class="sub" style="margin-bottom:6px">${_t('Something does not work? Say what you were doing and what happened. Your message goes straight to the game team.')}</p>
     <textarea id="bugtxt" class="bugtxt" maxlength="2000" placeholder="${_t('Example: I tapped the Barracks, the training did not start...')}"></textarea><button class="sec" data-act="bugsend">${IC.reports} ${_t('Send the report')}</button>`:''}
   ${ONLINE?`<h3>${_t('Notifications')}</h3><button class="sec" data-act="notif">${IC.messages} ${_t('Notification settings')}</button>`:''}
+  <h3>${_t('Game sounds')}</h3><div class="menug"><button class="sbtn mitem${sfxOn()?' on':''}" data-act="sfx" data-v="1"><em>${_t('On')}</em></button><button class="sbtn mitem${!sfxOn()?' on':''}" data-act="sfx" data-v="0"><em>${_t('Off')}</em></button></div>
+  ${sfxOn()?`<h3>${_t('Sound volume')}</h3><div class="menug">${[['0.35','Low'],['0.65','Medium'],['1','High']].map(([v,l])=>`<button class="sbtn mitem${Math.abs(sfxVol()-v)<0.05?' on':''}" data-act="sfxvol" data-v="${v}"><em>${_t(l)}</em></button>`).join('')}</div>`:''}
   <h3>${_t('Alert sound')}</h3><div class="menug"><button class="sbtn mitem${alertSound?' on':''}" data-act="sound" data-v="1"><em>${_t('On')}</em></button><button class="sbtn mitem${!alertSound?' on':''}" data-act="sound" data-v="0"><em>${_t('Off')}</em></button></div>
   ${!ONLINE || isStaff() ? `<h3>${_t('Test tools')}</h3><p class="sub" style="margin-bottom:8px">${_t('Erase your save and restart from zero. This option will be removed in the final game.')}</p>
   <button class="sec" data-act="reset">${IC.settings} ${_t('Reset save')}</button>` : ''}${ONLINE?accountHtml():''}<h3>${_t('Legal information')}</h3>${legalLinks()}`; }
@@ -2008,7 +2012,7 @@ function reportsPanel(){
   if(pages>1) h+=`<div class="rpager"><button data-act="repp" data-p="0"${repPage?'':' disabled'}>«</button><button data-act="repp" data-p="${repPage-1}"${repPage?'':' disabled'}>‹</button><span>${repPage+1} / ${pages}</span><button data-act="repp" data-p="${repPage+1}"${repPage<pages-1?'':' disabled'}>›</button><button data-act="repp" data-p="${pages-1}"${repPage<pages-1?'':' disabled'}>»</button></div>`;
   if(state.reports.some(r=>!r.read)) h+=`<div class="rfoot"><button class="btn" data-act="repreadall">${IC.ok} ${_t('Mark all as read')}</button></div>`;
   return h; }
-function openPanel(id){ cur=id; openedAt=Date.now(); renderSheet(); document.getElementById('sheet').classList.add('open'); document.getElementById('back').classList.add('open'); }
+function openPanel(id){ cur=id; openedAt=Date.now(); { const sh=document.getElementById('sheet'); sh.classList.toggle('cdock', id==='__chat'); if(id==='__chat') sh.style.setProperty('--cdb', chatDockBottom()+'px'); } renderSheet(); document.getElementById('sheet').classList.add('open'); document.getElementById('back').classList.add('open'); }
 function openReports(){ openRep=null; openPanel('__reports'); }
 // ===== RANKING (EMPIRE tab): power, PvP victories, battles won · top 100 and your own place, from the server =====
 const RANK_TABS=[['power','Power',()=>IC.power],['pvp','PvP victories',()=>IC.atk],['wins','Battles won',()=>IC.win],['ally','Alliances',()=>IC.power]];
@@ -2171,11 +2175,18 @@ let chatSum=null, chatCh='g', chatPeer=null, chatMsgs={}, chatSel=0, chatBusy=fa
 const chatKey = () => chatCh==='p' ? 'p:'+chatPeer : chatCh;
 const chatIgnored = n => !!(chatSum && chatSum.ignored.includes(n)) && n!==NET.name;
 async function loadChatSum(){ if(!ONLINE || !NET.token) return; try{ chatSum=await apiCall('GET','api/chat/sum'); }catch(e){ return; } chatBadges(); chatBar(); }
-function chatBadges(){ const n=chatSum ? chatSum.unreadAlly+chatSum.unreadPrivate : 0;
+function chatBadges(){ const n=chatSum ? chatSum.unreadAlly+chatSum.unreadPrivate : 0; chatBar();
   for(const id of ['msgBadge','menuBadge']){ const el=document.getElementById(id); if(el){ el.textContent=n>99?'99+':n; el.style.display=n?'':'none'; } } }
-function chatBar(){ const el=document.getElementById('chatbar'); if(!el) return; const m=chatSum && chatSum.last;
-  if(!m || chatIgnored(m.name)){ el.style.display='none'; return; }
-  el.style.display=''; el.innerHTML=`${IC.messages}<b>${esc(m.name)}</b><span>${esc(m.text)}</span>`; }
+// the chat bar, at the bottom left: the last message of the general chat + the unread messages (alliance, private); a touch opens the chat window
+function chatBar(){ const el=document.getElementById('chatbar'); if(!el) return;
+  if(!ONLINE || !NET.token){ el.style.display='none'; return; }
+  const m=chatSum && chatSum.last, n=chatSum ? chatSum.unreadAlly+chatSum.unreadPrivate : 0, ok=m && !chatIgnored(m.name);
+  el.style.display=''; el.innerHTML=`<span class="cbi">${IC.messages}${n?`<i class="cbn">${n>99?'99+':n}</i>`:''}</span>`+(ok?`<b>${esc(m.name)}</b><span>${esc(m.text)}</span>`:`<span class="cbt">${_t('Chat')}</span>`); chatBarPos(); }
+// the bar and the window sit just above the round buttons (and above the tutorial card when it shows)
+function chatDockBottom(){ let top=innerHeight; for(const id of ['dock','tuto']){ const e=document.getElementById(id); if(!e || !e.offsetParent) continue; const r=e.getBoundingClientRect(); if(r.height && r.top<top) top=r.top; } return Math.max(8, innerHeight-top+8); }
+function chatBarPos(){ const b=chatDockBottom(), el=document.getElementById('chatbar'); if(el && innerWidth<=760) el.style.bottom=b+'px'; else if(el) el.style.bottom='';
+  const sh=document.getElementById('sheet'); if(sh && sh.classList.contains('cdock')) sh.style.setProperty('--cdb', b+'px'); }
+setInterval(()=>{ if(typeof document!=='undefined' && document.visibilityState!=='hidden') chatBarPos(); }, 1000);
 function openChat(ch, peer){ if(ch) chatCh=ch; if(peer!==undefined) chatPeer=peer; chatSel=0; openPanel('__chat'); sheetTop(); loadChatSum().then(()=>{ if(cur==='__chat') renderSheet(); }); loadChat(); }
 async function loadChat(){ if(!ONLINE || !NET.token || chatBusy || (chatCh==='p' && !chatPeer)) return; const key=chatKey(); chatBusy=true;
   try{ const j=await apiCall('GET','api/chat?ch='+encodeURIComponent(key)); chatMsgs[key]=j.msgs; }catch(e){ chatMsgs[key]={err:e.message}; }
@@ -2225,6 +2236,7 @@ function onChat(j){ if(!j) return;
   const open=cur==='__chat' && chatKey()===key && document.visibilityState!=='hidden';
   if(open){ chatShow(); if(m.name!==NET.name) chatPost({op:'read', ch:key, id:m.id}); return; }
   if(m.name===NET.name || !chatSum) return;
+  if(key==='a' || key.startsWith('p:')) sfx('chat');
   if(key==='a'){ chatSum.unreadAlly++; chatBadges(); }
   else if(key.startsWith('p:')){ const n=key.slice(2); let c=chatSum.convs.find(x=>x.name===n); if(!c) chatSum.convs.unshift(c={name:n,unread:0,last:null}); c.unread++; c.last=m; chatSum.unreadPrivate++; chatBadges();
     toast(IC.messages+' '+_t('New message from {n}',{n:esc(n)})); } }
@@ -3245,7 +3257,7 @@ function basesPanel(){
 let openedAt=0; // ignore the "ghost" click that phones send right after the tap that opened the panel
 function openSlot(id){ cur=id; openedAt=Date.now(); renderSheet(); renderSlots(); document.getElementById('sheet').classList.add('open'); document.getElementById('back').classList.add('open'); }
 function sheetTop(){ const sh=document.getElementById('sheet'), b=document.getElementById('sheetBody'); if(sh) sh.scrollTop=0; if(b) b.scrollTop=0; }
-function closeSheet(){ cur=null; document.getElementById('sheet').classList.remove('open'); document.getElementById('back').classList.remove('open'); renderSlots(); }
+function closeSheet(){ cur=null; document.getElementById('sheet').classList.remove('open','cdock'); document.getElementById('back').classList.remove('open'); renderSlots(); }
 let tt; function toast(m){ const el=document.getElementById('toast'); el.innerHTML=m; el.classList.add('on');
   { // never over the tutorial card or the activity buttons: just above the highest of them
     const tu=document.getElementById('tuto'), bt=document.querySelector('#hud .bottom'); let top=window.innerHeight-170;
@@ -3303,6 +3315,8 @@ function onAct(e){
   if(a==='pushoff'){ btn.disabled=true; pushUnsubscribe().then(renderSheet); }
   if(a==='pushtest'){ btn.disabled=true; apiCall('POST','api/push',{op:'test'}).then(()=>toast(IC.ok+' '+_t('Test sent: it arrives in a few seconds.'))).catch(()=>toast(IC.warn+' '+_t('Cannot reach the server.'))).finally(()=>{ btn.disabled=false; }); }
   if(a==='pushpref' && PUSH && PUSH.prefs){ const k=btn.dataset.k; PUSH.prefs[k]=PUSH.prefs[k]?0:1; renderSheet(); apiCall('POST','api/push',{op:'prefs', prefs:{[k]:PUSH.prefs[k]}}).catch(()=>{}); }
+  if(a==='sfx'){ if(typeof SFX!=='undefined'){ SFX.set(btn.dataset.v==='1'); if(SFX.on) setTimeout(()=>sfx('buildDone'),300); } renderSheet(); }
+  if(a==='sfxvol'){ if(typeof SFX!=='undefined'){ SFX.set(null, parseFloat(btn.dataset.v)); sfx('buildDone'); } renderSheet(); }
   if(a==='sound'){ alertSound=btn.dataset.v==='1'; try{ localStorage.setItem('bastion_sound', alertSound?'1':'0'); }catch(e){} if(alertSound) playSiren('attack'); renderSheet(); }
   if(a==='mmax'){ const u=btn.dataset.unit; atkQty[u]=state.troops[u]||0; const inp=document.querySelector(`#sheet input[data-mq="${u}"]`); if(inp) inp.value=atkQty[u]||''; document.getElementById('atk-sum').innerHTML=atkSummary(); }
   if(a==='launch') launch();
@@ -4348,21 +4362,33 @@ function applyServer(j, seq){
   if(j.incoming) setIncoming(j.incoming);
   if('beginner' in j) NET.beginner=j.beginner||0;
   if(j.pay) NET.pay=j.pay;   // payments: 'stripe' (real), 'sim' (test server), 'off'
-  if(j.state){ const st0=wallStage(); state=j.state; normalizeState(); if(wallStage()!==st0){ cityCache=null; if(view!=='map') buildWorld(); } }
+  if(j.state){ const st0=wallStage(); state=j.state; normalizeState(); if(wallStage()!==st0){ cityCache=null; if(view!=='map') buildWorld(); } sfxDiff(); }
   const ev=j.events||[]; let delay=0;
   for(const e of ev){
-    if(e.t==='chest'){ chestShow(e.id, e.rewards); continue; }
+    if(e.t==='chest'){ sfx('chest'); chestShow(e.id, e.rewards); continue; }
     if(e.t==='wheel'){ wheelAnimate(e.wheel, e.idx, e.reward, e.all); continue; }
     if(e.t==='power'){ powerGain(e.n); continue; }
-    if(e.t==='levelup'){ levelUpShow(e.from, e.to, e.rew); continue; }
+    if(e.t==='levelup'){ sfx('levelUp'); levelUpShow(e.from, e.to, e.rew); continue; }
     if(e.t==='loot'){ lootFx(e.got); continue; }
     if(e.t==='toast'){ setTimeout(()=>toast(e.m), delay); delay+=1100; }
   }
   renderAll(); if(view==='map') requestDraw(); }
+// the game sounds (js/sfx.js; nothing on the server)
+const sfx = n => { try{ if(typeof SFX!=='undefined') SFX.play(n); }catch(e){} };
+const ACT_SFX = {build:'build', research:'research', train:'train', launch:'attack', speed:'speed', finish:'speed', finishTraining:'speed', finishMarch:'speed', vipFinish:'speed',
+  claimQuest:'reward', claimMission:'reward', claimMissionBonus:'reward', claimMissionWeek:'reward', calClaim:'reward', passClaim:'reward', vipClaim:'reward', daily:'reward'};
+// what changed after an answer of the server: a building or a research finished, a new battle report
+let sfxSnap=null;
+function sfxState(){ let b=0; for(const bs of baseList()) for(const k in slotsOf(bs)) b+=slotsOf(bs)[k].lvl||0;
+  return {b, t:techTotal(), r:new Set((state.reports||[]).map(r=>r.id))}; }
+function sfxDiff(){ let now; try{ now=sfxState(); }catch(e){ return; } const old=sfxSnap; sfxSnap=now; if(!old) return;
+  const fresh=(state.reports||[]).filter(r=>!old.r.has(r.id) && !r.read && typeof r.win==='boolean' && r.kind!=='auto');
+  if(fresh.length){ sfx(fresh[0].win ? 'victory' : 'defeat'); return; }
+  if(now.t>old.t) sfx('researchDone'); else if(now.b>old.b) sfx('buildDone'); }
 async function act(a, args){
   const seq=++netSeq;
   try{ const j=await apiCall('POST','api/act',{a, args:args||[], lang:LANG}); applyServer(j, seq);
-    if(j.error){ toast(IC.warn+' '+_t(LOGIN_ERR[j.error]||j.error)); return false; } return true; }
+    if(j.error){ toast(IC.warn+' '+_t(LOGIN_ERR[j.error]||j.error)); return false; } if(ACT_SFX[a]) sfx(ACT_SFX[a]); return true; }
   catch(e){ if(e.status===401) logout(true); else toast(IC.warn+' '+_t(LOGIN_ERR[e.message]||'Cannot reach the server.')); return false; } }
 let syncing=false, lastSync=0;
 async function syncState(force){
@@ -4422,7 +4448,7 @@ function goOnlineOrders(){
 // =====================================================================
 let alertSound = (()=>{ try{ return localStorage.getItem('bastion_sound')!=='0'; }catch(e){ return true; } })();
 const alertSeen = new Set(); let audioCtx=null;
-document.addEventListener('pointerdown', ()=>{ try{ if(!audioCtx) audioCtx=new (window.AudioContext||window.webkitAudioContext)(); else if(audioCtx.state==='suspended') audioCtx.resume(); }catch(e){} }, {capture:true});
+document.addEventListener('pointerdown', ()=>{ try{ if(!audioCtx) audioCtx=new (window.AudioContext||window.webkitAudioContext)(); else if(audioCtx.state==='suspended') audioCtx.resume(); if(typeof SFX!=='undefined') SFX.ctx(audioCtx); }catch(e){} }, {capture:true});
 // a short siren made by the browser (no sound file): two-tone for an attack, a beep for a spy mission
 function playSiren(kind){ if(!alertSound || !audioCtx) return;
   try{ const t0=audioCtx.currentTime, o=audioCtx.createOscillator(), g=audioCtx.createGain(); o.type=kind==='attack'?'sawtooth':'square'; o.connect(g); g.connect(audioCtx.destination);
@@ -4774,6 +4800,9 @@ let tickTimer=0;
 // every Titan's armor pieces, for the admin menus (main Titan, then each outpost Titan: prefix r_ / b_ as the server expects)
 const ADM_PARTS = () => [...EQ_SLOTS.map(s=>[s,_t('Titan')+' · '+_t(EQ_NAME[s])]), ...EQ_SLOTS.map(s=>['r_'+s,_t('Rampart Titan')+' · '+_t(EQ_NAME[s])]), ...EQ_SLOTS.map(s=>['b_'+s,_t('Brasier Titan')+' · '+_t(EQ_NAME[s])])];
 const PATCH = [
+  {id:'2026-11-07a', d:'2026-11-07', items:[
+    "Sounds and chat: the game now has sounds (building, research, training, attack, battle reports, rewards, chests…), made from real recordings. They can be switched off or turned down in the Settings (Game sounds), apart from the alert siren. The chat is now at the bottom left of the screen: touch it to talk directly in a small window, without going through the menu."
+  ]},
   {id:'2026-11-06d', d:'2026-11-06', items:[
     "Map: the forests, farms, mines, oil fields and hills no longer have white edges or white spots between the branches, fences and towers.",
     "The phone's browser no longer translates the game on its own (it changed some names, like the Rally Point in the tutorial): the game already has its own languages.",
