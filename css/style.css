@@ -1307,3 +1307,7 @@ body:has(#sheet.cdock.open) #back{background:transparent}
 #sheet.cdock .chin{margin-top:6px}
 @media (min-width:761px){ #sheet.cdock{left:14px!important;right:auto!important;width:440px} }
 .chatbar{overflow:visible}
+/* no blue flash of the phone browser when something is touched (the game has its own press effects) */
+*{-webkit-tap-highlight-color:transparent}
+.chatbar{-webkit-user-select:none;user-select:none;transition:transform .08s,filter .08s}
+.chatbar:active{transform:scale(.97);filter:brightness(1.25)}
