@@ -1323,3 +1323,5 @@ body:has(#sheet.cdock.open) #back{background:transparent}
 .blr .chip{font-size:12px;padding:2px 7px}
 .blr .chip .ic{width:15px;height:15px}
 .blr .why{margin-top:4px;font-size:12px}
+.chtt{margin-top:5px}
+.pctt .champb{margin:1px 0 1px 4px}

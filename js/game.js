@@ -814,7 +814,9 @@ const cosState = () => { const C=state.cos=(state.cos && typeof state.cos==='obj
 const cosPub = c => { const o={}; if(c){ for(const id in COSMETICS){ const X=COSMETICS[id]; if(X.k==='c' && c.c===X.v) o.c=X.v; if(X.k==='f' && c.f===X.v) o.f=X.v; }
   if(Number.isInteger(c.v) && c.v>=1 && c.v<=VIP_MAX) o.v=c.v; if(c.t===1) o.t=1; if(c.a===1) o.a=1; if(c.b===1) o.b=1; } return o; };
 const myCos = () => { const C=cosState(), o={}; if(C.c && cosHas(C.c)) o.c=COSMETICS[C.c].v; if(C.f && cosHas(C.f)) o.f=COSMETICS[C.f].v; if(vipState().show && vipLvl()) o.v=vipLvl(); if(champOn()) o.t=1; if(champAOn()) o.a=1; if(state.betaVet===1) o.b=1; return o; };
-const nameTag = (name, cos) => { const c=cosPub(cos); return `${c.t?`<i class="champb">${_t('Champion')}</i>`:''}${c.a?`<i class="champb champa">${_t('Champion alliance')}</i>`:''}${c.b?`<i class="champb betab">${_t('Beta veteran')}</i>`:''}${vipBadge(c.v)}<span class="cosn${c.f?' fr-'+c.f:''}"${c.c?` style="color:${c.c}"`:''}>${esc(name)}</span>`; };
+// next to a name: only the Beta veteran badge and the VIP shield (the champion titles are on the player card, a touch on the name)
+const nameTitles = cos => { const c=cosPub(cos); return `${c.t?`<i class="champb">${_t('Champion')}</i>`:''}${c.a?`<i class="champb champa">${_t('Champion alliance')}</i>`:''}`; };
+const nameTag = (name, cos) => { const c=cosPub(cos); return `${c.b?`<i class="champb betab">${_t('Beta veteran')}</i>`:''}${vipBadge(c.v)}<span class="cosn${c.f?' fr-'+c.f:''}"${c.c?` style="color:${c.c}"`:''}>${esc(name)}</span>`; };
 // ---------- referral: rewards of an invited friend and of the referrer (given by the server: order refGrant) ----------
 const REF_TIERS = [
   {t:0,  f:{items:{speed_1h:3, chest_bronze:1}}},                                        // welcome gift of the friend
@@ -1549,8 +1551,9 @@ function tileInfoPanel(){ if(!mapSel) return '';
 // commander card of a base on the map: name, level, power and alliance
 function playerCard(name, lvl, power, alliance, nameOnly, cos){
   const row=(ic,label,val,cls)=>`<div class="pcrow"><span>${ic} ${label}</span><b${cls?` class="${cls}"`:''}>${val}</b></div>`;
-  if(nameOnly) return `<div class="pcard">${row(IC.crown,_t('Commander'),nameTag(name,cos))}</div>`;
-  return `<div class="pcard">${row(IC.crown,_t('Commander'),nameTag(name,cos))}${row(IC.star,_t('Commander level'),fmtI(lvl)+' · '+_t(rankOf(lvl)))}${row(IC.power,_t('Power'),fmtI(power||0),'pw')}
+  if(nameOnly){ const tt=nameTitles(cos); return `<div class="pcard">${row(IC.crown,_t('Commander'),nameTag(name,cos))}${tt?row(IC.star,_t('Titles'),tt,'pctt'):''}</div>`; }
+  const tt=nameTitles(cos);
+  return `<div class="pcard">${row(IC.crown,_t('Commander'),nameTag(name,cos))}${tt?row(IC.star,_t('Titles'),tt,'pctt'):''}${row(IC.star,_t('Commander level'),fmtI(lvl)+' · '+_t(rankOf(lvl)))}${row(IC.power,_t('Power'),fmtI(power||0),'pw')}
     ${row(IC.ally,_t('Alliance'),alliance?esc(alliance):_t('No alliance'),alliance?'':'none')}</div>`; }
 const esc = t => String(t).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 // attacking or spying on a player ends your own truce and beginner protection: say it before
@@ -2201,7 +2204,7 @@ async function loadChat(){ if(!ONLINE || !NET.token || chatBusy || (chatCh==='p'
 const chatTime = t => { const d=new Date(t), n=new Date(); return d.toDateString()===n.toDateString() ? hourAt(t) : repDate(t); };
 function chatLine(m){ const me=m.name===NET.name, sel=chatSel===m.id && !me;
   return `<div class="cmsg${me?' me':''}" data-cid="${m.id}"><div class="chd"><button class="cname" data-act="chwho" data-id="${m.id}" data-n="${esc(m.name)}">${nameTag(m.name, m.cos)}</button><span class="rdate">${chatTime(m.at)}</span></div><div class="ctext">${esc(m.text)}</div>
-    ${sel?`<div class="albtn">${chatCh!=='p'?`<button class="sm" data-act="chpm" data-n="${esc(m.name)}">${IC.messages} ${_t('Private message')}</button>`:''}<button class="sec sm" data-act="chignore" data-n="${esc(m.name)}">${_t('Ignore')}</button><button class="sec sm red" data-act="chreport" data-id="${m.id}">${_t('Report')}</button></div>`:''}</div>`; }
+    ${sel&&nameTitles(m.cos)?`<div class="chtt">${nameTitles(m.cos)}</div>`:''}${sel?`<div class="albtn">${chatCh!=='p'?`<button class="sm" data-act="chpm" data-n="${esc(m.name)}">${IC.messages} ${_t('Private message')}</button>`:''}<button class="sec sm" data-act="chignore" data-n="${esc(m.name)}">${_t('Ignore')}</button><button class="sec sm red" data-act="chreport" data-id="${m.id}">${_t('Report')}</button></div>`:''}</div>`; }
 function chatLog(){ const L=chatMsgs[chatKey()];
   if(!L) return `<p class="rnone">${_t('Loading...')}</p>`;
   if(L.err) return `<p class="rnone">${_t(LOGIN_ERR[L.err]||'Server error. Try again later.')}</p>`;
@@ -4830,6 +4833,7 @@ const PATCH = [
   {id:'2026-11-07a', d:'2026-11-07', items:[
     "Sounds and chat: the game now has sounds (building, research, training, attack, battle reports, rewards, chests…), made from real recordings. They can be switched off or turned down in the Settings (Game sounds), apart from the alert siren. The chat is now at the bottom left of the screen: touch it to talk directly in a small window, without going through the menu."
     ,"Construction button (the hammer at the bottom): it now opens the list of everything you can build and upgrade in your base, with the costs and a button for each one."
+    ,"Badges: next to a player's name there are now only the Beta veteran badge and the VIP shield. The champion titles are shown on the player's card."
   ]},
   {id:'2026-11-06d', d:'2026-11-06', items:[
     "Map: the forests, farms, mines, oil fields and hills no longer have white edges or white spots between the branches, fences and towers.",
