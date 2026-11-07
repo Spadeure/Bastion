@@ -2012,7 +2012,12 @@ function reportsPanel(){
   if(pages>1) h+=`<div class="rpager"><button data-act="repp" data-p="0"${repPage?'':' disabled'}>«</button><button data-act="repp" data-p="${repPage-1}"${repPage?'':' disabled'}>‹</button><span>${repPage+1} / ${pages}</span><button data-act="repp" data-p="${repPage+1}"${repPage<pages-1?'':' disabled'}>›</button><button data-act="repp" data-p="${pages-1}"${repPage<pages-1?'':' disabled'}>»</button></div>`;
   if(state.reports.some(r=>!r.read)) h+=`<div class="rfoot"><button class="btn" data-act="repreadall">${IC.ok} ${_t('Mark all as read')}</button></div>`;
   return h; }
-function openPanel(id){ cur=id; openedAt=Date.now(); { const sh=document.getElementById('sheet'); sh.classList.toggle('cdock', id==='__chat'); if(id==='__chat') sh.style.setProperty('--cdb', chatDockBottom()+'px'); } renderSheet(); document.getElementById('sheet').classList.add('open'); document.getElementById('back').classList.add('open'); }
+// the chat window is docked at the bottom left (#sheet.cdock): the switch between docked and centered is made without animation,
+// otherwise the window would slide across the screen (open) or jump to the middle (close)
+let dockTimer=0;
+function sheetDock(on){ const sh=document.getElementById('sheet'); clearTimeout(dockTimer); if(on) sh.style.setProperty('--cdb', chatDockBottom()+'px');
+  if(sh.classList.contains('cdock')===on) return; sh.style.setProperty('transition','none','important'); sh.classList.toggle('cdock', on); void sh.offsetHeight; sh.style.removeProperty('transition'); }
+function openPanel(id){ cur=id; openedAt=Date.now(); sheetDock(id==='__chat'); renderSheet(); document.getElementById('sheet').classList.add('open'); document.getElementById('back').classList.add('open'); }
 function openReports(){ openRep=null; openPanel('__reports'); }
 // ===== RANKING (EMPIRE tab): power, PvP victories, battles won · top 100 and your own place, from the server =====
 const RANK_TABS=[['power','Power',()=>IC.power],['pvp','PvP victories',()=>IC.atk],['wins','Battles won',()=>IC.win],['ally','Alliances',()=>IC.power]];
@@ -3257,7 +3262,7 @@ function basesPanel(){
 let openedAt=0; // ignore the "ghost" click that phones send right after the tap that opened the panel
 function openSlot(id){ cur=id; openedAt=Date.now(); renderSheet(); renderSlots(); document.getElementById('sheet').classList.add('open'); document.getElementById('back').classList.add('open'); }
 function sheetTop(){ const sh=document.getElementById('sheet'), b=document.getElementById('sheetBody'); if(sh) sh.scrollTop=0; if(b) b.scrollTop=0; }
-function closeSheet(){ cur=null; document.getElementById('sheet').classList.remove('open','cdock'); document.getElementById('back').classList.remove('open'); renderSlots(); }
+function closeSheet(){ cur=null; document.getElementById('sheet').classList.remove('open'); clearTimeout(dockTimer); dockTimer=setTimeout(()=>{ if(!document.getElementById('sheet').classList.contains('open')) sheetDock(false); }, 260); document.getElementById('back').classList.remove('open'); renderSlots(); }
 let tt; function toast(m){ const el=document.getElementById('toast'); el.innerHTML=m; el.classList.add('on');
   { // never over the tutorial card or the activity buttons: just above the highest of them
     const tu=document.getElementById('tuto'), bt=document.querySelector('#hud .bottom'); let top=window.innerHeight-170;
