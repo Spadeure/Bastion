@@ -1311,3 +1311,15 @@ body:has(#sheet.cdock.open) #back{background:transparent}
 *{-webkit-tap-highlight-color:transparent}
 .chatbar{-webkit-user-select:none;user-select:none;transition:transform .08s,filter .08s}
 .chatbar:active{transform:scale(.97);filter:brightness(1.25)}
+/* the Construction window of the dock: compact rows (picture, name, button on the right, costs below) */
+.blr{padding:7px 9px;margin-top:6px}
+.blr .top{gap:9px}
+.blr .big{width:42px;height:42px;flex:none}
+.blr .bln{flex:1;min-width:0}
+.blr .bln b{display:block;font-size:15px;line-height:1.2}
+.blr .bln .sub{font-size:12px;line-height:1.25;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.blr .top>button{flex:none;margin:0}
+.blr .chips{margin-top:6px;gap:4px}
+.blr .chip{font-size:12px;padding:2px 7px}
+.blr .chip .ic{width:15px;height:15px}
+.blr .why{margin-top:4px;font-size:12px}

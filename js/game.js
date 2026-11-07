@@ -3127,9 +3127,30 @@ function renderDock(){
       <span class="dkic"><svg viewBox="0 0 48 48"><circle class="bg" cx="24" cy="24" r="21"/>${ring}</svg><img src="${d.ic}" alt="">${d.n>1?`<b class="dkn">${d.n}</b>`:''}${c==='attack'&&autoOn()?'<b class="dkauto">AUTO</b>':''}${d.warn?'<b class="dkw">!</b>':''}</span>${sub}</button>`; }
   const k=liveKey(h); if(k!==el.dataset.k){ const c=document.getElementById('srvclock'); el.dataset.k=k; el.innerHTML=h; if(c && c.classList.contains('indock')) el.appendChild(c); } else liveIn(el);   // the clock may live here
   if(cur==='__act') renderSheet(); }
+// the Construction window of the dock: what can be built (new buildings, on a free plot) and upgraded in the active base
+function buildList(){
+  const free=SLOTS.filter(s=>s.view!=='fields' && slotUsable(s) && !state.slots[s.id]), fresh=[], seen=new Set();
+  for(const t of Object.keys(B)){ if(B[t].field) continue; const s=free.find(x=>canPlace(x,t)); if(s && !seen.has(t)){ seen.add(t); fresh.push([s.id,t]); } }
+  const ups=SLOTS.filter(s=>s.view!=='fields' && state.slots[s.id] && !B[state.slots[s.id].type].field).map(s=>[s.id,state.slots[s.id].type,state.slots[s.id].lvl||0])
+    .filter(([,t,l])=>l<MAX).sort((a,b)=>(!!whyNot(a[1],a[2]+1))-(!!whyNot(b[1],b[2]+1)) || a[2]-b[2] || _t(B[a[1]].name).localeCompare(_t(B[b[1]].name)));   // what can start now first
+  const busy=state.queue && (!q2On() || state.queue2);
+  const btn=(slot,t,l,label)=>`<button class="sm" data-act="blbuild" data-slot="${slot}" data-type="${t}" data-lvl="${l}"${whyNot(t,l)?' disabled':''}>${label}</button>`;
+  const why=(t,l)=>{ const w=whyNot(t,l); return w && !busy ? `<div class="why">${w}</div>` : ''; };
+  const img=(t,l)=>`<div class="big" style="background:${B[t].color}">${bigIcon(B[t],l)}</div>`;
+  const row=(slot,t,l,sub,label)=>`<div class="row blr"><div class="top">${img(t,l)}<div class="bln"><b>${_t(B[t].name)}</b><div class="sub">${sub}</div></div>${btn(slot,t,l,label)}</div>${costChips(t,l)}${why(t,l)}</div>`;
+  let h=`<div class="sub" style="margin-top:8px">${IC.base} ${baseName(curBase())}</div>`;
+  if(busy) h+=`<p class="why">${_t(q2On()?'Both construction queues are busy':'The construction queue is busy')}</p>`;
+  h+=`<h3>${_t('New buildings')}</h3>`;
+  h+=fresh.length ? fresh.map(([slot,t])=>row(slot,t,1,_t(B[t].desc),_t('Build'))).join('')
+    : `<p class="sub">${_t('No free plot, or every unique building is already built.')}</p>`;
+  h+=`<h3>${_t('Upgrades')}</h3>`;
+  h+=ups.length ? ups.map(([slot,t,l])=>row(slot,t,l+1,`${_t('Lv')} ${l} → ${l+1}`,_t('Upgrade'))).join('')
+    : `<p class="sub">${_t('Nothing to upgrade.')}</p>`;
+  return h; }
 function actPanel(){
   const lab=(DOCK.find(x=>x[0]===actCat)||DOCK[0])[1], d=dockInfo(actCat), rows=ACT_ROWS.filter(r=>r[0]===actCat).map(r=>r[1]);
   let h=`<div class="hd"><div class="big"><img class="bimg" src="${d.ic||ICS.build}" alt=""></div><div style="flex:1"><h2>${_t(lab)}</h2></div></div><div class="actlist">${rows.join('')}</div>`;
+  if(actCat==='build') return h.replace(`<div class="actlist">${rows.join('')}</div>`, `<div class="actlist">${rows.filter(r=>!r.includes('data-act="qbuild"')).join('')}</div>`)+buildList();
   if(!rows.length) h+=`<p class="sub" style="margin:10px 0">${_t('Nothing in progress')}</p>`;
   if(actCat==='attack') h+=`<button data-act="openauto">${IC.atk} ${autoOn()?_t('Auto attacks: {t} left',{t:fmtT((state.auto.until-Date.now())/1000)}):_t('Auto attacks ({h} h)',{h:AUTO_HOURS})}</button><button class="sec" data-act="goattack">${IC.map} ${_t('Find a camp to attack')}</button>`;
   if(actCat==='spy') h+=`<button data-act="gomap">${IC.map} ${_t('Map')}</button>`;
@@ -3260,7 +3281,7 @@ function basesPanel(){
   h+=`<div class="bcard lock soon"><img src="${ICS.outpost}" alt=""><div class="bmid"><b>${_t('{n} other outposts',{n:4})}</b><div class="l2">${_t('Storm')}, ${_t('Abyss')}, ${_t('Specter')}, ${_t('Cryo')}</div><div class="l3 w">${_t('Coming soon')}</div></div></div></div>`;
   return h; }
 let openedAt=0; // ignore the "ghost" click that phones send right after the tap that opened the panel
-function openSlot(id){ cur=id; openedAt=Date.now(); renderSheet(); renderSlots(); document.getElementById('sheet').classList.add('open'); document.getElementById('back').classList.add('open'); }
+function openSlot(id){ sheetDock(false); cur=id; openedAt=Date.now(); renderSheet(); renderSlots(); document.getElementById('sheet').classList.add('open'); document.getElementById('back').classList.add('open'); }
 function sheetTop(){ const sh=document.getElementById('sheet'), b=document.getElementById('sheetBody'); if(sh) sh.scrollTop=0; if(b) b.scrollTop=0; }
 function closeSheet(){ cur=null; document.getElementById('sheet').classList.remove('open'); clearTimeout(dockTimer); dockTimer=setTimeout(()=>{ if(!document.getElementById('sheet').classList.contains('open')) sheetDock(false); }, 260); document.getElementById('back').classList.remove('open'); renderSlots(); }
 let tt; function toast(m){ const el=document.getElementById('toast'); el.innerHTML=m; el.classList.add('on');
@@ -3350,7 +3371,8 @@ function onAct(e){
   if(a==='autostart') startAuto();
   if(a==='autostop'){ if(ONLINE) act('autoStop',[]); else autoStop(); }
   if(a==='gomap'){ closeSheet(); setView('map'); }
-  if(a==='qbuild'){ showBase(bb); setView('city'); openSlot('cc'); }
+  if(a==='qbuild'){ showBase(bb); actCat='build'; openPanel('__act'); renderDock(); }
+  if(a==='blbuild'){ const sl=btn.dataset.slot; startBuild(sl, btn.dataset.type, +btn.dataset.lvl); }
   if(a==='openbld'){ showBase(bb); const k=firstSlot(btn.dataset.bld); if(k){ setView('city'); openSlot(k); } }
   if(a==='openinv') openInventory();
   if(a==='defin') moveDefense(btn.dataset.unit, defQty[btn.dataset.unit]||0);
@@ -4807,6 +4829,7 @@ const ADM_PARTS = () => [...EQ_SLOTS.map(s=>[s,_t('Titan')+' · '+_t(EQ_NAME[s])
 const PATCH = [
   {id:'2026-11-07a', d:'2026-11-07', items:[
     "Sounds and chat: the game now has sounds (building, research, training, attack, battle reports, rewards, chests…), made from real recordings. They can be switched off or turned down in the Settings (Game sounds), apart from the alert siren. The chat is now at the bottom left of the screen: touch it to talk directly in a small window, without going through the menu."
+    ,"Construction button (the hammer at the bottom): it now opens the list of everything you can build and upgrade in your base, with the costs and a button for each one."
   ]},
   {id:'2026-11-06d', d:'2026-11-06', items:[
     "Map: the forests, farms, mines, oil fields and hills no longer have white edges or white spots between the branches, fences and towers.",
